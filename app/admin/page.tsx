@@ -629,7 +629,7 @@ export default function AdminDashboard() {
               <XAxis dataKey="name" stroke="#64748b" />
               <YAxis stroke="#64748b" tickFormatter={(value) => `₦${(value / 1000).toFixed(0)}k`} />
               <Tooltip
-                formatter={(value: number) => `₦${value.toLocaleString()}`}
+                formatter={(value: number | undefined) => value != null ? `₦${value.toLocaleString()}` : ""}
                 contentStyle={{
                   backgroundColor: "#fff",
                   border: "1px solid #e2e8f0",
@@ -786,7 +786,7 @@ export default function AdminDashboard() {
                   border: "1px solid #e2e8f0",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number) => [`₦${value.toLocaleString()}`, "Revenue"]}
+                formatter={(value: number | undefined) => value != null ? [`₦${value.toLocaleString()}`, "Revenue"] : ["", "Revenue"]}
               />
               <Legend />
               <Line
@@ -824,7 +824,7 @@ export default function AdminDashboard() {
                   border: "1px solid #e2e8f0",
                   borderRadius: "8px",
                 }}
-                formatter={(value: number) => [value, "Transactions"]}
+                formatter={(value: number | undefined) => [value ?? 0, "Transactions"]}
               />
               <Legend />
               <Bar
