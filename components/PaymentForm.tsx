@@ -218,17 +218,13 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     }
   };
 
-  // Fetch transaction status on mount (uses same /api/rate endpoint)
+  // Fetch transaction status on mount (same-origin /api/payment-rate)
   useEffect(() => {
     const fetchTransactionStatus = async () => {
       try {
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        const data = await response.json();
-        if (response.ok && data.success) {
+        const res = await fetch(`/api/payment-rate?t=${Date.now()}`, { cache: "no-store" });
+        const data = await res.json();
+        if (data.transactionsEnabled !== undefined) {
           setTransactionsEnabled(data.transactionsEnabled !== false);
         }
       } catch (error) {
@@ -241,66 +237,35 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     return () => clearInterval(statusInterval);
   }, []);
 
-  // Fetch exchange rate on mount and periodically (same source as home page: /api/token-prices, fallback /api/rate)
+  // Fetch rate via same-origin /api/payment-rate (server fetches backend; no CORS)
   useEffect(() => {
     const fetchExchangeRate = async () => {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-      if (!apiBase.trim()) {
-        console.warn("[PaymentForm] NEXT_PUBLIC_API_URL is not set – rate and minimum purchase use defaults. Set it to your backend URL (e.g. https://flippayback.vercel.app) in the frontend env.");
-        setRateFromApi(false);
-        return;
-      }
-      let rateFromTokenPrices: number | null = null;
       try {
-        // Primary: use /api/token-prices (same as home page) so buy page matches dashboard
-        const tokenPricesUrl = getApiUrl(`/api/token-prices?t=${Date.now()}`);
-        const tokenRes = await fetch(tokenPricesUrl, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
-        const tokenData = await tokenRes.json();
-        if (tokenRes.ok && tokenData.success && tokenData.pricesNGN?.SEND != null) {
-          const sendNgn = Number(tokenData.pricesNGN.SEND);
-          if (!Number.isNaN(sendNgn) && sendNgn > 0) {
-            rateFromTokenPrices = 1 / sendNgn; // tokens per 1 NGN
-            setExchangeRate(rateFromTokenPrices);
-            setRateFromApi(true);
-          }
+        const res = await fetch(`/api/payment-rate?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        });
+        const data = await res.json();
+        if (data.rate != null && Number(data.rate) > 0) {
+          setExchangeRate(Number(data.rate));
+          setRateFromApi(Boolean(data.rateFromApi));
         }
-      } catch (e) {
-        console.warn("[PaymentForm] token-prices for SEND rate failed:", e);
-      }
-      try {
-        // Always call /api/rate for transactionsEnabled, minimumPurchase, and fallback rate
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
-        const data = await response.json();
-        if (response.ok && data.success) {
-          if (data.transactionsEnabled !== undefined) {
-            setTransactionsEnabled(data.transactionsEnabled !== false);
-          }
-          if (data.minimumPurchase !== undefined && Number(data.minimumPurchase) > 0) {
-            setMinimumPurchase(Number(data.minimumPurchase) || 3000);
-          }
-          // Use /api/rate for SEND rate only if we didn't get it from token-prices
-          if (rateFromTokenPrices == null && data.rate != null) {
-            const newRate = Number(data.rate);
-            if (!Number.isNaN(newRate) && newRate > 0) {
-              setExchangeRate(newRate);
-              setRateFromApi(true);
-            }
-          }
+        if (data.minimumPurchase != null && Number(data.minimumPurchase) > 0) {
+          setMinimumPurchase(Number(data.minimumPurchase));
         }
-        if (rateFromTokenPrices == null && !data.success) {
+        if (data.transactionsEnabled !== undefined) {
+          setTransactionsEnabled(data.transactionsEnabled !== false);
+        }
+        if (!res.ok || !data.success) {
           setRateFromApi(false);
         }
       } catch (error) {
-        console.error("[PaymentForm] Failed to fetch /api/rate:", error);
-        if (rateFromTokenPrices == null) setRateFromApi(false);
+        console.error("[PaymentForm] Failed to fetch rate:", error);
+        setRateFromApi(false);
       }
     };
 
-    // Fetch immediately on mount
     fetchExchangeRate();
-
-    // Refresh every 10 seconds to get admin updates immediately
     const interval = setInterval(fetchExchangeRate, 10000);
 
     // Refresh when window regains focus (user comes back to tab)
