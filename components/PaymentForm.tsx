@@ -843,15 +843,6 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
 
         {/* Form Card - mobile-first padding, touch-friendly */}
         <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-lg w-full border border-slate-200/50 dark:border-slate-700/50">
-          {/* Warn when rate/min are defaults because API is not configured or unreachable */}
-          {!rateFromApi && (
-            <div className="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
-              <p className="font-medium">Using default rate and minimum purchase.</p>
-              <p className="mt-1 opacity-90">
-                Set <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">NEXT_PUBLIC_API_URL</code> to your backend URL (e.g. <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded break-all">https://flippayback.vercel.app</code>) in the frontend environment so admin settings (rate, minimum purchase, on/off toggles) are applied.
-              </p>
-            </div>
-          )}
           {/* ZainPay Virtual Account — shown after "Pay Now" is clicked */}
           {isWaitingForTransfer && zainpayAccount && (
             <div className="space-y-4">
