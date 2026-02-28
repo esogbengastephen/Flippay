@@ -63,8 +63,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/settings", label: "Settings", icon: "settings", permission: "manage_settings" },
 ];
 
+/** Permission that grants view access to all tabs but no write actions. */
+export const VIEW_ONLY_PERMISSION = "view_only";
+
 /** All grantable permissions (one per tab). Use this for Add/Edit Admin forms. */
 export const ALL_ADMIN_PERMISSIONS: string[] = [
+  VIEW_ONLY_PERMISSION,
   "view_dashboard",
   "manage_onramp",
   "manage_transactions",
@@ -100,10 +104,17 @@ export function canAccessRoute(
 ): boolean {
   if (!role) return false;
   if (role === "super_admin") return true;
-  const required = getRequiredPermissionForPath(pathname);
-  if (!required) return true; // unknown route, allow
   const effective = getEffectivePermissions(permissions);
+  if (effective.includes(VIEW_ONLY_PERMISSION)) return true; // view_only can see all tabs
+  const required = getRequiredPermissionForPath(pathname);
+  if (!required) return true;
   return effective.includes(required);
+}
+
+/** True if admin has only view-only access (no manage/verify actions). */
+export function isViewOnlyAdmin(permissions: string[]): boolean {
+  const effective = getEffectivePermissions(permissions);
+  return effective.length === 1 && effective[0] === VIEW_ONLY_PERMISSION;
 }
 
 export function filterNavByPermission(
@@ -114,5 +125,6 @@ export function filterNavByPermission(
   if (!role) return [];
   if (role === "super_admin") return items;
   const effective = getEffectivePermissions(permissions);
+  if (effective.includes(VIEW_ONLY_PERMISSION)) return items; // view_only sees all tabs
   return items.filter((item) => effective.includes(item.permission));
 }

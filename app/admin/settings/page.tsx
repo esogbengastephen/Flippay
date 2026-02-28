@@ -5,7 +5,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect, Fragment } from "react";
 import { useAccount } from "wagmi";
 import { DEPOSIT_ACCOUNT } from "@/lib/constants";
-import { ALL_ADMIN_PERMISSIONS, getEffectivePermissions } from "@/lib/admin-permissions";
+import { ALL_ADMIN_PERMISSIONS, getEffectivePermissions, VIEW_ONLY_PERMISSION } from "@/lib/admin-permissions";
 
 // Edit Admin Form Component
 function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
@@ -164,6 +164,7 @@ export default function SettingsPage() {
   const [newAdminWallet, setNewAdminWallet] = useState("");
   const [newAdminRole, setNewAdminRole] = useState<"super_admin" | "admin">("admin");
   const [newAdminPermissions, setNewAdminPermissions] = useState<string[]>([]);
+  const [newAdminViewOnly, setNewAdminViewOnly] = useState(false);
   const [newAdminNotes, setNewAdminNotes] = useState("");
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminSuccess, setAdminSuccess] = useState<string | null>(null);
@@ -384,7 +385,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           adminWalletAddress: newAdminWallet,
           role: newAdminRole,
-          permissions: newAdminRole === "super_admin" ? [] : newAdminPermissions,
+          permissions: newAdminRole === "super_admin" ? [] : newAdminViewOnly ? [VIEW_ONLY_PERMISSION] : newAdminPermissions,
           notes: newAdminNotes,
         }),
       });
@@ -395,6 +396,7 @@ export default function SettingsPage() {
         setAdminSuccess("Admin added successfully");
         setNewAdminWallet("");
         setNewAdminRole("admin");
+        setNewAdminViewOnly(false);
         setNewAdminPermissions([]);
         setNewAdminNotes("");
         setShowAddAdminForm(false);
@@ -441,9 +443,9 @@ export default function SettingsPage() {
     }
   };
 
-  const handleDeleteAdmin = async (adminId: string) => {
+  const handleDeactivateAdmin = async (adminId: string) => {
     if (!address) return;
-    if (!confirm("Are you sure you want to deactivate this admin?")) return;
+    if (!confirm("Are you sure you want to deactivate this admin? They can be reactivated later.")) return;
 
     setAdminError(null);
     setAdminSuccess(null);
@@ -451,13 +453,9 @@ export default function SettingsPage() {
     try {
       const response = await fetch(getApiUrl(`/api/admin/admins/${adminId}`), {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${address}`,
-        },
+        headers: { Authorization: `Bearer ${address}` },
       });
-
       const data = await response.json();
-
       if (data.success) {
         setAdminSuccess("Admin deactivated successfully");
         fetchAdmins();
@@ -466,8 +464,34 @@ export default function SettingsPage() {
         setAdminError(data.error || "Failed to deactivate admin");
       }
     } catch (err: any) {
-      console.error("Failed to delete admin:", err);
+      console.error("Failed to deactivate admin:", err);
       setAdminError(err.message || "Failed to deactivate admin");
+    }
+  };
+
+  const handlePermanentDeleteAdmin = async (adminId: string) => {
+    if (!address) return;
+    if (!confirm("Permanently delete this admin? This cannot be undone and they will need to be re-added to access the dashboard.")) return;
+
+    setAdminError(null);
+    setAdminSuccess(null);
+
+    try {
+      const response = await fetch(getApiUrl(`/api/admin/admins/${adminId}?permanent=true`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${address}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAdminSuccess("Admin deleted permanently");
+        fetchAdmins();
+        setTimeout(() => setAdminSuccess(null), 3000);
+      } else {
+        setAdminError(data.error || "Failed to delete admin");
+      }
+    } catch (err: any) {
+      console.error("Failed to delete admin:", err);
+      setAdminError(err.message || "Failed to delete admin");
     }
   };
 
@@ -868,6 +892,7 @@ export default function SettingsPage() {
                 setAdminSuccess(null);
                 if (opening) {
                   setNewAdminRole("admin");
+                  setNewAdminViewOnly(false);
                   setNewAdminPermissions([...availablePermissions]);
                 }
               }}
@@ -914,8 +939,10 @@ export default function SettingsPage() {
                     const value = e.target.value as "super_admin" | "admin";
                     setNewAdminRole(value);
                     if (value === "super_admin") {
+                      setNewAdminViewOnly(false);
                       setNewAdminPermissions([]);
                     } else {
+                      setNewAdminViewOnly(false);
                       setNewAdminPermissions([...availablePermissions]);
                     }
                   }}
@@ -926,6 +953,23 @@ export default function SettingsPage() {
                 </select>
               </div>
               {newAdminRole === "admin" && (
+                <>
+                  <label className="flex items-center gap-2 p-3 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={newAdminViewOnly}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setNewAdminViewOnly(checked);
+                        setNewAdminPermissions(checked ? [VIEW_ONLY_PERMISSION] : [...availablePermissions]);
+                      }}
+                      className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      View only – can see all dashboard tabs but cannot make any changes
+                    </span>
+                  </label>
+                  {!newAdminViewOnly && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -970,6 +1014,8 @@ export default function SettingsPage() {
                     ))}
                   </div>
                 </div>
+                  )}
+                </>
               )}
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -1079,12 +1125,20 @@ export default function SettingsPage() {
                                 {editingAdmin === admin.id ? "Cancel" : "Edit"}
                               </button>
                               {admin.wallet_address.toLowerCase() !== address?.toLowerCase() && (
-                                <button
-                                  onClick={() => handleDeleteAdmin(admin.id)}
-                                  className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
-                                >
-                                  Deactivate
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleDeactivateAdmin(admin.id)}
+                                    className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-1 rounded hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                                  >
+                                    Deactivate
+                                  </button>
+                                  <button
+                                    onClick={() => handlePermanentDeleteAdmin(admin.id)}
+                                    className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
