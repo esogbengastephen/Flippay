@@ -1090,7 +1090,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5">
                   {network === "send"
-                    ? `Rate: 1 NGN = ${exchangeRate} $SEND`
+                    ? `Rate: 1 NGN = ${exchangeRate} $SEND${!rateFromApi ? " (default rate – connect to backend for live rate)" : ""}`
                     : effectiveExchangeRate > 0
                       ? `Rate: 1 NGN = ${effectiveExchangeRate.toFixed(6)} ${selectedStablecoin}`
                       : `Loading rate for ${selectedStablecoin}...`}

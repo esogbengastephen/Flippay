@@ -170,7 +170,13 @@ export default function AuthPage() {
         setResendCooldown(60);
       }
     } catch (err: any) {
-      setError("Failed to process request. Please try again.");
+      const msg = err?.message || String(err);
+      const isNetwork = /fetch|network|failed to fetch/i.test(msg) || err?.name === "TypeError";
+      setError(
+        isNetwork
+          ? "Cannot reach the server. Make sure the backend is running (e.g. cd backend && npm run dev) and NEXT_PUBLIC_API_URL is set in frontend/.env.local (e.g. http://localhost:3001)."
+          : "Failed to process request. Please try again."
+      );
     } finally {
       setLoading(false);
     }
