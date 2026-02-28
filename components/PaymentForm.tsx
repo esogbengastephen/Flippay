@@ -241,7 +241,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     return () => clearInterval(statusInterval);
   }, []);
 
-  // Fetch exchange rate on mount and periodically to get admin updates
+  // Fetch exchange rate on mount and periodically (same source as home page: /api/token-prices, fallback /api/rate)
   useEffect(() => {
     const fetchExchangeRate = async () => {
       const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -250,32 +250,50 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         setRateFromApi(false);
         return;
       }
+      let rateFromTokenPrices: number | null = null;
       try {
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        const data = await response.json();
-        console.log("[PaymentForm] Fetched exchange rate:", response.status, data);
-        if (response.ok && data.success && data.rate != null) {
-          const newRate = Number(data.rate);
-          if (!Number.isNaN(newRate) && newRate > 0) {
-            setExchangeRate(newRate);
+        // Primary: use /api/token-prices (same as home page) so buy page matches dashboard
+        const tokenPricesUrl = getApiUrl(`/api/token-prices?t=${Date.now()}`);
+        const tokenRes = await fetch(tokenPricesUrl, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        const tokenData = await tokenRes.json();
+        if (tokenRes.ok && tokenData.success && tokenData.pricesNGN?.SEND != null) {
+          const sendNgn = Number(tokenData.pricesNGN.SEND);
+          if (!Number.isNaN(sendNgn) && sendNgn > 0) {
+            rateFromTokenPrices = 1 / sendNgn; // tokens per 1 NGN
+            setExchangeRate(rateFromTokenPrices);
             setRateFromApi(true);
           }
+        }
+      } catch (e) {
+        console.warn("[PaymentForm] token-prices for SEND rate failed:", e);
+      }
+      try {
+        // Always call /api/rate for transactionsEnabled, minimumPurchase, and fallback rate
+        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
+        const response = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        const data = await response.json();
+        if (response.ok && data.success) {
           if (data.transactionsEnabled !== undefined) {
             setTransactionsEnabled(data.transactionsEnabled !== false);
           }
           if (data.minimumPurchase !== undefined && Number(data.minimumPurchase) > 0) {
             setMinimumPurchase(Number(data.minimumPurchase) || 3000);
           }
-        } else {
+          // Use /api/rate for SEND rate only if we didn't get it from token-prices
+          if (rateFromTokenPrices == null && data.rate != null) {
+            const newRate = Number(data.rate);
+            if (!Number.isNaN(newRate) && newRate > 0) {
+              setExchangeRate(newRate);
+              setRateFromApi(true);
+            }
+          }
+        }
+        if (rateFromTokenPrices == null && !data.success) {
           setRateFromApi(false);
         }
       } catch (error) {
-        console.error("[PaymentForm] Failed to fetch exchange rate:", error);
-        setRateFromApi(false);
+        console.error("[PaymentForm] Failed to fetch /api/rate:", error);
+        if (rateFromTokenPrices == null) setRateFromApi(false);
       }
     };
 
