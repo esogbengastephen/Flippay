@@ -89,6 +89,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
   const [isPollingPayment, setIsPollingPayment] = useState(false);
   const [isCheckingNow, setIsCheckingNow] = useState(false);
   const [transactionsEnabled, setTransactionsEnabled] = useState(true);
+  const [rateFromApi, setRateFromApi] = useState(false); // true when rate/min were loaded from backend API
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // ZainPay dynamic virtual account state
@@ -217,62 +218,64 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     }
   };
 
-  // Fetch transaction status on mount
+  // Fetch transaction status on mount (uses same /api/rate endpoint)
   useEffect(() => {
     const fetchTransactionStatus = async () => {
       try {
-        const response = await fetch(getApiUrl(`/api/rate?t=${Date.now()}`), {
+        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
+        const response = await fetch(url, {
           cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
+          headers: { "Cache-Control": "no-cache" },
         });
         const data = await response.json();
-        if (data.success) {
+        if (response.ok && data.success) {
           setTransactionsEnabled(data.transactionsEnabled !== false);
         }
       } catch (error) {
         console.error("Failed to fetch transaction status:", error);
-        // Default to enabled on error
       }
     };
-    
+
     fetchTransactionStatus();
-    // Refresh every 30 seconds
     const statusInterval = setInterval(fetchTransactionStatus, 30000);
-    
     return () => clearInterval(statusInterval);
   }, []);
 
   // Fetch exchange rate on mount and periodically to get admin updates
   useEffect(() => {
     const fetchExchangeRate = async () => {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+      if (!apiBase.trim()) {
+        console.warn("[PaymentForm] NEXT_PUBLIC_API_URL is not set – rate and minimum purchase use defaults. Set it to your backend URL (e.g. https://flippayback.vercel.app) in the frontend env.");
+        setRateFromApi(false);
+        return;
+      }
       try {
-        // Add cache-busting to ensure we get the latest rate
-        const response = await fetch(getApiUrl(`/api/rate?t=${Date.now()}`), {
+        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
+        const response = await fetch(url, {
           cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
+          headers: { "Cache-Control": "no-cache" },
         });
         const data = await response.json();
-        console.log("[PaymentForm] Fetched exchange rate:", data);
-        if (data.success && data.rate) {
-          const newRate = parseFloat(data.rate);
-          console.log(`[PaymentForm] Updating exchange rate to: ${newRate} (from admin settings)`);
-          setExchangeRate(newRate);
-          // Also update transaction status if provided
+        console.log("[PaymentForm] Fetched exchange rate:", response.status, data);
+        if (response.ok && data.success && data.rate != null) {
+          const newRate = Number(data.rate);
+          if (!Number.isNaN(newRate) && newRate > 0) {
+            setExchangeRate(newRate);
+            setRateFromApi(true);
+          }
           if (data.transactionsEnabled !== undefined) {
             setTransactionsEnabled(data.transactionsEnabled !== false);
           }
-          // Update minimum purchase if provided
-          if (data.minimumPurchase !== undefined) {
-            setMinimumPurchase(data.minimumPurchase || 3000);
+          if (data.minimumPurchase !== undefined && Number(data.minimumPurchase) > 0) {
+            setMinimumPurchase(Number(data.minimumPurchase) || 3000);
           }
+        } else {
+          setRateFromApi(false);
         }
       } catch (error) {
-        console.error("Failed to fetch exchange rate:", error);
-        // Use default rate on error
+        console.error("[PaymentForm] Failed to fetch exchange rate:", error);
+        setRateFromApi(false);
       }
     };
 
@@ -840,6 +843,15 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
 
         {/* Form Card - mobile-first padding, touch-friendly */}
         <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-lg w-full border border-slate-200/50 dark:border-slate-700/50">
+          {/* Warn when rate/min are defaults because API is not configured or unreachable */}
+          {!rateFromApi && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm">
+              <p className="font-medium">Using default rate and minimum purchase.</p>
+              <p className="mt-1 opacity-90">
+                Set <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">NEXT_PUBLIC_API_URL</code> to your backend URL (e.g. <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded break-all">https://flippayback.vercel.app</code>) in the frontend environment so admin settings (rate, minimum purchase, on/off toggles) are applied.
+              </p>
+            </div>
+          )}
           {/* ZainPay Virtual Account — shown after "Pay Now" is clicked */}
           {isWaitingForTransfer && zainpayAccount && (
             <div className="space-y-4">
