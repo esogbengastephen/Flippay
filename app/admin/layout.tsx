@@ -15,7 +15,9 @@ import {
   ADMIN_NAV_ITEMS,
   canAccessRoute,
   filterNavByPermission,
+  isViewOnlyAdmin,
 } from "@/lib/admin-permissions";
+import { AdminViewOnlyProvider } from "@/contexts/AdminViewOnlyContext";
 
 function AdminLayoutContent({
   children,
@@ -69,8 +71,10 @@ function AdminLayoutContent({
 
   const allowedNavItems = filterNavByPermission(ADMIN_NAV_ITEMS, role, permissions);
   const canAccessCurrentPage = canAccessRoute(pathname ?? "", role, permissions);
+  const isViewOnly = role !== "super_admin" && isViewOnlyAdmin(permissions);
 
   return (
+    <AdminViewOnlyProvider permissions={permissions} role={role}>
     <div className="min-h-screen bg-background-light dark:bg-background-dark" style={{ backgroundColor: "var(--background-light)" }}>
       <style jsx global>{`
         :root {
@@ -264,10 +268,32 @@ function AdminLayoutContent({
             </Link>
           </div>
         ) : (
-          children
+          <div className={isViewOnly ? "admin-view-only-content" : ""}>
+            {isViewOnly && (
+              <>
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+                  <span className="material-icons-outlined text-lg">visibility</span>
+                  <span>View only — you can open pages and tabs but cannot use buttons or make changes.</span>
+                </div>
+                <style jsx global>{`
+                  .admin-view-only-content button:not([aria-label="Toggle menu"]):not([aria-label="Close menu"]),
+                  .admin-view-only-content input[type="submit"],
+                  .admin-view-only-content input[type="button"],
+                  .admin-view-only-content [role="button"],
+                  .admin-view-only-content select {
+                    pointer-events: none !important;
+                    opacity: 0.6;
+                    cursor: not-allowed !important;
+                  }
+                `}</style>
+              </>
+            )}
+            {children}
+          </div>
         )}
       </main>
     </div>
+    </AdminViewOnlyProvider>
   );
 }
 
