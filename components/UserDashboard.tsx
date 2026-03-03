@@ -112,9 +112,12 @@ export default function UserDashboard() {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
+  // Resolve current user email once
+  const currentUserEmail = (user?.email ?? userProfile?.email ?? "").toLowerCase();
+
   // Crypto to Naira: hide "Coming soon" and allow access for specific emails
   const CRYPTO_TO_NAIRA_ALLOWED_EMAILS = ["esogbengastephen@gmail.com", "flippayhq@gmail.com"];
-  const canUseCryptoToNaira = CRYPTO_TO_NAIRA_ALLOWED_EMAILS.includes((user?.email ?? userProfile?.email ?? "").toLowerCase());
+  const canUseCryptoToNaira = CRYPTO_TO_NAIRA_ALLOWED_EMAILS.includes(currentUserEmail);
 
   // Generate Invoice: allow access for specific emails
   const GENERATE_INVOICE_ALLOWED_EMAILS = [
@@ -123,7 +126,11 @@ export default function UserDashboard() {
     "whycee19@gmail.com",
     "badmusolayemi6@gmail.com",
   ];
-  const canUseGenerateInvoice = GENERATE_INVOICE_ALLOWED_EMAILS.includes((user?.email ?? userProfile?.email ?? "").toLowerCase());
+  const canUseGenerateInvoice = GENERATE_INVOICE_ALLOWED_EMAILS.includes(currentUserEmail);
+
+  // Special users that should not see any "Coming soon" indicators
+  const SPECIAL_NO_COMING_SOON_EMAILS = ["omokeifeanyi16@gmail.com"];
+  const isNoComingSoonUser = SPECIAL_NO_COMING_SOON_EMAILS.includes(currentUserEmail);
 
   // Helper function to extract first name from email
   const getFirstNameFromEmail = (email: string | undefined | null): string => {
@@ -589,7 +596,7 @@ export default function UserDashboard() {
                 onToggleVisibility={() => setShowNGNBalance(!showNGNBalance)}
                 accountNumber={dashboardData?.user.accountNumber || undefined}
                 icon="account_balance_wallet"
-                comingSoon
+                comingSoon={!isNoComingSoonUser}
               />
             </div>
             <div className="min-w-0">
@@ -604,25 +611,37 @@ export default function UserDashboard() {
                 onToggleVisibility={() => setShowCryptoBalance(!showCryptoBalance)}
                 onViewAssets={() => setShowAssetsModal(true)}
                 icon="currency_bitcoin"
-                comingSoon
+                comingSoon={!isNoComingSoonUser}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 px-2">
-            <div className="flex flex-col items-center gap-1 opacity-70 pointer-events-none cursor-not-allowed">
+            <div
+              className={`flex flex-col items-center gap-1 ${
+                isNoComingSoonUser ? "" : "opacity-70 pointer-events-none cursor-not-allowed"
+              }`}
+            >
               <div className="w-10 h-10 rounded-ds-md bg-ds-primary text-secondary flex items-center justify-center shadow-ds-soft">
                 <span className="material-icons-round text-lg transform -rotate-45">arrow_upward</span>
               </div>
               <span className="text-[10px] font-bold text-ds-text-primary uppercase tracking-wide">Send</span>
-              <span className="text-[9px] text-ds-text-muted uppercase tracking-wide">Coming soon</span>
+              {!isNoComingSoonUser && (
+                <span className="text-[9px] text-ds-text-muted uppercase tracking-wide">Coming soon</span>
+              )}
             </div>
-            <div className="flex flex-col items-center gap-1 opacity-70 pointer-events-none cursor-not-allowed">
+            <div
+              className={`flex flex-col items-center gap-1 ${
+                isNoComingSoonUser ? "" : "opacity-70 pointer-events-none cursor-not-allowed"
+              }`}
+            >
               <div className="w-10 h-10 rounded-ds-md bg-ds-primary text-secondary flex items-center justify-center shadow-ds-soft">
                 <span className="material-icons-round text-lg rotate-135" style={{ transform: 'matrix(-0.707107, 0.707107, -0.707107, -0.707107, 0, 0) rotate(45deg)' }}>arrow_downward</span>
               </div>
               <span className="text-[10px] font-bold text-ds-text-primary uppercase tracking-wide">Receive</span>
-              <span className="text-[9px] text-ds-text-muted uppercase tracking-wide">Coming soon</span>
+              {!isNoComingSoonUser && (
+                <span className="text-[9px] text-ds-text-muted uppercase tracking-wide">Coming soon</span>
+              )}
             </div>
           </div>
 
@@ -639,25 +658,25 @@ export default function UserDashboard() {
               icon="currency_exchange"
               label={"Crypto\nto Naira"}
               useCustomIcon
-              comingSoon={!canUseCryptoToNaira}
-              onClick={canUseCryptoToNaira ? () => handleServiceClick(services[0]) : undefined}
+              comingSoon={!isNoComingSoonUser && !canUseCryptoToNaira}
+              onClick={canUseCryptoToNaira || isNoComingSoonUser ? () => handleServiceClick(services[0]) : undefined}
             />
             <ServiceButton icon="swap_vert" label={"Naira\nto Crypto"} useCustomIcon onClick={() => handleServiceClick(services[1])} />
             <ServiceButton
               icon="receipt_long"
               label={"Generate\nInvoice"}
               useCustomIcon
-              comingSoon={!canUseGenerateInvoice}
-              onClick={canUseGenerateInvoice ? () => handleServiceClick(services[2]) : undefined}
+              comingSoon={!isNoComingSoonUser && !canUseGenerateInvoice}
+              onClick={canUseGenerateInvoice || isNoComingSoonUser ? () => handleServiceClick(services[2]) : undefined}
             />
-            <ServiceButton icon="trending_up" label={"Create\nPrediction"} comingSoon />
-            <ServiceButton icon="wifi" label={"Buy\nData"} comingSoon />
-            <ServiceButton icon="phone_iphone" label={"Buy\nAirtime"} comingSoon />
-            <ServiceButton icon="sports_soccer" label={"Pay\nBetting"} comingSoon />
-            <ServiceButton icon="tv" label={"TV\nSub"} comingSoon />
-            <ServiceButton icon="bolt" label={"Electricity"} comingSoon />
-            <ServiceButton icon="card_giftcard" label={"Gift Card\nRedeem"} comingSoon />
-            <ServiceButton icon="savings" label={"Flip\nLend"} comingSoon />
+            <ServiceButton icon="trending_up" label={"Create\nPrediction"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="wifi" label={"Buy\nData"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="phone_iphone" label={"Buy\nAirtime"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="sports_soccer" label={"Pay\nBetting"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="tv" label={"TV\nSub"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="bolt" label={"Electricity"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="card_giftcard" label={"Gift Card\nRedeem"} comingSoon={!isNoComingSoonUser} />
+            <ServiceButton icon="savings" label={"Flip\nLend"} comingSoon={!isNoComingSoonUser} />
           </div>
         </div>
 
