@@ -116,7 +116,12 @@ export default function UserDashboard() {
   const currentUserEmail = (user?.email ?? userProfile?.email ?? "").toLowerCase();
 
   // Crypto to Naira: hide "Coming soon" and allow access for specific emails
-  const CRYPTO_TO_NAIRA_ALLOWED_EMAILS = ["esogbengastephen@gmail.com", "flippayhq@gmail.com"];
+  const CRYPTO_TO_NAIRA_ALLOWED_EMAILS = [
+    "esogbengastephen@gmail.com",
+    "flippayhq@gmail.com",
+    "whycee19@gmail.com",
+    "badmusolayemi6@gmail.com",
+  ];
   const canUseCryptoToNaira = CRYPTO_TO_NAIRA_ALLOWED_EMAILS.includes(currentUserEmail);
 
   // Generate Invoice: allow access for specific emails
