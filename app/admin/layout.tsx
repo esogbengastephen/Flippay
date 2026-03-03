@@ -84,6 +84,16 @@ function AdminLayoutContent({
         .dark {
           --background-light: #011931;
         }
+
+        .admin-view-only-content button:not([aria-label="Toggle menu"]):not([aria-label="Close menu"]),
+        .admin-view-only-content input[type="submit"],
+        .admin-view-only-content input[type="button"],
+        .admin-view-only-content [role="button"],
+        .admin-view-only-content select {
+          pointer-events: none !important;
+          opacity: 0.6;
+          cursor: not-allowed !important;
+        }
       `}</style>
       {/* Mobile Menu Button */}
       <button
@@ -270,23 +280,10 @@ function AdminLayoutContent({
         ) : (
           <div className={isViewOnly ? "admin-view-only-content" : ""}>
             {isViewOnly && (
-              <>
-                <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-                  <span className="material-icons-outlined text-lg">visibility</span>
-                  <span>View only — you can open pages and tabs but cannot use buttons or make changes.</span>
-                </div>
-                <style jsx global>{`
-                  .admin-view-only-content button:not([aria-label="Toggle menu"]):not([aria-label="Close menu"]),
-                  .admin-view-only-content input[type="submit"],
-                  .admin-view-only-content input[type="button"],
-                  .admin-view-only-content [role="button"],
-                  .admin-view-only-content select {
-                    pointer-events: none !important;
-                    opacity: 0.6;
-                    cursor: not-allowed !important;
-                  }
-                `}</style>
-              </>
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
+                <span className="material-icons-outlined text-lg">visibility</span>
+                <span>View only — you can open pages and tabs but cannot use buttons or make changes.</span>
+              </div>
             )}
             {children}
           </div>
