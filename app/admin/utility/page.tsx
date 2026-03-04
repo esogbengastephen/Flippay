@@ -4,6 +4,7 @@ import { getApiUrl } from "@/lib/apiBase";
 
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
+import FSpinner from "@/components/FSpinner";
 
 interface UtilityService {
   id: string;
@@ -23,6 +24,11 @@ interface NetworkPrice {
   network: string;
   markup: number;
   enabled: boolean;
+}
+
+function formatCompact(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`;
+  return String(n);
 }
 
 export default function UtilityPage() {
@@ -135,6 +141,9 @@ export default function UtilityPage() {
   useEffect(() => {
     if (address) {
       fetchUtilitySettings();
+    } else {
+      const t = setTimeout(() => setLoading(false), 800);
+      return () => clearTimeout(t);
     }
   }, [address]);
 
@@ -239,90 +248,118 @@ export default function UtilityPage() {
 
   const getStatusColor = (status: string) => {
     return status === "active"
-      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-      : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300";
+      ? "bg-secondary/20 text-secondary border-secondary/30"
+      : "bg-red-500/20 text-red-400 border-red-500/30";
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading utility settings...</p>
+          <FSpinner size="lg" className="mx-auto mb-4" />
+          <p className="text-accent/70">Loading utility settings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Utility Services Management
-        </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
-          Configure prices, markups, and settings for all utility services
-        </p>
-      </div>
+    <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 space-y-6 lg:space-y-8">
+      {/* Header controls */}
+      <header className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="px-4 py-2 bg-surface/60 backdrop-blur-[16px] border border-accent/10 rounded-full flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+            <span className="text-xs font-semibold text-secondary">SYSTEM LIVE</span>
+          </div>
+          <button
+            onClick={() => address && fetchUtilitySettings()}
+            disabled={!address}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-full font-bold text-sm hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50"
+          >
+            <span className="material-icons-outlined text-sm font-bold text-primary">refresh</span>
+            Force Sync
+          </button>
+        </div>
+      </header>
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+        <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-4">
+          <p className="text-secondary text-sm font-medium flex items-center gap-2">
+            <span className="material-icons-outlined text-lg">check_circle</span>
+            {success}
+          </p>
         </div>
       )}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+          <p className="text-red-400 text-sm font-medium flex items-center gap-2">
+            <span className="material-icons-outlined text-lg">error</span>
+            {error}
+          </p>
         </div>
       )}
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10 border-l-4 border-l-secondary">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 bg-secondary/10 rounded-2xl flex items-center justify-center">
+              <span className="material-icons-outlined text-secondary text-2xl">apps</span>
+            </div>
+          </div>
+          <p className="text-accent/70 text-sm mb-1 font-medium">Total Services</p>
+          <h2 className="text-xl font-bold text-white">{utilityServices.length}</h2>
+        </div>
+        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10 border-l-4 border-l-secondary">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 bg-secondary/10 rounded-2xl flex items-center justify-center">
+              <span className="material-icons-outlined text-secondary text-2xl">check_circle</span>
+            </div>
+            <span className="text-[10px] font-bold text-secondary uppercase">Active</span>
+          </div>
+          <p className="text-accent/70 text-sm mb-1 font-medium">Active Services</p>
+          <h2 className="text-xl font-bold text-white">
+            {utilityServices.filter(s => s.status === "active").length}
+          </h2>
+        </div>
+        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10 border-l-4 border-l-amber-500">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center">
+              <span className="material-icons-outlined text-amber-500 text-2xl">block</span>
+            </div>
+            <span className="text-[10px] font-bold text-amber-500 uppercase">Disabled</span>
+          </div>
+          <p className="text-accent/70 text-sm mb-1 font-medium">Disabled Services</p>
+          <h2 className="text-xl font-bold text-white">
+            {utilityServices.filter(s => s.status === "disabled").length}
+          </h2>
+        </div>
+      </div>
+
       {/* API Provider Info */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
-              API Provider: ClubKonnect
-            </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-              Utility Services Platform
-            </p>
+            <h2 className="text-lg font-bold text-white">API Provider: ClubKonnect</h2>
+            <p className="text-sm text-accent/70 mt-1">Utility Services Platform</p>
           </div>
           <a
             href="https://www.clubkonnect.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:opacity-80 transition-opacity text-sm font-medium"
+            className="text-secondary hover:text-white transition-colors text-sm font-medium"
           >
             Visit Website →
           </a>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Total Services</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              {utilityServices.length}
-            </p>
-          </div>
-          <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Active Services</p>
-            <p className="text-xl font-bold text-green-600 dark:text-green-400">
-              {utilityServices.filter(s => s.status === "active").length}
-            </p>
-          </div>
-          <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Disabled Services</p>
-            <p className="text-xl font-bold text-red-600 dark:text-red-400">
-              {utilityServices.filter(s => s.status === "disabled").length}
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Category Filter */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-4">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <span className="material-icons-outlined text-secondary">filter_list</span>
           Filter by Category
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -330,13 +367,13 @@ export default function UtilityPage() {
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 selectedCategory === category.id
-                  ? "bg-primary text-slate-900"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  ? "bg-secondary/20 text-secondary border border-secondary/30"
+                  : "bg-primary/40 border border-accent/10 text-accent/80 hover:bg-accent/10 hover:text-white"
               }`}
             >
-              <span className="material-icons-outlined text-lg">{category.icon}</span>
+              <span className="material-icons-outlined text-lg text-white">{category.icon}</span>
               <span>{category.name}</span>
             </button>
           ))}
@@ -344,33 +381,23 @@ export default function UtilityPage() {
       </div>
 
       {/* Services Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredServices.map((service) => (
           <div
             key={service.id}
-            className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700"
+            className={`bg-surface/60 backdrop-blur-[16px] p-4 rounded-xl border border-accent/10 relative overflow-hidden border-l-4 ${
+              service.status === "active" ? "border-l-secondary" : "border-l-amber-500"
+            }`}
           >
             {/* Service Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-lg">
-                  <span className="material-icons-outlined text-primary text-2xl">
-                    {service.icon}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    {service.name}
-                  </h3>
-                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium mt-1 ${getStatusColor(service.status)}`}>
-                    {service.status === "active" ? "Active" : "Disabled"}
-                  </span>
-                </div>
+            <div className="flex justify-between items-start gap-2 mb-2 min-w-0">
+              <div className="w-9 h-9 bg-secondary/10 rounded-xl flex items-center justify-center shrink-0">
+                <span className="material-icons-outlined text-secondary text-lg">{service.icon}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <label className="cursor-pointer">
-                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    service.status === "active" ? "bg-primary" : "bg-slate-300 dark:bg-slate-600"
+                  <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    service.status === "active" ? "bg-secondary" : "bg-accent/20"
                   }`}>
                     <input
                       type="checkbox"
@@ -379,68 +406,64 @@ export default function UtilityPage() {
                       className="sr-only"
                     />
                     <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        service.status === "active" ? "translate-x-6" : "translate-x-1"
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                        service.status === "active" ? "translate-x-5" : "translate-x-1"
                       }`}
                     />
                   </div>
                 </label>
                 <button
                   onClick={() => setEditingService(editingService === service.id ? null : service.id)}
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm"
+                  className="p-1.5 bg-primary/40 border border-accent/10 text-accent/80 rounded-lg hover:bg-accent/10 hover:text-white transition-colors"
+                  title={editingService === service.id ? "Cancel" : "Configure"}
                 >
-                  {editingService === service.id ? "Cancel" : "Configure"}
+                  <span className="material-icons-outlined text-base">
+                    {editingService === service.id ? "close" : "settings"}
+                  </span>
                 </button>
               </div>
             </div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold border ${getStatusColor(service.status)}`}>
+                {service.status === "active" ? "ACTIVE" : "DISABLED"}
+              </span>
+              <span className="text-[10px] text-accent/60 capitalize">{service.category}</span>
+            </div>
+            <h3 className="text-base font-bold text-white mb-2">{service.name}</h3>
 
             {/* Service Description */}
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              {service.description}
-            </p>
+            <p className="text-[11px] text-accent/70 mb-3 line-clamp-2 leading-tight">{service.description}</p>
 
             {/* Current Settings Summary */}
             {editingService !== service.id && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Markup</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    {service.markup?.toFixed(2)}%
-                  </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                <div className="bg-primary/40 p-1.5 rounded text-center">
+                  <p className="text-[9px] text-accent/60">Markup</p>
+                  <p className="text-xs font-bold text-white">{service.markup?.toFixed(1)}%</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Min Amount</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    ₦{service.minAmount?.toLocaleString()}
-                  </p>
+                <div className="bg-primary/40 p-1.5 rounded text-center">
+                  <p className="text-[9px] text-accent/60">Min</p>
+                  <p className="text-xs font-bold text-white truncate" title={`₦${service.minAmount?.toLocaleString()}`}>₦{formatCompact(service.minAmount ?? 0)}</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Max Amount</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    ₦{service.maxAmount?.toLocaleString()}
-                  </p>
+                <div className="bg-primary/40 p-1.5 rounded text-center">
+                  <p className="text-[9px] text-accent/60">Max</p>
+                  <p className="text-xs font-bold text-white truncate" title={`₦${service.maxAmount?.toLocaleString()}`}>₦{formatCompact(service.maxAmount ?? 0)}</p>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Networks</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    {service.supportedNetworks?.length || 0}
-                  </p>
+                <div className="bg-primary/40 p-1.5 rounded text-center">
+                  <p className="text-[9px] text-accent/60">Nets</p>
+                  <p className="text-xs font-bold text-white">{service.supportedNetworks?.length || 0}</p>
                 </div>
               </div>
             )}
 
             {/* Configuration Form */}
             {editingService === service.id && (
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4 space-y-4">
-                <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                  Price Configuration
-                </h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="border-t border-accent/10 pt-3 mt-3 space-y-3">
+                <h4 className="text-sm font-semibold text-white mb-2">Price Configuration</h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Markup Percentage (%)
-                    </label>
+                    <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Markup (%)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -448,40 +471,32 @@ export default function UtilityPage() {
                       max="100"
                       value={service.markup || 0}
                       onChange={(e) => updateService(service.id, { markup: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="w-full rounded-xl border border-accent/10 bg-primary text-white px-3 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
                       placeholder="2.5"
                     />
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Percentage added to base price
-                    </p>
+                    <p className="text-xs text-accent/60 mt-1">Percentage added to base price</p>
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Minimum Amount (₦)
-                    </label>
+                    <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Min Amount (₦)</label>
                     <input
                       type="number"
                       step="1"
                       min="1"
                       value={service.minAmount || 0}
                       onChange={(e) => updateService(service.id, { minAmount: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="w-full rounded-xl border border-accent/10 bg-primary text-white px-3 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
                       placeholder="50"
                     />
                   </div>
-                  
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Maximum Amount (₦)
-                    </label>
+                    <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Max Amount (₦)</label>
                     <input
                       type="number"
                       step="1"
                       min="1"
                       value={service.maxAmount || 0}
                       onChange={(e) => updateService(service.id, { maxAmount: parseFloat(e.target.value) || 0 })}
-                      className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="w-full rounded-xl border border-accent/10 bg-primary text-white px-3 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
                       placeholder="10000"
                     />
                   </div>
@@ -490,9 +505,7 @@ export default function UtilityPage() {
                 {/* Network-Specific Pricing */}
                 {service.supportedNetworks && service.supportedNetworks.length > 0 && (
                   <div className="mt-4">
-                    <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                      Network-Specific Pricing
-                    </h5>
+                    <h5 className="text-sm font-semibold text-white mb-3">Network-Specific Pricing</h5>
                     <div className="space-y-2">
                       {service.supportedNetworks.map((network) => {
                         const networkPrice = networkPrices[service.id]?.find(np => np.network === network) || {
@@ -500,16 +513,15 @@ export default function UtilityPage() {
                           markup: service.markup || 0,
                           enabled: true,
                         };
-                        
                         return (
-                          <div key={network} className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                          <div key={network} className="flex items-center gap-4 p-3 bg-primary/40 rounded-xl border border-accent/10">
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{network}</p>
+                              <p className="text-sm font-medium text-white">{network}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <label className="cursor-pointer">
                                 <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                                  networkPrice.enabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-600"
+                                  networkPrice.enabled ? "bg-secondary" : "bg-accent/20"
                                 }`}>
                                   <input
                                     type="checkbox"
@@ -530,11 +542,11 @@ export default function UtilityPage() {
                                 min="0"
                                 value={networkPrice.markup}
                                 onChange={(e) => updateNetworkPrice(service.id, network, { markup: parseFloat(e.target.value) || 0 })}
-                                className="w-24 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-2 py-1 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                                className="w-24 rounded-lg border border-accent/10 bg-primary text-white px-2 py-1 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50"
                                 placeholder="2.5"
                                 disabled={!networkPrice.enabled}
                               />
-                              <span className="text-sm text-slate-500 dark:text-slate-400">%</span>
+                              <span className="text-sm text-accent/60">%</span>
                             </div>
                           </div>
                         );
@@ -545,15 +557,13 @@ export default function UtilityPage() {
 
                 {/* API Endpoint Info */}
                 {service.apiEndpoint && (
-                  <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      API Endpoint:
-                    </p>
+                  <div className="mt-4 p-3 bg-primary/40 rounded-xl border border-accent/10">
+                    <p className="text-xs font-medium text-accent/60 mb-1">API Endpoint:</p>
                     <a
                       href={service.apiEndpoint}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline break-all"
+                      className="text-xs text-secondary hover:text-white break-all transition-colors"
                     >
                       {service.apiEndpoint}
                     </a>
@@ -561,21 +571,21 @@ export default function UtilityPage() {
                 )}
 
                 {/* Save Button */}
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex justify-end gap-2 pt-4 border-t border-accent/10">
                   <button
                     onClick={() => setEditingService(null)}
-                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm"
+                    className="px-4 py-2 bg-primary/40 border border-accent/10 text-accent/80 rounded-xl hover:bg-accent/10 hover:text-white transition-colors text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => saveServiceSettings(service.id)}
                     disabled={saving}
-                    className="px-4 py-2 bg-primary text-slate-900 font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+                    className="px-4 py-2 bg-secondary text-primary font-bold rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
                   >
                     {saving ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
+                        <FSpinner size="xs" />
                         Saving...
                       </>
                     ) : (

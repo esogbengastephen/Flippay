@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import UtilityForm from "@/components/UtilityForm";
 import { isUserLoggedIn } from "@/lib/session";
-import BottomNavigation from "@/components/BottomNavigation";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function BuyDataPage() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function BuyDataPage() {
   }, [router]);
 
   return (
-    <>
+    <DashboardLayout>
       <UtilityForm
         serviceId="data"
         serviceName="Buy Data"
@@ -25,8 +25,7 @@ export default function BuyDataPage() {
         placeholder="Enter phone number"
         showPackageDropdown={true}
       />
-      <BottomNavigation />
-    </>
+    </DashboardLayout>
   );
 }
 

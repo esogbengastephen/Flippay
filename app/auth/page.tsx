@@ -543,7 +543,7 @@ export default function AuthPage() {
 
       {/* Logo - floating above card (landscape layout) */}
       <div className="mb-4 flex justify-center">
-        <img src="/logo.png" alt="FlipPay" className="h-12 sm:h-14 w-auto" />
+        <img src="/flippay-logo-white.png" alt="FlipPay" className="h-12 sm:h-14 w-auto object-contain mix-blend-lighten" />
       </div>
 
       {/* Compact landscape card - positioned in upper half */}

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import UtilityForm from "@/components/UtilityForm";
 import { isUserLoggedIn } from "@/lib/session";
-import BottomNavigation from "@/components/BottomNavigation";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function BuyAirtimePage() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function BuyAirtimePage() {
   }, [router]);
 
   return (
-    <>
+    <DashboardLayout>
       <UtilityForm
         serviceId="airtime"
         serviceName="Buy Airtime"
@@ -24,8 +24,7 @@ export default function BuyAirtimePage() {
         networks={["MTN", "Airtel", "Glo", "9mobile"]}
         placeholder="Enter phone number"
       />
-      <BottomNavigation />
-    </>
+    </DashboardLayout>
   );
 }
 

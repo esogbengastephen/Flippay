@@ -5,6 +5,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { getTokenLogo } from "@/lib/logos";
+import FSpinner from "@/components/FSpinner";
 
 export default function TokenPricesPage() {
   const { address } = useAccount();
@@ -22,6 +23,10 @@ export default function TokenPricesPage() {
   useEffect(() => {
     if (address) {
       fetchPrices();
+    } else {
+      // When no wallet connected (e.g. mock auth), stop loading after wagmi settles
+      const t = setTimeout(() => setLoading(false), 800);
+      return () => clearTimeout(t);
     }
   }, [address]);
 
@@ -155,62 +160,70 @@ export default function TokenPricesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading token prices...</p>
+          <FSpinner size="md" className="mb-4" />
+          <p className="text-accent/70">Loading token prices...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Token Buy Prices
-        </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
-          Manage buy prices for SEND, USDC, and USDT tokens in Nigerian Naira (NGN)
-        </p>
-      </div>
+    <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 flex flex-col items-center">
+      <div className="w-full max-w-md sm:max-w-lg space-y-4">
+        {/* Success Message */}
+        {success && (
+          <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-3">
+            <p className="text-secondary text-sm font-medium flex items-center gap-2">
+              <span className="material-icons-outlined text-base">check_circle</span>
+              {success}
+            </p>
+          </div>
+        )}
 
-      {/* Success Message */}
-      {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-          <p className="text-green-800 dark:text-green-200 text-sm font-medium">{success}</p>
-        </div>
-      )}
+        {/* Connect wallet prompt when no address */}
+        {!address && (
+          <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-3">
+            <p className="text-white text-sm font-medium flex items-center gap-2">
+              <span className="material-icons-outlined text-base">info</span>
+              Connect your wallet to fetch and save token prices.
+            </p>
+          </div>
+        )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-800 dark:text-red-200 text-sm font-medium">{error}</p>
-        </div>
-      )}
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+            <p className="text-red-400 text-sm font-medium flex items-center gap-2">
+              <span className="material-icons-outlined text-base">error</span>
+              {error}
+            </p>
+          </div>
+        )}
 
-      {/* Price Management Form */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+        {/* Price Management Form - auth card size */}
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] border border-secondary/10 shadow-2xl p-5 sm:p-6">
+        <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+          <span className="material-icons-outlined text-secondary text-lg">attach_money</span>
           Update Buy Prices
         </h2>
 
         <div className="space-y-4">
           {/* SEND Token */}
-          <div className="flex items-center gap-4">
-            <div className="flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-secondary/10 border border-secondary/20 flex items-center justify-center overflow-hidden">
               <img
                 src={getTokenLogo("SEND")}
                 alt="SEND"
-                className="w-12 h-12 rounded-full"
+                className="w-8 h-8 rounded-full"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "https://via.placeholder.com/48";
                 }}
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">
                 SEND Token (NGN)
               </label>
               <input
@@ -220,10 +233,10 @@ export default function TokenPricesPage() {
                 value={prices.SEND}
                 onChange={(e) => setPrices({ ...prices, SEND: e.target.value })}
                 placeholder="Enter buy price in NGN"
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-3 py-2.5 text-sm placeholder-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
               />
               {priceDetails.SEND && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-[10px] text-accent/60 mt-2">
                   Last updated: {formatDate(priceDetails.SEND.updated_at)} by {formatWalletAddress(priceDetails.SEND.updated_by)}
                 </p>
               )}
@@ -231,19 +244,19 @@ export default function TokenPricesPage() {
           </div>
 
           {/* USDC Token */}
-          <div className="flex items-center gap-4">
-            <div className="flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-secondary/10 border border-secondary/20 flex items-center justify-center overflow-hidden">
               <img
                 src={getTokenLogo("USDC")}
                 alt="USDC"
-                className="w-12 h-12 rounded-full"
+                className="w-8 h-8 rounded-full"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "https://via.placeholder.com/48";
                 }}
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">
                 USDC Token (NGN)
               </label>
               <input
@@ -253,10 +266,10 @@ export default function TokenPricesPage() {
                 value={prices.USDC}
                 onChange={(e) => setPrices({ ...prices, USDC: e.target.value })}
                 placeholder="Enter buy price in NGN"
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-3 py-2.5 text-sm placeholder-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
               />
               {priceDetails.USDC && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-[10px] text-accent/60 mt-2">
                   Last updated: {formatDate(priceDetails.USDC.updated_at)} by {formatWalletAddress(priceDetails.USDC.updated_by)}
                 </p>
               )}
@@ -264,19 +277,19 @@ export default function TokenPricesPage() {
           </div>
 
           {/* USDT Token */}
-          <div className="flex items-center gap-4">
-            <div className="flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-secondary/10 border border-secondary/20 flex items-center justify-center overflow-hidden">
               <img
                 src={getTokenLogo("USDT")}
                 alt="USDT"
-                className="w-12 h-12 rounded-full"
+                className="w-8 h-8 rounded-full"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "https://via.placeholder.com/48";
                 }}
               />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">
                 USDT Token (NGN)
               </label>
               <input
@@ -286,10 +299,10 @@ export default function TokenPricesPage() {
                 value={prices.USDT}
                 onChange={(e) => setPrices({ ...prices, USDT: e.target.value })}
                 placeholder="Enter buy price in NGN"
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-3 py-2.5 text-sm placeholder-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
               />
               {priceDetails.USDT && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-[10px] text-accent/60 mt-2">
                   Last updated: {formatDate(priceDetails.USDT.updated_at)} by {formatWalletAddress(priceDetails.USDT.updated_by)}
                 </p>
               )}
@@ -302,26 +315,31 @@ export default function TokenPricesPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-primary text-slate-900 font-bold px-6 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-secondary text-primary font-bold px-6 py-2.5 rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            <span className="material-icons-outlined text-sm font-bold text-primary">save</span>
             {saving ? "Saving..." : "Save Prices"}
           </button>
           <button
             onClick={fetchPrices}
             disabled={loading}
-            className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium px-6 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium border border-accent/20 text-accent/80 hover:bg-accent/10 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            <span className="material-icons-outlined text-sm">refresh</span>
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Info Box */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <p className="text-blue-800 dark:text-blue-200 text-sm">
-          <strong>Note:</strong> These prices are used as buy prices for tokens. They will be displayed to users in the dashboard.
-          Prices are stored in the database and will always be available, even if external price APIs are unavailable.
-        </p>
+        {/* Info Box */}
+        <div className="bg-primary/40 border border-accent/10 rounded-xl p-3 mt-4">
+          <p className="text-accent/80 text-xs flex items-start gap-2">
+            <span className="material-icons-outlined text-secondary text-base flex-shrink-0">info</span>
+            <span>
+              <strong className="text-white">Note:</strong> These prices are used as buy prices for tokens. Stored in the database.
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   );

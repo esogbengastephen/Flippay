@@ -53,7 +53,7 @@ export default function ThemeToggle() {
     // Return a placeholder to prevent hydration mismatch
     return (
       <button
-        className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full"
+        className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base text-accent/70 hover:text-white hover:bg-white/5 transition-colors w-full"
         disabled
       >
         <span className="material-icons-outlined text-lg sm:text-xl">brightness_4</span>
@@ -65,7 +65,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full"
+      className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base text-accent/70 hover:text-white hover:bg-white/5 transition-colors w-full"
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
     >
       <span className="material-icons-outlined text-lg sm:text-xl">

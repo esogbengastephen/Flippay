@@ -78,43 +78,43 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default fallback UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
-          <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 text-center">
+        <div className="min-h-screen flex items-center justify-center bg-surface p-4">
+          <div className="max-w-md sm:max-w-lg w-full bg-surface/60 backdrop-blur-[16px] border border-accent/10 rounded-[2.5rem] p-5 sm:p-6 text-center">
             <div className="mb-4">
-              <span className="material-icons-outlined text-6xl text-red-500">error_outline</span>
+              <div className="w-16 h-16 mx-auto bg-amber-500/20 rounded-2xl flex items-center justify-center">
+                <span className="material-icons-outlined text-4xl text-amber-400">warning</span>
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <h1 className="text-2xl font-bold text-white mb-2">
               Something went wrong
             </h1>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">
+            <p className="text-accent/70 mb-6">
               We encountered an unexpected error. Please try refreshing the page.
             </p>
-            
+
             {process.env.NODE_ENV === "development" && this.state.error && (
-              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-left">
-                <p className="text-sm font-semibold text-red-800 dark:text-red-300 mb-2">
-                  Error Details (Development Only):
-                </p>
-                <p className="text-xs text-red-700 dark:text-red-400 font-mono break-all">
+              <div className="mb-4 p-4 bg-primary/40 border border-accent/10 rounded-xl text-left">
+                <p className="text-sm font-semibold text-white mb-2">Error Details (Development Only):</p>
+                <p className="text-xs text-accent/80 font-mono break-all">
                   {this.state.error.toString()}
                 </p>
                 {this.state.errorInfo && (
                   <details className="mt-2">
-                    <summary className="text-xs text-red-600 dark:text-red-400 cursor-pointer">
+                    <summary className="text-xs text-accent/70 cursor-pointer hover:text-white">
                       Stack Trace
                     </summary>
-                    <pre className="text-xs text-red-700 dark:text-red-400 mt-2 overflow-auto max-h-40">
+                    <pre className="text-xs text-accent/80 mt-2 overflow-auto max-h-40">
                       {this.state.errorInfo.componentStack}
                     </pre>
                   </details>
                 )}
               </div>
             )}
-            
+
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleReset}
-                className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+                className="px-6 py-3 bg-secondary text-primary rounded-xl font-semibold shadow-[0_0_15px_rgba(19,236,90,0.3)] hover:bg-secondary/90 transition-colors"
               >
                 Reload Page
               </button>
@@ -124,7 +124,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     window.location.href = "/auth";
                   }
                 }}
-                className="px-6 py-3 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                className="px-6 py-3 bg-primary/40 border border-accent/10 text-accent/80 rounded-xl font-semibold hover:bg-accent/10 hover:text-white transition-colors"
               >
                 Go to Login
               </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-
+import Link from "next/link";
 import { useState, useEffect } from "react";
 
 interface Distribution {
@@ -22,35 +22,23 @@ export default function TokenDistributionPage() {
   const [loadingDistributions, setLoadingDistributions] = useState(true);
 
   useEffect(() => {
-    // Fetch liquidity pool balance from API
     fetchPoolBalance();
-    
-    // Fetch distribution history
     fetchDistributions();
   }, []);
 
   const fetchPoolBalance = async () => {
     setLoading(true);
     try {
-      // Get admin wallet from localStorage (set during admin login)
       const adminWallet = localStorage.getItem("admin_wallet");
       if (!adminWallet) {
-        console.error("[Token Distribution] Admin wallet not found");
         setLoading(false);
         return;
       }
-
       const response = await fetch(getApiUrl(`/api/admin/pool-balance?adminWallet=${adminWallet}`));
       const data = await response.json();
-      
-      if (data.success) {
-        setPoolBalance(data.balance);
-        console.log(`[Token Distribution] Pool balance: ${data.balance} SEND`);
-      } else {
-        console.error("[Token Distribution] Error fetching pool balance:", data.error);
-      }
+      if (data.success) setPoolBalance(data.balance);
     } catch (error) {
-      console.error("[Token Distribution] Error fetching pool balance:", error);
+      console.error("Error fetching pool balance:", error);
     } finally {
       setLoading(false);
     }
@@ -62,9 +50,7 @@ export default function TokenDistributionPage() {
     try {
       const response = await fetch(getApiUrl(`/api/blockchain/balance?address=${walletAddress}`));
       const data = await response.json();
-      if (data.success) {
-        setWalletBalance(data.balance);
-      }
+      if (data.success) setWalletBalance(data.balance);
     } catch (error) {
       console.error("Error fetching balance:", error);
     } finally {
@@ -77,9 +63,7 @@ export default function TokenDistributionPage() {
     try {
       const response = await fetch(getApiUrl("/api/admin/transactions?status=completed"));
       const data = await response.json();
-      
       if (data.success) {
-        // Filter to only completed transactions with txHash (successful distributions)
         const completedDistributions = data.transactions
           .filter((tx: any) => tx.status === "completed" && tx.txHash)
           .map((tx: any) => ({
@@ -93,10 +77,9 @@ export default function TokenDistributionPage() {
           .sort((a: Distribution, b: Distribution) => {
             const dateA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
             const dateB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-            return dateB - dateA; // Newest first
+            return dateB - dateA;
           })
-          .slice(0, 50); // Show last 50 distributions
-        
+          .slice(0, 50);
         setDistributions(completedDistributions);
       }
     } catch (error) {
@@ -106,148 +89,169 @@ export default function TokenDistributionPage() {
     }
   };
 
+  const handleSync = () => {
+    fetchPoolBalance();
+    fetchDistributions();
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Token Distribution
-        </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
-          Monitor liquidity pool and token distributions
-        </p>
-      </div>
-
-      {/* Liquidity Pool Balance */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
-          Liquidity Pool Balance
-        </h2>
+    <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 space-y-6 lg:space-y-8">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-4">
         <div className="flex items-center gap-4">
-          <div className="bg-primary p-4 rounded-lg">
-            <span className="material-icons-outlined text-slate-900 text-3xl">
-              account_balance_wallet
-            </span>
+          <div className="bg-surface/60 backdrop-blur-[16px] px-4 py-2 rounded-full border border-accent/10 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">Pool Status</span>
           </div>
-          <div>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Available Balance</p>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-              {loading ? "Loading..." : `${parseFloat(poolBalance).toLocaleString()} $SEND`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Check Wallet Balance */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
-          Check Wallet Balance
-        </h2>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            placeholder="Enter Base wallet address (0x...)"
-            value={walletAddress}
-            onChange={(e) => setWalletAddress(e.target.value)}
-            className="flex-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
-          />
           <button
-            onClick={handleCheckBalance}
-            disabled={loading || !walletAddress}
-            className="bg-primary text-slate-900 font-bold px-6 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            onClick={handleSync}
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-2 bg-secondary text-primary rounded-full font-bold text-sm hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50"
           >
-            Check Balance
+            <span className="material-icons-outlined text-sm font-bold text-primary">refresh</span>
+            Sync Pools
           </button>
         </div>
-        {walletAddress && (
-          <div className="mt-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
-            <p className="text-sm text-slate-600 dark:text-slate-400">Balance</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              {loading ? "Loading..." : `${parseFloat(walletBalance).toLocaleString()} $SEND`}
-            </p>
+      </header>
+
+      {/* Liquidity Pool Balance - Base card */}
+      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10 relative overflow-hidden">
+        <div className="flex justify-between items-start mb-4">
+          <div className="bg-secondary/20 p-2 rounded-lg">
+            <span className="material-icons-outlined text-white text-2xl">account_balance_wallet</span>
           </div>
-        )}
+          <span className="text-[10px] font-bold text-accent/60 uppercase">Base</span>
+        </div>
+        <p className="text-accent/70 text-xs mb-1">SEND Liquidity</p>
+        <h2 className="text-2xl font-bold text-secondary">
+          {loading ? "..." : `${parseFloat(poolBalance).toLocaleString()}`}
+        </h2>
+        <div className="mt-4 flex justify-between items-center text-[10px]">
+          <span className="text-accent/60">Pool Balance</span>
+          <span className="text-secondary font-bold">Operational</span>
+        </div>
       </div>
 
-      {/* Distribution History */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Recent Distributions
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Showing {distributions.length} completed token distributions
-          </p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Check Balance + Test Transfer */}
+        <div className="lg:col-span-1 space-y-6">
+          {/** Check Wallet Balance */}
+          <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="material-icons-outlined text-secondary text-xl">account_balance_wallet</span>
+              <h3 className="text-lg font-bold text-white">Check Wallet Balance</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Wallet Address</label>
+                <input
+                  type="text"
+                  placeholder="0x..."
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
+                  className="w-full bg-primary border border-accent/10 rounded-xl text-sm p-3 text-white placeholder-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={handleCheckBalance}
+                disabled={loading || !walletAddress}
+                className="w-full py-3 bg-secondary text-primary rounded-xl font-bold text-sm hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50"
+              >
+                <span className="material-icons-outlined text-sm font-bold text-primary">search</span>
+                Check Balance
+              </button>
+              {walletAddress && (
+                <div className="p-4 bg-primary/40 rounded-xl border border-accent/10">
+                  <p className="text-[10px] text-accent/60 uppercase mb-1">Balance</p>
+                  <p className="text-xl font-bold text-secondary">
+                    {loading ? "..." : `${parseFloat(walletBalance).toLocaleString()} $SEND`}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/** Test Transfer link */}
+          <Link
+            href="/admin/test-transfer"
+            className="block bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-dashed border-secondary/20 hover:border-secondary/40 transition-all"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <span className="material-icons-outlined text-secondary text-xl">send</span>
+              <h4 className="text-sm font-bold text-white">Execute Test Transfer</h4>
+            </div>
+            <p className="text-[10px] text-accent/60">
+              Send test SEND from the liquidity pool to any address.
+            </p>
+            <span className="inline-flex items-center gap-1 text-secondary text-xs font-bold mt-2">
+              Go to Test Transfer →
+            </span>
+          </Link>
         </div>
-        <div className="overflow-x-auto">
-          {loadingDistributions ? (
-            <div className="p-6 text-center text-slate-500">
-              Loading distribution history...
+
+        {/* Right: Distribution History */}
+        <div className="lg:col-span-2">
+          <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl border border-accent/10 overflow-hidden">
+            <div className="px-6 py-4 border-b border-accent/10 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-white">Distribution History</h3>
+              <span className="text-[10px] text-accent/50 uppercase tracking-wider font-semibold">
+                {distributions.length} completed
+              </span>
             </div>
-          ) : distributions.length === 0 ? (
-            <div className="p-6 text-center text-slate-500">
-              No distributions found
+            <div className="overflow-x-auto">
+              {loadingDistributions ? (
+                <div className="p-12 text-center text-accent/60">Loading distribution history...</div>
+              ) : distributions.length === 0 ? (
+                <div className="p-12 text-center text-accent/60">No distributions found</div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-accent/5 text-[10px] uppercase tracking-widest text-accent/70 font-bold border-b border-accent/10">
+                    <tr>
+                      <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4">Wallet Address</th>
+                      <th className="px-6 py-4">Amount</th>
+                      <th className="px-6 py-4 text-right">Transaction</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-accent/10">
+                    {distributions.map((dist) => (
+                      <tr key={dist.transactionId} className="hover:bg-accent/5 transition-colors">
+                        <td className="px-6 py-4 text-accent/80 text-xs">
+                          {dist.completedAt ? new Date(dist.completedAt).toLocaleString() : "N/A"}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-mono text-white text-xs max-w-[140px] truncate">
+                            {dist.walletAddress}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-secondary">{dist.sendAmount} $SEND</div>
+                          <div className="text-[10px] text-accent/60">₦{dist.ngnAmount.toLocaleString()}</div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {dist.txHash ? (
+                            <a
+                              href={`https://basescan.org/tx/${dist.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-secondary hover:text-white text-xs font-mono transition-colors"
+                            >
+                              {dist.txHash.slice(0, 10)}...
+                              <span className="material-icons-outlined text-xs">open_in_new</span>
+                            </a>
+                          ) : (
+                            <span className="text-accent/50 text-xs">Pending</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-slate-50 dark:bg-slate-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                    Wallet Address
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                    Transaction
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {distributions.map((dist) => (
-                  <tr key={dist.transactionId} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                      {dist.completedAt
-                        ? new Date(dist.completedAt).toLocaleString()
-                        : "N/A"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-mono text-slate-900 dark:text-slate-100 max-w-xs truncate">
-                        {dist.walletAddress}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {dist.sendAmount} SEND
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        ₦{dist.ngnAmount.toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {dist.txHash ? (
-                        <a
-                          href={`https://basescan.org/tx/${dist.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:opacity-70 transition-opacity text-sm font-mono"
-                        >
-                          {dist.txHash.substring(0, 10)}...
-                        </a>
-                      ) : (
-                        <span className="text-slate-400 text-sm">Pending</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

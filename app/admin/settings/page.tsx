@@ -6,6 +6,7 @@ import { useState, useEffect, Fragment } from "react";
 import { useAccount } from "wagmi";
 import { DEPOSIT_ACCOUNT } from "@/lib/constants";
 import { ALL_ADMIN_PERMISSIONS, getEffectivePermissions } from "@/lib/admin-permissions";
+import FSpinner from "@/components/FSpinner";
 
 // Edit Admin Form Component
 function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
@@ -30,10 +31,10 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">Edit Admin</h3>
+      <h3 className="font-semibold text-white mb-2">Edit Admin</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-accent/80 mb-2">
             Role
           </label>
           <select
@@ -44,20 +45,20 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
                 setPermissions([]);
               }
             }}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+            className="w-full rounded-lg border border-accent/10 bg-primary text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
           >
             <option value="admin">Admin</option>
             <option value="super_admin">Super Admin</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-accent/80 mb-2">
             Status
           </label>
           <select
             value={isActive ? "active" : "inactive"}
             onChange={(e) => setIsActive(e.target.value === "active")}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+            className="w-full rounded-lg border border-accent/10 bg-primary text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
           >
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
@@ -67,7 +68,7 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
       {role === "admin" && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label className="block text-sm font-medium text-accent/80">
               Permissions (includes all settings tabs when &quot;Manage Settings&quot; is checked)
             </label>
             <div className="flex gap-2">
@@ -81,7 +82,7 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
               <button
                 type="button"
                 onClick={() => setPermissions([])}
-                className="text-xs text-slate-500 hover:underline"
+                className="text-xs text-accent/60 hover:underline"
               >
                 Clear all
               </button>
@@ -100,9 +101,9 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
                       setPermissions(permissions.filter((p) => p !== permission));
                     }
                   }}
-                  className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                  className="rounded border-accent/10 text-primary focus:ring-primary"
                 />
-                <span className="text-xs text-slate-700 dark:text-slate-300">
+                <span className="text-xs text-accent/80">
                   {permission.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                 </span>
               </label>
@@ -111,7 +112,7 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
         </div>
       )}
       <div>
-        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-accent/80 mb-2">
           Notes
         </label>
         <textarea
@@ -119,19 +120,19 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Additional notes about this admin..."
           rows={2}
-          className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+          className="w-full rounded-lg border border-accent/10 bg-primary text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
         />
       </div>
       <div className="flex gap-2">
         <button
           onClick={handleSave}
-          className="bg-primary text-slate-900 font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm"
+          className="bg-secondary text-primary font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm"
         >
           Save Changes
         </button>
         <button
           onClick={onCancel}
-          className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-sm"
+          className="bg-accent/10 text-accent/80 font-medium px-4 py-2 rounded-lg hover:bg-accent/20 transition-colors text-sm"
         >
           Cancel
         </button>
@@ -472,7 +473,10 @@ export default function SettingsPage() {
   };
 
   const fetchSettings = async () => {
-    if (!address) return;
+    if (!address) {
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     setError(null);
@@ -554,140 +558,137 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading settings...</p>
+          <FSpinner size="lg" className="mx-auto mb-4" />
+          <p className="text-accent/70">Loading settings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Settings
-        </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
-          Configure platform settings and parameters
-        </p>
-      </div>
-
+    <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 space-y-6 lg:space-y-8">
       {/* Success Message */}
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">
-            ✓ Settings saved successfully!
+        <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-4">
+          <p className="text-secondary text-sm font-medium flex items-center gap-2">
+            <span className="material-icons-outlined text-lg">check_circle</span>
+            Settings saved successfully!
           </p>
         </div>
       )}
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+          <p className="text-red-400 text-sm font-medium flex items-center gap-2">
+            <span className="material-icons-outlined text-lg">error</span>
+            {error}
+          </p>
         </div>
       )}
 
       {/* Transaction Status Toggle */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <span className="material-icons-outlined text-secondary">toggle_on</span>
           Transaction Status
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <p className="text-sm text-accent/70 mb-6">
           Enable or disable all user transactions across the app (onramp and offramp). When disabled, users cannot generate payment or complete any transactions anywhere.
         </p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <label className="cursor-pointer">
-              <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                transactionsEnabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-600"
-              }`}>
-                <input
-                  type="checkbox"
-                  checked={transactionsEnabled}
-                  onChange={async (e) => {
-                    const newValue = e.target.checked;
-                    setTransactionsEnabled(newValue);
-                    setSavingTransactionsStatus(true);
-                    setError(null);
-                    
-                    try {
-                      const response = await fetch(getApiUrl("/api/admin/settings"), {
-                        method: "PUT",
-                        headers: {
-                          "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                          transactionsEnabled: newValue,
-                          walletAddress: address,
-                        }),
-                      });
-
-                      const data = await response.json();
-
-                      if (data.success) {
-                        setSuccess(true);
-                        setTimeout(() => setSuccess(false), 3000);
-                      } else {
-                        setError(data.error || "Failed to update transaction status");
-                        setTransactionsEnabled(!newValue); // Revert on error
-                      }
-                    } catch (err: any) {
-                      console.error("Failed to update transaction status:", err);
-                      setError("Failed to update transaction status");
-                      setTransactionsEnabled(!newValue); // Revert on error
-                    } finally {
-                      setSavingTransactionsStatus(false);
-                    }
-                  }}
-                  disabled={savingTransactionsStatus || !address}
-                  className="sr-only"
-                />
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    transactionsEnabled ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </div>
-            </label>
-            <div>
-              <span className={`text-sm font-medium ${
-                transactionsEnabled 
-                  ? "text-green-600 dark:text-green-400" 
-                  : "text-red-600 dark:text-red-400"
-              }`}>
-                {transactionsEnabled ? "Transactions Enabled" : "Transactions Disabled"}
-              </span>
-              {savingTransactionsStatus && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Saving...
-                </p>
-              )}
-            </div>
+        <label
+          className={`flex flex-wrap items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all select-none ${
+            transactionsEnabled
+              ? "bg-secondary/5 border-secondary/30 hover:border-secondary/50"
+              : "bg-red-500/5 border-red-500/20 hover:border-red-500/40"
+          } ${savingTransactionsStatus || !address ? "opacity-70 cursor-not-allowed" : ""}`}
+        >
+          <input
+            type="checkbox"
+            checked={transactionsEnabled}
+            onChange={async (e) => {
+              const newValue = e.target.checked;
+              setTransactionsEnabled(newValue);
+              setSavingTransactionsStatus(true);
+              setError(null);
+              try {
+                const response = await fetch(getApiUrl("/api/admin/settings"), {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    transactionsEnabled: newValue,
+                    walletAddress: address,
+                  }),
+                });
+                const data = await response.json();
+                if (data.success) {
+                  setSuccess(true);
+                  setTimeout(() => setSuccess(false), 3000);
+                } else {
+                  setError(data.error || "Failed to update transaction status");
+                  setTransactionsEnabled(!newValue);
+                }
+              } catch (err: any) {
+                console.error("Failed to update transaction status:", err);
+                setError("Failed to update transaction status");
+                setTransactionsEnabled(!newValue);
+              } finally {
+                setSavingTransactionsStatus(false);
+              }
+            }}
+            disabled={savingTransactionsStatus || !address}
+            className="sr-only"
+            aria-label="Toggle transactions on or off"
+          />
+          <div
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              transactionsEnabled ? "bg-secondary" : "bg-accent/30"
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                transactionsEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
           </div>
-        </div>
+          <div className="flex flex-col gap-0.5">
+            <span className={`text-sm font-bold ${transactionsEnabled ? "text-secondary" : "text-red-400"}`}>
+              {transactionsEnabled ? "Transactions Enabled" : "Transactions Disabled"}
+            </span>
+            {savingTransactionsStatus && (
+              <span className="text-xs text-accent/60">Saving...</span>
+            )}
+          </div>
+          <span
+            className={`ml-auto px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+              transactionsEnabled ? "bg-secondary/20 text-secondary" : "bg-red-500/20 text-red-400"
+            }`}
+          >
+            {transactionsEnabled ? "Active" : "Inactive"}
+          </span>
+        </label>
         {!transactionsEnabled && (
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-700 dark:text-red-300">
-              ⚠️ Transactions are currently disabled app-wide. Users cannot generate payments or complete any transactions (buy or sell).
+          <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+            <p className="text-sm text-red-400">
+              Transactions are currently disabled app-wide. Users cannot generate payments or complete any transactions (buy or sell).
             </p>
           </div>
         )}
       </div>
 
       {/* Minimum Purchase (Onramp) */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-4 sm:p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
           Minimum Purchase (Onramp)
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <p className="text-sm text-accent/70 mb-4">
           Set the minimum NGN amount users must spend when buying crypto (Naira to Crypto).
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-accent/80 mb-2">
               Minimum Purchase (NGN)
             </label>
             <input
@@ -696,21 +697,21 @@ export default function SettingsPage() {
               onChange={(e) => setMinimumPurchase(parseFloat(e.target.value) || 3000)}
               min="1"
               step="1"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+              className="w-full rounded-lg border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
               placeholder="3000"
             />
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-sm text-accent/60 ">
               Users must purchase at least ₦{minimumPurchase.toLocaleString()} to proceed with a buy transaction.
             </p>
           </div>
           <button
             onClick={saveMinimumPurchase}
             disabled={savingMinimumPurchase || !address || minimumPurchase <= 0}
-            className="bg-primary text-slate-900 font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-secondary text-primary font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {savingMinimumPurchase ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
+                <FSpinner size="xs" />
                 Saving...
               </>
             ) : (
@@ -721,16 +722,16 @@ export default function SettingsPage() {
       </div>
 
       {/* Minimum Sell (Offramp) */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-4 sm:p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
           Minimum Sell (Offramp)
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <p className="text-sm text-accent/70 mb-4">
           Set the minimum $SEND amount users must sell when converting crypto to Naira (Crypto to Naira).
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-accent/80 mb-2">
               Minimum Sell ($SEND)
             </label>
             <input
@@ -739,21 +740,21 @@ export default function SettingsPage() {
               onChange={(e) => setMinimumOfframpSEND(parseFloat(e.target.value) || 1)}
               min="0.01"
               step="0.1"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+              className="w-full rounded-lg border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
               placeholder="1"
             />
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-sm text-accent/60 ">
               Users must sell at least {minimumOfframpSEND} $SEND to proceed with a sell transaction.
             </p>
           </div>
           <button
             onClick={saveMinimumOfframp}
             disabled={savingMinimumOfframp || !address || minimumOfframpSEND <= 0}
-            className="bg-primary text-slate-900 font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-secondary text-primary font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {savingMinimumOfframp ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
+                <FSpinner size="xs" />
                 Saving...
               </>
             ) : (
@@ -764,33 +765,33 @@ export default function SettingsPage() {
       </div>
 
       {/* Transaction Fee Tiers */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-4 sm:p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
           Transaction Fee Tiers
         </h2>
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+        <p className="text-sm text-accent/70 mb-4">
           Configure transaction fees based on payment amount tiers
         </p>
         {loadingFeeTiers ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <FSpinner size="md" />
           </div>
         ) : (
           <div className="space-y-4">
             {feeTiers.map((tier, index) => (
-              <div key={tier.tier_name} className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg">
+              <div key={tier.tier_name} className="border border-accent/10 p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    <span className="font-semibold text-white">
                       Tier {index + 1}
                     </span>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    <p className="text-xs text-accent/60 mt-1">
                       ₦{tier.min_amount.toLocaleString()}
                       {tier.max_amount ? ` - ₦${tier.max_amount.toLocaleString()}` : "+"}
                     </p>
                   </div>
                 </div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-accent/80 mb-2">
                   Fee Amount (NGN)
                 </label>
                 <input
@@ -801,7 +802,7 @@ export default function SettingsPage() {
                     newTiers[index].fee_ngn = parseFloat(e.target.value) || 0;
                     setFeeTiers(newTiers);
                   }}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="w-full rounded-lg border border-accent/10 bg-primary text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
                   min="0"
                   step="0.01"
                   placeholder="0.00"
@@ -811,11 +812,11 @@ export default function SettingsPage() {
             <button
               onClick={saveFeeTiers}
               disabled={savingFeeTiers}
-              className="w-full bg-primary text-slate-900 font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-secondary text-primary font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {savingFeeTiers ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
+                  <FSpinner size="xs" />
                   Saving...
                 </>
               ) : (
@@ -827,37 +828,37 @@ export default function SettingsPage() {
       </div>
 
       {/* Deposit Account */}
-      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
+      <div className="bg-surface/60 backdrop-blur-[16px] p-4 sm:p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
           Deposit Account
         </h2>
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-accent/80 mb-1">
               Account Name
             </label>
-            <p className="text-slate-900 dark:text-slate-100">{DEPOSIT_ACCOUNT.name}</p>
+            <p className="text-white">{DEPOSIT_ACCOUNT.name}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-accent/80 mb-1">
               Account Number
             </label>
-            <p className="text-slate-900 dark:text-slate-100">{DEPOSIT_ACCOUNT.accountNumber}</p>
+            <p className="text-white">{DEPOSIT_ACCOUNT.accountNumber}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-medium text-accent/80 mb-1">
               Bank
             </label>
-            <p className="text-slate-900 dark:text-slate-100">{DEPOSIT_ACCOUNT.bank}</p>
+            <p className="text-white">{DEPOSIT_ACCOUNT.bank}</p>
           </div>
         </div>
       </div>
 
       {/* Admin Management - Only visible to super admin */}
       {isSuperAdmin && (
-        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+        <div className="bg-surface/60 backdrop-blur-[16px] p-4 sm:p-6 rounded-2xl border border-accent/10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100">
+            <h2 className="text-lg sm:text-xl font-bold text-white">
               Admin Management
             </h2>
             <button
@@ -871,7 +872,7 @@ export default function SettingsPage() {
                   setNewAdminPermissions([...availablePermissions]);
                 }
               }}
-              className="bg-primary text-slate-900 font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm"
+              className="bg-secondary text-primary font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm"
             >
               {showAddAdminForm ? "Cancel" : "+ Add Admin"}
             </button>
@@ -879,21 +880,21 @@ export default function SettingsPage() {
 
           {/* Admin Success/Error Messages */}
           {adminSuccess && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-lg mb-4">
-              <p className="text-sm text-green-600 dark:text-green-400">{adminSuccess}</p>
+            <div className="bg-secondary/10 border border-secondary/20 p-3 rounded-lg mb-4">
+              <p className="text-sm text-secondary">{adminSuccess}</p>
             </div>
           )}
           {adminError && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-lg mb-4">
+            <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-lg mb-4">
               <p className="text-sm text-red-600 dark:text-red-400">{adminError}</p>
             </div>
           )}
 
           {/* Add Admin Form */}
           {showAddAdminForm && (
-            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg mb-4 space-y-4">
+            <div className="bg-primary/40 p-4 rounded-lg mb-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-accent/80 mb-2">
                   Wallet Address
                 </label>
                 <input
@@ -901,11 +902,11 @@ export default function SettingsPage() {
                   value={newAdminWallet}
                   onChange={(e) => setNewAdminWallet(e.target.value)}
                   placeholder="0x..."
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="w-full rounded-lg border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-accent/80 mb-2">
                   Role
                 </label>
                 <select
@@ -919,7 +920,7 @@ export default function SettingsPage() {
                       setNewAdminPermissions([...availablePermissions]);
                     }
                   }}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="w-full rounded-lg border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
                 >
                   <option value="admin">Admin</option>
                   <option value="super_admin">Super Admin</option>
@@ -928,7 +929,7 @@ export default function SettingsPage() {
               {newAdminRole === "admin" && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <label className="block text-sm font-medium text-accent/80">
                       Permissions (includes all settings tabs when &quot;Manage Settings&quot; is checked)
                     </label>
                     <div className="flex gap-2">
@@ -942,7 +943,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => setNewAdminPermissions([])}
-                        className="text-xs text-slate-500 hover:underline"
+                        className="text-xs text-accent/60 hover:underline"
                       >
                         Clear all
                       </button>
@@ -961,9 +962,9 @@ export default function SettingsPage() {
                               setNewAdminPermissions(newAdminPermissions.filter((p) => p !== permission));
                             }
                           }}
-                          className="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+                          className="rounded border-accent/10 text-primary focus:ring-primary"
                         />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">
+                        <span className="text-sm text-accent/80">
                           {permission.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                         </span>
                       </label>
@@ -972,7 +973,7 @@ export default function SettingsPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-accent/80 mb-2">
                   Notes (Optional)
                 </label>
                 <textarea
@@ -980,12 +981,12 @@ export default function SettingsPage() {
                   onChange={(e) => setNewAdminNotes(e.target.value)}
                   placeholder="Additional notes about this admin..."
                   rows={2}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="w-full rounded-lg border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary focus:outline-none"
                 />
               </div>
               <button
                 onClick={handleAddAdmin}
-                className="w-full bg-primary text-slate-900 font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+                className="w-full bg-secondary text-primary font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
               >
                 Add Admin
               </button>
@@ -995,60 +996,60 @@ export default function SettingsPage() {
           {/* Admins List */}
           {loadingAdmins ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <FSpinner size="md" />
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700">
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Wallet Address</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Role</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Permissions</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Status</th>
-                    <th className="text-left py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">Actions</th>
+                  <tr className="border-b border-accent/10">
+                    <th className="text-left py-3 px-4 font-semibold text-accent/80">Wallet Address</th>
+                    <th className="text-left py-3 px-4 font-semibold text-accent/80">Role</th>
+                    <th className="text-left py-3 px-4 font-semibold text-accent/80">Permissions</th>
+                    <th className="text-left py-3 px-4 font-semibold text-accent/80">Status</th>
+                    <th className="text-left py-3 px-4 font-semibold text-accent/80">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {admins.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                      <td colSpan={5} className="text-center py-8 text-accent/60 ">
                         No admins found
                       </td>
                     </tr>
                   ) : (
                     admins.map((admin) => (
                       <Fragment key={admin.id}>
-                        <tr className="border-b border-slate-200 dark:border-slate-700">
+                        <tr className="border-b border-accent/10">
                           <td className="py-3 px-4">
-                            <code className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                            <code className="text-xs bg-primary/40 px-2 py-1 rounded">
                               {admin.wallet_address.slice(0, 10)}...{admin.wallet_address.slice(-8)}
                             </code>
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               admin.role === "super_admin"
-                                ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
-                                : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                ? "bg-secondary/20 text-secondary"
+                                : "bg-secondary/10 text-secondary"
                             }`}>
                               {admin.role === "super_admin" ? "Super Admin" : "Admin"}
                             </span>
                           </td>
                           <td className="py-3 px-4">
                             {admin.role === "super_admin" ? (
-                              <span className="text-xs text-slate-500 dark:text-slate-400">All permissions</span>
+                              <span className="text-xs text-accent/60 ">All permissions</span>
                             ) : (
                               <div className="flex flex-wrap gap-1">
                                 {(admin.permissions || []).slice(0, 3).map((perm: string) => (
                                   <span
                                     key={perm}
-                                    className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded"
+                                    className="text-xs bg-primary/40 px-2 py-0.5 rounded"
                                   >
                                     {perm.replace(/_/g, " ")}
                                   </span>
                                 ))}
                                 {(admin.permissions || []).length > 3 && (
-                                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  <span className="text-xs text-accent/60 ">
                                     +{(admin.permissions || []).length - 3} more
                                   </span>
                                 )}
@@ -1058,8 +1059,8 @@ export default function SettingsPage() {
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               admin.is_active
-                                ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                                : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                                ? "bg-secondary/20 text-secondary"
+                                : "bg-red-500/10 text-red-400"
                             }`}>
                               {admin.is_active ? "Active" : "Inactive"}
                             </span>
@@ -1074,14 +1075,14 @@ export default function SettingsPage() {
                                     setEditingAdmin(admin.id);
                                   }
                                 }}
-                                className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"
+                                className="text-xs bg-primary/40 text-accent/80 px-2 py-1 rounded hover:bg-accent/20"
                               >
                                 {editingAdmin === admin.id ? "Cancel" : "Edit"}
                               </button>
                               {admin.wallet_address.toLowerCase() !== address?.toLowerCase() && (
                                 <button
                                   onClick={() => handleDeleteAdmin(admin.id)}
-                                  className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                                  className="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded hover:bg-red-500/30"
                                 >
                                   Deactivate
                                 </button>
@@ -1091,7 +1092,7 @@ export default function SettingsPage() {
                         </tr>
                         {editingAdmin === admin.id && (
                           <tr>
-                            <td colSpan={5} className="p-4 bg-slate-50 dark:bg-slate-800">
+                            <td colSpan={5} className="p-4 bg-primary/40">
                               <EditAdminForm
                                 admin={admin}
                                 availablePermissions={availablePermissions}

@@ -9,7 +9,8 @@ import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo, getTokenLogo } from "@/lib/logos";
-import BottomNavigation from "@/components/BottomNavigation";
+import FSpinner from "@/components/FSpinner";
+import DashboardLayout from "@/components/DashboardLayout";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
 
 interface NigerianBank {
@@ -451,115 +452,115 @@ function SendPageContent() {
   }, [recipient, selectedBank, ngnRecipientType]);
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark relative">
-      {/* Header Background */}
-      <div className="absolute top-0 left-0 w-full h-[200px] bg-primary rounded-b-[3rem] z-0 overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
-        <div className="absolute top-20 -left-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl"></div>
+    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-4 pb-24 lg:pb-8">
+      {/* Background blur orbs */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
       </div>
 
-      <div className="relative z-10 p-4">
-        <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6 text-secondary">
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-secondary/10 rounded-lg transition"
-            >
-              <span className="material-icons-outlined text-secondary">arrow_back</span>
-            </button>
-            <h1 className="text-2xl font-bold text-secondary">Send</h1>
-          </div>
-          
-          {/* Main Card */}
-          <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-            {/* Type Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
-                Send Type
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSendType("ngn")}
-                  className={`p-3 rounded-xl border-2 transition-all ${
-                    sendType === "ngn"
-                      ? "bg-primary border-primary text-secondary dark:text-white shadow-md"
-                      : "bg-light-blue/50 dark:bg-secondary/30 border-primary/30 dark:border-white/20 text-background-dark dark:text-white/80"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="material-icons-outlined">account_balance</span>
-                    <span className="font-semibold">NGN</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setSendType("crypto")}
-                  className={`p-3 rounded-xl border-2 transition-all ${
-                    sendType === "crypto"
-                      ? "bg-primary border-primary text-secondary dark:text-white shadow-md"
-                      : "bg-light-blue/50 dark:bg-secondary/30 border-primary/30 dark:border-white/20 text-background-dark dark:text-white/80"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="material-icons-outlined">currency_bitcoin</span>
-                    <span className="font-semibold">Crypto</span>
-                  </div>
-                </button>
-              </div>
+      <div className="w-full max-w-lg mt-8 lg:mt-16 relative">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <button
+            onClick={() => router.back()}
+            className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
+          >
+            <span className="material-icons-outlined">arrow_back</span>
+          </button>
+          <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">Send</h1>
+          <p className="text-accent/70">
+            {sendType === "crypto" ? "Transfer crypto across multiple chains" : "Send NGN to users or bank accounts"}
+          </p>
+        </div>
+
+        {/* Main Card - glass style */}
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] p-6 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl -z-10" />
+          {/* Type Selector */}
+          <div className="mb-6">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+              Send Type
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setSendType("ngn")}
+                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                  sendType === "ngn"
+                    ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
+                    : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
+                }`}
+              >
+                <span className="material-icons-outlined">account_balance</span>
+                <span className="font-semibold">NGN</span>
+              </button>
+              <button
+                onClick={() => setSendType("crypto")}
+                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                  sendType === "crypto"
+                    ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
+                    : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
+                }`}
+              >
+                <span className="material-icons-outlined">currency_bitcoin</span>
+                <span className="font-semibold">Crypto</span>
+              </button>
             </div>
+          </div>
 
-            {sendType === "crypto" ? (
-              <>
-                {/* Chain selector - only show chains with balance > 0 */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
-                    Select Chain {loadingBalances && <span className="text-xs">(Loading...)</span>}
-                  </label>
-                  {loadingBalances ? (
-                    <div className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                      <span className="ml-2 text-sm text-background-dark dark:text-white/80">Loading balances...</span>
-                    </div>
-                  ) : (
+          {sendType === "crypto" ? (
+            <>
+              {/* Chain selector - only show chains with balance > 0 */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                  Select Chain {loadingBalances && <span className="normal-case">(Loading...)</span>}
+                </label>
+                {loadingBalances ? (
+                  <div className="w-full p-5 rounded-3xl bg-primary/40 border border-accent/10 flex items-center justify-center gap-3">
+                    <FSpinner size="sm" />
+                    <span className="text-sm text-accent">Loading balances...</span>
+                  </div>
+                ) : (
                     <>
-                      {availableChains.length > 0 ? (
-                        <>
-                          {/* Chain selector with logo */}
-                          <div className="relative mb-3" ref={chainDropdownRef}>
-                            <button
-                              type="button"
-                              onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
-                              className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-primary/50 flex items-center justify-between"
-                            >
-                              <div className="flex items-center gap-3">
-                                {getChainLogo(selectedChain) ? (
-                                  <Image
-                                    src={getChainLogo(selectedChain)}
-                                    alt={chainConfig?.name || selectedChain}
-                                    width={24}
-                                    height={24}
-                                    className="rounded-full"
-                                    unoptimized
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
-                                    <span className="text-xs text-background-dark dark:text-white font-bold">{(chainConfig?.name || selectedChain).charAt(0)}</span>
-                                  </div>
-                                )}
-                                <span className="text-background-dark dark:text-white font-bold">
-                                  {chainConfig?.name || selectedChain} (${Object.values(walletBalances[selectedChain] || {}).reduce((sum, token) => sum + token.usdValue, 0).toFixed(2)})
-                                </span>
+                  {availableChains.length > 0 ? (
+                    <>
+                      {/* Chain selector with logo */}
+                      <div className="relative mb-4" ref={chainDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
+                          className="w-full p-5 rounded-3xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-secondary/30"
+                        >
+                          <div className="flex items-center gap-4">
+                            {getChainLogo(selectedChain) ? (
+                              <Image
+                                src={getChainLogo(selectedChain)}
+                                alt={chainConfig?.name || selectedChain}
+                                width={32}
+                                height={32}
+                                className="rounded-full"
+                                unoptimized
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-accent/10">
+                                <span className="material-icons-outlined text-sm text-secondary">hub</span>
                               </div>
-                              <span className="material-icons-outlined text-sm text-background-dark dark:text-white">
-                                {isChainDropdownOpen ? "expand_less" : "expand_more"}
-                              </span>
-                            </button>
+                            )}
+                            <div className="text-left">
+                              <div className="text-sm font-bold text-white">{chainConfig?.name || selectedChain}</div>
+                              <div className="text-[10px] text-secondary font-medium uppercase tracking-widest">
+                                ${Object.values(walletBalances[selectedChain] || {}).reduce((sum, token) => sum + token.usdValue, 0).toFixed(2)} USD
+                              </div>
+                            </div>
+                          </div>
+                          <span className="material-icons-outlined text-accent/40">{isChainDropdownOpen ? "expand_less" : "expand_more"}</span>
+                        </button>
 
-                            {isChainDropdownOpen && (
-                              <div className="absolute z-50 w-full mt-2 bg-light-blue dark:bg-background-dark/95 backdrop-blur-md rounded-xl border border-primary/30 dark:border-primary/50 shadow-lg max-h-64 overflow-y-auto">
+                        {isChainDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/20 shadow-xl max-h-64 overflow-y-auto">
                                 {availableChains.map((chainId) => {
                                   const chain = SUPPORTED_CHAINS[chainId];
                                   const tokens = walletBalances[chainId] || {};
@@ -573,10 +574,10 @@ function SendPageContent() {
                                         setSelectedToken("");
                                         setIsChainDropdownOpen(false);
                                       }}
-                                      className={`w-full p-3 flex items-center gap-3 transition-colors ${
+                                      className={`w-full p-4 flex items-center gap-3 transition-colors rounded-xl ${
                                         selectedChain === chainId 
-                                          ? "bg-primary/20 dark:bg-primary/30 hover:bg-primary/30 dark:hover:bg-primary/40" 
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                          ? "bg-secondary/10 hover:bg-secondary/15" 
+                                          : "hover:bg-white/5"
                                       }`}
                                     >
                                       {getChainLogo(chainId) ? (
@@ -593,10 +594,10 @@ function SendPageContent() {
                                         />
                                       ) : (
                                         <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
-                                          <span className="text-xs text-background-dark dark:text-white font-bold">{(chain?.name || chainId).charAt(0)}</span>
+                                          <span className="text-xs text-white font-bold">{(chain?.name || chainId).charAt(0)}</span>
                                         </div>
                                       )}
-                                      <span className="font-bold text-background-dark dark:text-white">
+                                      <span className="font-bold text-white">
                                         {chain?.name || chainId} (${totalUSD.toFixed(2)})
                                       </span>
                                       {selectedChain === chainId && (
@@ -611,43 +612,59 @@ function SendPageContent() {
                             )}
                           </div>
                           
-                          {/* Token selector with logo */}
-                          {availableTokens.length > 0 && (
-                            <div className="relative" ref={tokenDropdownRef}>
+                      {/* Token selector - You Send section */}
+                      {availableTokens.length > 0 && (
+                        <div className="space-y-3 mb-6">
+                          <div className="flex justify-between items-end px-1">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-accent/60">You Send</label>
+                            {selectedTokenInfo && (
+                              <span className="text-xs text-accent/60">
+                                Balance: {parseFloat(selectedTokenInfo.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} {selectedTokenInfo.symbol}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <input
+                                type="text"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="bg-transparent border-none p-0 text-2xl sm:text-3xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
+                              />
+                              {selectedTokenInfo && amount && parseFloat(amount) > 0 && selectedTokenInfo.usdValue > 0 && (
+                                <span className="text-xs text-accent/50 mt-1">≈ ${(parseFloat(amount) * selectedTokenInfo.usdValue / parseFloat(selectedTokenInfo.balance)).toFixed(2)} USD</span>
+                              )}
+                            </div>
+                            <div className="relative ml-3" ref={tokenDropdownRef}>
                               <button
                                 type="button"
                                 onClick={() => setIsTokenDropdownOpen(!isTokenDropdownOpen)}
-                                className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-primary/50 flex items-center justify-between"
+                                className="flex items-center gap-2 bg-primary px-4 py-2.5 rounded-2xl border border-accent/5 hover:bg-primary/80 transition-colors"
                               >
-                                <div className="flex items-center gap-3">
-                                  {selectedTokenInfo && getTokenLogo(selectedTokenInfo.symbol) ? (
-                                    <Image
-                                      src={getTokenLogo(selectedTokenInfo.symbol)}
-                                      alt={selectedTokenInfo.symbol}
-                                      width={24}
-                                      height={24}
-                                      className="rounded-full"
-                                      unoptimized
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                      }}
-                                    />
-                                  ) : selectedTokenInfo ? (
-                                    <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
-                                      <span className="text-xs text-background-dark dark:text-white font-bold">{selectedTokenInfo.symbol.charAt(0)}</span>
-                                    </div>
-                                  ) : null}
-                                  <span className="text-background-dark dark:text-white font-bold">
-                                    {selectedTokenInfo ? `${selectedTokenInfo.symbol} (${selectedTokenInfo.name}) - ${parseFloat(selectedTokenInfo.balance).toFixed(6)} ${selectedTokenInfo.usdValue > 0 ? `($${selectedTokenInfo.usdValue.toFixed(2)})` : '(Price unavailable)'}` : 'Select Token'}
-                                  </span>
-                                </div>
-                                <span className="material-icons-outlined text-sm text-background-dark dark:text-white">
-                                  {isTokenDropdownOpen ? "expand_less" : "expand_more"}
-                                </span>
+                                {selectedTokenInfo && getTokenLogo(selectedTokenInfo.symbol) ? (
+                                  <Image
+                                    src={getTokenLogo(selectedTokenInfo.symbol)}
+                                    alt={selectedTokenInfo.symbol}
+                                    width={24}
+                                    height={24}
+                                    className="rounded-full"
+                                    unoptimized
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : selectedTokenInfo ? (
+                                  <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
+                                    <span className="text-xs text-white font-bold">{selectedTokenInfo.symbol.charAt(0)}</span>
+                                  </div>
+                                ) : null}
+                                <span className="font-bold text-white tracking-tight">{selectedTokenInfo?.symbol || "Select"}</span>
+                                <span className="material-icons-outlined text-sm text-secondary">expand_more</span>
                               </button>
 
                               {isTokenDropdownOpen && (
-                                <div className="absolute z-50 w-full mt-2 bg-light-blue dark:bg-background-dark/95 backdrop-blur-md rounded-xl border border-primary/30 dark:border-primary/50 shadow-lg max-h-64 overflow-y-auto">
+                                <div className="absolute z-50 right-0 mt-2 min-w-[200px] bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/20 shadow-xl max-h-64 overflow-y-auto">
                                   {availableTokens.map(([tokenAddress, token]) => (
                                     <button
                                       key={tokenAddress}
@@ -656,10 +673,10 @@ function SendPageContent() {
                                         setSelectedToken(tokenAddress);
                                         setIsTokenDropdownOpen(false);
                                       }}
-                                      className={`w-full p-3 flex items-center gap-3 transition-colors ${
+                                      className={`w-full p-4 flex items-center gap-3 transition-colors rounded-xl ${
                                         selectedToken === tokenAddress 
-                                          ? "bg-primary/20 dark:bg-primary/30 hover:bg-primary/30 dark:hover:bg-primary/40" 
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                          ? "bg-secondary/10 hover:bg-secondary/15" 
+                                          : "hover:bg-white/5"
                                       }`}
                                     >
                                       {getTokenLogo(token.symbol) ? (
@@ -676,43 +693,30 @@ function SendPageContent() {
                                         />
                                       ) : (
                                         <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
-                                          <span className="text-xs text-background-dark dark:text-white font-bold">{token.symbol.charAt(0)}</span>
+                                          <span className="text-xs text-white font-bold">{token.symbol.charAt(0)}</span>
                                         </div>
                                       )}
                                       <div className="flex-1 text-left">
-                                        <span className="font-bold text-background-dark dark:text-white block">
-                                          {token.symbol} ({token.name})
-                                        </span>
-                                        <span className="text-xs text-background-dark/70 dark:text-white/70">
-                                          {parseFloat(token.balance).toFixed(6)} {token.usdValue > 0 ? `($${token.usdValue.toFixed(2)})` : '(Price unavailable)'}
+                                        <span className="font-bold text-white block">{token.symbol}</span>
+                                        <span className="text-xs text-accent/60">
+                                          {parseFloat(token.balance).toFixed(6)} {token.usdValue > 0 ? `($${token.usdValue.toFixed(2)})` : ""}
                                         </span>
                                       </div>
                                       {selectedToken === tokenAddress && (
-                                        <span className="material-icons-outlined text-primary dark:text-primary ml-auto text-sm">
-                                          check
-                                        </span>
+                                        <span className="material-icons-outlined text-secondary text-sm">check</span>
                                       )}
                                     </button>
                                   ))}
                                 </div>
                               )}
                             </div>
-                          )}
-                          
-                          {userAddress && selectedTokenInfo && (
-                            <div className="mt-2 p-2 bg-primary/20 dark:bg-primary/10 border border-primary/30 dark:border-primary/20 rounded-lg">
-                              <p className="text-xs text-background-dark/70 dark:text-white/60 font-mono mb-1">
-                                Your {chainConfig?.name} address: {userAddress.substring(0, 10)}...{userAddress.substring(userAddress.length - 8)}
-                              </p>
-                              <p className="text-xs font-semibold text-background-dark dark:text-white">
-                                Available: {parseFloat(selectedTokenInfo.balance).toFixed(6)} {selectedTokenInfo.symbol}
-                              </p>
-                            </div>
-                          )}
+                          </div>
+                        </div>
+                      )}
                         </>
                       ) : (
-                        <div className="p-4 bg-yellow-100/80 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800 rounded-xl backdrop-blur-sm">
-                          <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium text-center">
+                        <div className="p-6 rounded-2xl bg-yellow-500/20 border border-yellow-500/30">
+                          <p className="text-sm text-yellow-400 font-medium text-center">
                             No tokens available. Please receive tokens first.
                           </p>
                         </div>
@@ -721,50 +725,43 @@ function SendPageContent() {
                   )}
                 </div>
 
-                {/* Recipient address */}
-                {availableChains.length > 0 && availableTokens.length > 0 && selectedTokenInfo && (
-                  <>
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
-                        Recipient Wallet Address
-                      </label>
+              {/* Recipient address */}
+              {availableChains.length > 0 && availableTokens.length > 0 && selectedTokenInfo && (
+                <>
+                  <div className="space-y-3 mb-6">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">
+                      Recipient Address
+                    </label>
+                    <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                      <span className="material-icons-outlined text-accent/40">wallet</span>
                       <input
                         type="text"
                         value={recipient}
                         onChange={(e) => setRecipient(e.target.value)}
-                        placeholder={chainConfig?.type === "EVM" ? "0x..." : chainConfig?.type === "SOLANA" ? "Solana address..." : "Address..."}
-                        className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-mono placeholder:text-background-dark/50 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        placeholder={chainConfig?.type === "EVM" ? "0x... or ENS name" : chainConfig?.type === "SOLANA" ? "Solana address..." : "Wallet address..."}
+                        className="flex-1 bg-transparent border-none p-0 text-base focus:ring-0 outline-none text-white placeholder-white/20 font-mono"
                       />
                     </div>
+                  </div>
 
-                    {/* Amount */}
-                    {selectedTokenInfo && (
-                      <div className="mb-6">
-                        <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
-                          Amount ({selectedTokenInfo.symbol})
-                        </label>
-                        <input
-                          type="number"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="0.00"
-                          step="0.00000001"
-                          max={parseFloat(selectedTokenInfo.balance)}
-                          className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-medium placeholder:text-background-dark/50 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
-                        <p className="text-xs text-background-dark/70 dark:text-white/60 mt-1">
-                          Max: {parseFloat(selectedTokenInfo.balance).toFixed(6)} {selectedTokenInfo.symbol}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
+                  {userAddress && (
+                    <div className="mb-6 p-4 rounded-2xl bg-primary/40 border border-accent/5">
+                      <p className="text-xs text-accent/60 font-mono mb-1">
+                        Your {chainConfig?.name} address: {userAddress.substring(0, 10)}...{userAddress.substring(userAddress.length - 8)}
+                      </p>
+                      <p className="text-xs font-semibold text-white">
+                        Max: {parseFloat(selectedTokenInfo.balance).toFixed(6)} {selectedTokenInfo.symbol}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
               </>
             ) : (
               <>
                 {/* Recipient Type Selector */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
+                <div className="mb-6">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
                     Send To
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -775,16 +772,14 @@ function SendPageContent() {
                         setRecipient("");
                         setSelectedBank("");
                       }}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
                         ngnRecipientType === "user"
-                          ? "bg-primary border-primary text-secondary dark:text-white shadow-md"
-                          : "bg-light-blue/50 dark:bg-secondary/30 border-primary/30 dark:border-white/20 text-background-dark dark:text-white/80"
+                          ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
+                          : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                       }`}
                     >
-                      <div className="flex items-center gap-2 justify-center">
-                        <span className="material-icons-outlined text-sm">person</span>
-                        <span className="font-semibold text-sm">User</span>
-                      </div>
+                      <span className="material-icons-outlined">person</span>
+                      <span className="font-semibold">User</span>
                     </button>
                     <button
                       type="button"
@@ -796,16 +791,14 @@ function SendPageContent() {
                         setVerifiedAccount(null);
                         setVerificationError(null);
                       }}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
                         ngnRecipientType === "bank"
-                          ? "bg-primary border-primary text-secondary dark:text-white shadow-md"
-                          : "bg-light-blue/50 dark:bg-secondary/30 border-primary/30 dark:border-white/20 text-background-dark dark:text-white/80"
+                          ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
+                          : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                       }`}
                     >
-                      <div className="flex items-center gap-2 justify-center">
-                        <span className="material-icons-outlined text-sm">account_balance</span>
-                        <span className="font-semibold text-sm">Bank</span>
-                      </div>
+                      <span className="material-icons-outlined">account_balance</span>
+                      <span className="font-semibold">Bank</span>
                     </button>
                   </div>
                 </div>
@@ -813,12 +806,14 @@ function SendPageContent() {
                 {ngnRecipientType === "bank" && (
                   <>
                     {/* Searchable Bank Input */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
+                    <div className="mb-6">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
                         Search Bank
                       </label>
                       <div className="relative" ref={bankDropdownRef}>
-                        <input
+                        <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                          <span className="material-icons-outlined text-accent/40">account_balance</span>
+                          <input
                           type="text"
                           value={selectedBank ? (availableBanks.find(b => b.code === selectedBank)?.name || bankSearchQuery) : bankSearchQuery}
                           onChange={(e) => {
@@ -842,8 +837,8 @@ function SendPageContent() {
                               setIsBankDropdownOpen(true);
                             }
                           }}
-                          placeholder="Type to search banks (e.g., OPay, Palmpay, GTB, Moniepoint)"
-                          className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-medium placeholder:text-background-dark/50 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          placeholder="Type to search banks (e.g., OPay, GTB, Moniepoint)"
+                          className="flex-1 bg-transparent border-none p-0 text-base focus:ring-0 outline-none text-white placeholder-white/20"
                         />
                         {selectedBank && (
                           <button
@@ -853,19 +848,20 @@ function SendPageContent() {
                               setBankSearchQuery("");
                               setVerifiedAccount(null);
                             }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
                           >
-                            <span className="material-icons-outlined text-sm text-background-dark dark:text-white">close</span>
+                            <span className="material-icons-outlined text-sm text-accent">close</span>
                           </button>
                         )}
+                        </div>
 
                         {/* Search Results Dropdown */}
                         {isBankDropdownOpen && (bankSearchQuery || !selectedBank) && (
-                          <div className="absolute z-50 w-full mt-2 bg-light-blue dark:bg-background-dark/95 backdrop-blur-md rounded-xl border border-primary/30 dark:border-primary/50 shadow-lg max-h-64 overflow-y-auto">
+                          <div className="absolute z-50 w-full mt-2 bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/20 shadow-xl max-h-64 overflow-y-auto">
                             {loadingBanks ? (
                               <div className="p-4 text-center">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto"></div>
-                                <p className="text-xs text-background-dark/70 dark:text-white/60 mt-2">Loading banks...</p>
+                                <FSpinner size="sm" className="mx-auto" />
+                                <p className="text-xs text-accent/60 mt-2">Loading banks...</p>
                               </div>
                             ) : (
                               <>
@@ -885,19 +881,15 @@ function SendPageContent() {
                                         setVerifiedAccount(null); // Reset verification when bank changes
                                         setVerificationError(null);
                                       }}
-                                      className={`w-full p-3 text-left transition-colors ${
+                                      className={`w-full p-4 text-left transition-colors rounded-xl ${
                                         selectedBank === bank.code 
-                                          ? "bg-primary/20 dark:bg-primary/30 hover:bg-primary/30 dark:hover:bg-primary/40" 
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                          ? "bg-secondary/10 hover:bg-secondary/15" 
+                                          : "hover:bg-white/5"
                                       }`}
                                     >
-                                      <span className="font-semibold text-background-dark dark:text-white">
-                                        {bank.name}
-                                      </span>
+                                      <span className="font-semibold text-white">{bank.name}</span>
                                       {selectedBank === bank.code && (
-                                        <span className="material-icons-outlined text-primary dark:text-primary ml-auto float-right text-sm">
-                                          check
-                                        </span>
+                                        <span className="material-icons-outlined text-secondary ml-auto float-right text-sm">check</span>
                                       )}
                                     </button>
                                   ))}
@@ -905,7 +897,7 @@ function SendPageContent() {
                                   bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase())
                                 ).length === 0 && (
                                   <div className="p-4 text-center">
-                                    <p className="text-sm text-background-dark/70 dark:text-white/60">No banks found matching "{bankSearchQuery}"</p>
+                                    <p className="text-sm text-accent/60">No banks found matching "{bankSearchQuery}"</p>
                                   </div>
                                 )}
                               </>
@@ -919,36 +911,39 @@ function SendPageContent() {
                 )}
 
                 {/* Recipient input */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
+                <div className="mb-6">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
                     {ngnRecipientType === "user" 
                       ? "Recipient Phone Number" 
                       : "Recipient Account Number"}
                   </label>
-                  <input
-                    type="text"
-                    value={recipient}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (ngnRecipientType === "bank") {
-                        // Only allow digits, max 10
-                        const cleaned = value.replace(/\D/g, "").slice(0, 10);
-                        setRecipient(cleaned);
-                        // Reset verification when account number changes
-                        if (cleaned !== recipient) {
-                          setVerifiedAccount(null);
-                          setVerificationError(null);
+                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                    <span className="material-icons-outlined text-accent/40">
+                      {ngnRecipientType === "user" ? "phone" : "account_balance"}
+                    </span>
+                    <input
+                      type="text"
+                      value={recipient}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (ngnRecipientType === "bank") {
+                          const cleaned = value.replace(/\D/g, "").slice(0, 10);
+                          setRecipient(cleaned);
+                          if (cleaned !== recipient) {
+                            setVerifiedAccount(null);
+                            setVerificationError(null);
+                          }
+                        } else {
+                          setRecipient(value);
                         }
-                      } else {
-                        setRecipient(value);
-                      }
-                    }}
-                    placeholder={ngnRecipientType === "user" 
-                      ? "Enter phone number (e.g., 07034494055)" 
-                      : "Enter 10-digit account number"}
-                    maxLength={ngnRecipientType === "bank" ? 10 : undefined}
-                    className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-medium placeholder:text-background-dark/50 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
+                      }}
+                      placeholder={ngnRecipientType === "user" 
+                        ? "Enter phone (e.g., 07034494055)" 
+                        : "Enter 10-digit account number"}
+                      maxLength={ngnRecipientType === "bank" ? 10 : undefined}
+                      className="flex-1 bg-transparent border-none p-0 text-base focus:ring-0 outline-none text-white placeholder-white/20"
+                    />
+                  </div>
                   {ngnRecipientType === "user" && (
                     <p className="text-xs text-background-dark/70 dark:text-white/60 mt-1">
                       Enter recipient's Nigerian mobile number
@@ -961,36 +956,30 @@ function SendPageContent() {
                       </p>
                       {/* Account Verification Status */}
                       {verifyingAccount && (
-                        <div className="mt-2 p-2 bg-blue-100/80 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 rounded-lg">
+                        <div className="mt-3 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
                           <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            <p className="text-xs text-blue-700 dark:text-blue-300">Verifying account...</p>
+                            <FSpinner size="xs" />
+                            <p className="text-xs text-accent">Verifying account...</p>
                           </div>
                         </div>
                       )}
                       {verifiedAccount && !verifyingAccount && (
-                        <div className="mt-2 p-3 bg-green-100/80 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-lg">
+                        <div className="mt-3 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="material-icons-outlined text-sm text-green-600 dark:text-green-400">check_circle</span>
-                            <p className="text-xs font-semibold text-green-700 dark:text-green-300">Account Verified</p>
+                            <span className="material-icons-outlined text-sm text-secondary">check_circle</span>
+                            <p className="text-xs font-semibold text-secondary">Account Verified</p>
                           </div>
-                          <p className="text-sm font-medium text-green-800 dark:text-green-200">
-                            {verifiedAccount.accountName}
-                          </p>
-                          <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                            Account: {verifiedAccount.accountNumber}
-                          </p>
+                          <p className="text-sm font-medium text-white">{verifiedAccount.accountName}</p>
+                          <p className="text-xs text-accent/80 mt-1">Account: {verifiedAccount.accountNumber}</p>
                         </div>
                       )}
                       {verificationError && !verifyingAccount && !verifiedAccount && (
-                        <div className="mt-2 p-3 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-lg">
+                        <div className="mt-3 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="material-icons-outlined text-sm text-red-600 dark:text-red-400">error</span>
-                            <p className="text-xs font-semibold text-red-700 dark:text-red-300">Verification Failed</p>
+                            <span className="material-icons-outlined text-sm text-red-400">error</span>
+                            <p className="text-xs font-semibold text-red-400">Verification Failed</p>
                           </div>
-                          <p className="text-xs text-red-700 dark:text-red-400">
-                            {verificationError}
-                          </p>
+                          <p className="text-xs text-red-400">{verificationError}</p>
                         </div>
                       )}
                     </>
@@ -999,79 +988,76 @@ function SendPageContent() {
 
                 {/* Amount */}
                 <div className="mb-6">
-                  <label className="block text-sm font-medium mb-2 text-background-dark dark:text-white/80">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
                     Amount (₦)
                   </label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-medium placeholder:text-background-dark/50 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-
-                {virtualAccount && (
-                  <div className="mb-4 p-3 bg-primary/30 dark:bg-primary/10 border border-primary/50 dark:border-primary/30 rounded-xl">
-                    <p className="text-xs text-background-dark/70 dark:text-white/70 mb-1">Your Balance</p>
-                    <p className="text-lg font-bold text-background-dark dark:text-white">
-                      ₦ {virtualAccount.balance || "0.00"}
-                    </p>
+                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                    <span className="material-icons-outlined text-accent/40">payments</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                      placeholder="0.00"
+                      className="flex-1 bg-transparent border-none p-0 text-2xl font-bold focus:ring-0 outline-none text-white placeholder-white/20"
+                    />
                   </div>
-                )}
+                  {virtualAccount && (
+                    <p className="text-xs text-accent/60 mt-2 px-1">Balance: ₦ {(virtualAccount.balance || 0).toLocaleString()}</p>
+                  )}
+                </div>
               </>
             )}
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl backdrop-blur-sm">
-                <p className="text-sm text-red-700 dark:text-red-300 font-medium">{error}</p>
-              </div>
-            )}
+          {error && (
+            <div className="mb-6 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+              <p className="text-sm text-red-400 font-medium">{error}</p>
+            </div>
+          )}
 
-            {authenticating && (
-              <div className="mb-4 p-3 bg-primary/30 border border-primary/50 rounded-xl backdrop-blur-sm">
-                <p className="text-sm text-background-dark dark:text-white font-medium">
-                  Authenticating with passkey... Please follow the prompt on your device.
-                </p>
-              </div>
-            )}
+          {authenticating && (
+            <div className="mb-6 p-4 rounded-2xl bg-primary/40 border border-secondary/20">
+              <p className="text-sm text-accent font-medium">
+                Authenticating with passkey... Please follow the prompt on your device.
+              </p>
+            </div>
+          )}
 
-            <button
-              onClick={handleSend}
-              disabled={loading || !recipient || !amount || authenticating || 
-                       (sendType === "crypto" && (availableChains.length === 0 || !selectedTokenInfo)) ||
-                       (sendType === "ngn" && ngnRecipientType === "bank" && !selectedBank)}
-              className="w-full bg-secondary hover:bg-secondary/90 text-background-dark dark:text-white font-semibold py-3 px-6 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg transition-colors"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                  <span>Sending...</span>
-                </>
-              ) : (
-                <>
-                  <span className="material-icons-outlined">send</span>
-                  <span>Send</span>
-                </>
-              )}
-            </button>
-          </div>
+          <button
+            onClick={handleSend}
+            disabled={loading || !recipient || !amount || authenticating || 
+                     (sendType === "crypto" && (availableChains.length === 0 || !selectedTokenInfo)) ||
+                     (sendType === "ngn" && ngnRecipientType === "bank" && !selectedBank)}
+            className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] transition-all"
+          >
+            {loading ? (
+              <>
+                <FSpinner size="sm" />
+                <span>Sending...</span>
+              </>
+            ) : (
+              <>
+                <span className="material-icons-outlined font-bold">send</span>
+                <span className="text-black">Send</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
-      <BottomNavigation />
     </div>
   );
 }
 
 export default function SendPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    }>
-      <SendPageContent />
-    </Suspense>
+    <DashboardLayout>
+      <Suspense fallback={
+        <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
+          <FSpinner size="lg" />
+        </div>
+      }>
+        <SendPageContent />
+      </Suspense>
+    </DashboardLayout>
   );
 }

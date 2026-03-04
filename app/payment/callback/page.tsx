@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import Modal from "@/components/Modal";
 import Link from "next/link";
 import { getUserFromStorage } from "@/lib/session";
+import FSpinner from "@/components/FSpinner";
 
 function PaymentCallbackContent() {
   const searchParams = useSearchParams();
@@ -200,7 +201,7 @@ function PaymentCallbackContent() {
       <div className="w-full max-w-md">
         {status === "loading" && (
           <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <FSpinner size="lg" className="mx-auto mb-4" />
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
               Verifying Payment...
             </h2>
@@ -279,7 +280,7 @@ export default function PaymentCallback() {
         <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark p-4">
           <div className="w-full max-w-md">
             <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <FSpinner size="lg" className="mx-auto mb-4" />
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                 Loading...
               </h2>
