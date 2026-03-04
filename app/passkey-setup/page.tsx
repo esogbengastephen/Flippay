@@ -10,9 +10,6 @@ import { createPasskey, isPasskeySupported, isPlatformAuthenticatorAvailable } f
 import FSpinner from "@/components/FSpinner";
 import { generateWalletFromSeed, generateSeedPhrase, encryptSeedPhrase } from "@/lib/wallet";
 
-// Flag to enable mock authentication
-const USE_MOCK_AUTH = false;
-
 export default function PasskeySetupPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -59,28 +56,7 @@ export default function PasskeySetupPage() {
 
   const checkExistingPasskey = async () => {
     if (!user) return;
-    
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      // Check if the mock user already has passkey set
-      if (user.hasPasskey) {
-        // User already has passkey, redirect to dashboard
-        router.push("/");
-        return;
-      }
-      
-      // Check if mock user has existing wallet
-      if (user.hasWallet) {
-        setHasExistingWallet(true);
-        // Check if this is recovery mode (user came from recovery flow)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("recovery") === "true") {
-          setIsRecoveryMode(true);
-        }
-      }
-      return;
-    }
-    
+
     try {
       const response = await fetch(getApiUrl(`/api/user/check-passkey?userId=${user.id}`));
       const data = await response.json();
@@ -140,57 +116,6 @@ export default function PasskeySetupPage() {
     setError("");
     setStep("creating");
 
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      try {
-        // Simulate passkey setup process
-        console.log("[MOCK] Generating wallet...");
-        const seedPhrase = generateSeedPhrase();
-        const walletData = generateWalletFromSeed(seedPhrase);
-        
-        // Verify all expected addresses were generated
-        const expectedChains = ["bitcoin", "ethereum", "base", "polygon", "monad", "solana", "sui"];
-        const missingChains = expectedChains.filter(chain => !walletData.addresses[chain]);
-        
-        if (missingChains.length > 0) {
-          console.warn("Some chain addresses were not generated:", missingChains);
-        }
-        
-        if (Object.keys(walletData.addresses).length === 0) {
-          throw new Error("Failed to generate any wallet addresses. Please try again.");
-        }
-        
-        console.log("[MOCK] Generated addresses for chains:", Object.keys(walletData.addresses));
-
-        // Simulate creating a mock passkey
-        console.log("[MOCK] Creating passkey...");
-        
-        // Success!
-        setStep("success");
-        
-        // Update user in storage to indicate passkey is set
-        const updatedUser = {
-          ...user,
-          hasPasskey: true,
-          hasWallet: true,
-          walletAddresses: walletData.addresses,
-        };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
-      } catch (err: any) {
-        console.error("[MOCK] Error setting up passkey:", err);
-        setError(err.message || "Failed to set up passkey. Please try again.");
-        setStep("intro");
-      } finally {
-        setSettingUp(false);
-      }
-      return;
-    }
-    
     try {
       // Step 1: Generate wallet
       console.log("Generating wallet...");

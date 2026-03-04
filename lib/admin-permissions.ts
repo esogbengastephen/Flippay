@@ -1,10 +1,4 @@
 /**
- * Set to true to bypass admin wallet auth for local UI/UX development.
- * When true, admin pages are accessible without connecting a wallet.
- */
-export const USE_MOCK_ADMIN_AUTH = false;
-
-/**
  * Admin route → permission mapping.
  * Each tab has its own permission so admins can be granted access per tab.
  * Super admin has access to all; other admins need the listed permission.

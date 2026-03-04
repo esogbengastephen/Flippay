@@ -7,11 +7,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Validate that we have a valid anon key
 let validAnonKey = supabaseAnonKey;
 if (!validAnonKey || validAnonKey.trim() === "" || validAnonKey.includes("placeholder")) {
-  // For local development with mock auth, we'll just log a warning instead of an error
-  console.warn("[Supabase] WARNING: NEXT_PUBLIC_SUPABASE_ANON_KEY is not set or is invalid. This is OK for local development with mock authentication.");
-  console.warn("[Supabase] Current value:", validAnonKey ? `${validAnonKey.substring(0, 20)}...` : "undefined");
-  console.warn("[Supabase] For production or full backend functionality, set it in your .env.local file.");
-  // Use a dummy key to prevent app crash, but operations will fail with clear error messages
+  console.error("[Supabase] ERROR: NEXT_PUBLIC_SUPABASE_ANON_KEY is not set or is invalid. Set it in your .env.local file.");
   validAnonKey = "INVALID_KEY_PLEASE_SET_NEXT_PUBLIC_SUPABASE_ANON_KEY";
 } else {
   // Check if it's a valid format (JWT or sb_ format)

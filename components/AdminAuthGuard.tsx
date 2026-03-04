@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import WalletConnect from "./WalletConnect";
 import { useRouter } from "next/navigation";
-import { USE_MOCK_ADMIN_AUTH } from "@/lib/admin-permissions";
 import FSpinner from "@/components/FSpinner";
 
 interface AdminAuthGuardProps {
@@ -25,12 +24,6 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   const checkAuth = async () => {
     setIsChecking(true);
 
-    if (USE_MOCK_ADMIN_AUTH) {
-      setIsAuthenticated(true);
-      setIsChecking(false);
-      return;
-    }
-    
     // Check localStorage for session
     const session = localStorage.getItem("admin_session");
     if (session) {

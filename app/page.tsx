@@ -9,9 +9,6 @@ import { isUserLoggedIn, getUserFromStorage, clearUserSession } from "@/lib/sess
 import DashboardLayout from "@/components/DashboardLayout";
 import FSpinner from "@/components/FSpinner";
 
-// Flag to enable mock authentication
-const USE_MOCK_AUTH = false;
-
 // Lazy load UserDashboard to reduce initial bundle size
 const UserDashboard = dynamic(() => import("@/components/UserDashboard"), {
   loading: () => (
@@ -90,35 +87,6 @@ export default function Home() {
 
         // CRITICAL: Verify user exists in database
         try {
-          // Use mock authentication if enabled
-          if (USE_MOCK_AUTH) {
-            // Simulate successful user verification for mock users
-            // For mock users, we'll assume they exist and need passkey setup initially
-            const isMockUser = currentUser && currentUser.id === "mock-user-id";
-            
-            if (isMockUser) {
-              // Mock user - skip backend verification
-              // For mock users, we'll check if they have the hasPasskey property set to true
-              // If not present or false, they need passkey setup
-              if (!currentUser.hasPasskey) {
-                // User doesn't have passkey - redirect to setup
-                try {
-                  router.push("/passkey-setup");
-                } catch (e) {
-                  if (typeof window !== "undefined") {
-                    window.location.href = "/passkey-setup";
-                  }
-                }
-                return;
-              }
-              
-              // User exists and has passkey - allow access
-              setUser(currentUser);
-              setIsChecking(false);
-              return;
-            }
-          }
-          
           const response = await fetch(getApiUrl("/api/auth/verify-user"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },

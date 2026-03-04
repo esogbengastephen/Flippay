@@ -11,23 +11,6 @@ import { authenticateWithPasskey, isPasskeySupported } from "@/lib/passkey";
 
 type AuthMode = "login" | "signup" | "verify";
 
-// Mock user data for local development
-const MOCK_USER = {
-  id: "mock-user-id",
-  email: "",
-  name: "Mock User",
-  createdAt: new Date().toISOString(),
-  hasPasskey: false, // Initially false, will be set to true after passkey setup
-  referralCode: "MOCK1234",
-  emailVerified: true,
-  totalTransactions: 0,
-  totalSpentNGN: 0,
-  totalReceivedSEND: "0",
-};
-
-// Flag to enable mock authentication
-const USE_MOCK_AUTH = false;
-
 export default function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
@@ -79,20 +62,7 @@ export default function AuthPage() {
     if (!emailToCheck || !emailToCheck.includes("@")) return;
 
     setCheckingPasskey(true);
-    
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        // Simulate passkey check - for demo purposes, we'll simulate having a passkey
-        // In a real scenario, you might want to adjust this based on your needs
-        setHasPasskey(true);
-        setPasskeyUserId(MOCK_USER.id);
-        setPasskeyUser(MOCK_USER);
-        setCheckingPasskey(false);
-      }, 800); // Simulate network delay
-      return;
-    }
-    
+
     try {
       const passkeyCheckResponse = await fetch(getApiUrl("/api/auth/passkey-login"), {
         method: "POST",
@@ -128,27 +98,6 @@ export default function AuthPage() {
     setHasPasskey(false);
     setPasskeyUserId(null);
     setPasskeyUser(null);
-
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        if (mode === "login") {
-          // Simulate login with mock data
-          setMessage("Login successful! Redirecting to passkey setup...");
-          const mockUser = { ...MOCK_USER, email };
-          localStorage.setItem("user", JSON.stringify(mockUser));
-          localStorage.setItem("last_email", email);
-          setTimeout(() => router.push("/passkey-setup"), 1500);
-        } else {
-          // Simulate signup code sent with mock data
-          setMessage("Confirmation code sent to your email (using mock auth)");
-          setCodeSent(true);
-          setResendCooldown(60);
-          setLoading(false);
-        }
-      }, 800); // Simulate network delay
-      return;
-    }
 
     try {
       if (mode === "login") {
@@ -236,16 +185,6 @@ export default function AuthPage() {
     setMessage("");
     setResending(true);
 
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        setMessage(recoveryMode ? "Recovery code resent to your email (using mock auth)" : "Confirmation code resent to your email (using mock auth)");
-        setResendCooldown(60);
-        setResending(false);
-      }, 800); // Simulate network delay
-      return;
-    }
-
     try {
       // Use recovery endpoint if in recovery mode, otherwise use regular send-code
       const endpoint = getApiUrl(recoveryMode ? "/api/auth/recover-passkey" : "/api/auth/send-code");
@@ -293,25 +232,6 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setLoading(true);
-
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        // Simulate signup verification with mock data
-        const mockUser = { 
-          ...MOCK_USER, 
-          email,
-          phoneNumber: mode === "signup" ? phoneNumber : undefined,
-          referralCode: referralCode || undefined,
-        };
-        setMessage("Account created successfully! Redirecting...");
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        localStorage.setItem("last_email", email);
-        setTimeout(() => router.push("/passkey-setup"), 1500);
-        setLoading(false);
-      }, 800); // Simulate network delay
-      return;
-    }
 
     try {
       // Sign up flow only (login doesn't need code verification)
@@ -365,25 +285,6 @@ export default function AuthPage() {
     setError("");
     setMessage("");
 
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        // Simulate passkey login with mock data
-        setMessage("Passkey authentication successful! Redirecting...");
-        const mockUser = { ...MOCK_USER, email: passkeyUser?.email || email };
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        if (passkeyUser?.email) {
-          localStorage.setItem("last_email", passkeyUser.email);
-        } else if (email) {
-          localStorage.setItem("last_email", email);
-        }
-        
-        setTimeout(() => router.push("/"), 1500);
-        setAuthenticatingPasskey(false);
-      }, 800); // Simulate network delay
-      return;
-    }
-
     try {
       const authResult = await authenticateWithPasskey(passkeyUserId);
 
@@ -428,17 +329,6 @@ export default function AuthPage() {
     setMessage("");
     setLoading(true);
 
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        setMessage("Recovery code sent to your email (using mock auth)");
-        setRecoveryCodeSent(true);
-        setResendCooldown(60);
-        setLoading(false);
-      }, 800); // Simulate network delay
-      return;
-    }
-
     try {
       const response = await fetch(getApiUrl("/api/auth/recover-passkey"), {
         method: "POST",
@@ -467,21 +357,6 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setLoading(true);
-
-    // Use mock authentication if enabled
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        // Simulate recovery verification with mock data
-        const mockUser = { ...MOCK_USER, email };
-        setMessage("Recovery verified! Redirecting to create new passkey...");
-        localStorage.setItem("user", JSON.stringify(mockUser));
-        localStorage.setItem("last_email", email);
-        
-        setTimeout(() => router.push("/passkey-setup?recovery=true"), 1500);
-        setLoading(false);
-      }, 800); // Simulate network delay
-      return;
-    }
 
     try {
       const response = await fetch(getApiUrl("/api/auth/recover-passkey"), {
