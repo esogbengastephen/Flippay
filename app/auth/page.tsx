@@ -487,7 +487,7 @@ export default function AuthPage() {
         <img
           src="/asset/flippay-spinner.gif"
           alt="FlipPay"
-          className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
+          className="w-80 h-80 sm:w-96 sm:h-96 object-contain"
           aria-hidden
           onError={(e) => {
             (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
@@ -508,7 +508,7 @@ export default function AuthPage() {
           <img
             src="/asset/flippay-spinner.gif"
             alt="Loading"
-            className="w-16 h-16 object-contain"
+            className="w-32 h-32 object-contain"
             aria-hidden
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
