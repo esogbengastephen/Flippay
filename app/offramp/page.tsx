@@ -1,7 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-import { getTokenLogo } from "@/lib/logos";
+import { getTokenLogo, getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 
 import { useEffect, useState, useRef, Suspense } from "react";
@@ -25,8 +25,10 @@ function OffRampPageContent() {
   const [walletAddress, setWalletAddress] = useState("");
   const [verifiedAccountName, setVerifiedAccountName] = useState("");
   const [transactionId, setTransactionId] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState<"send" | "base" | "solana">("send");
   const [network, setNetwork] = useState<"base" | "solana">("base");
-  const [networkType, setNetworkType] = useState<"send" | "base" | "solana">("base");
+  const [networkType, setNetworkType] = useState<"send" | "base" | "solana">("send");
+  const [showNetworkSelectionCard, setShowNetworkSelectionCard] = useState(true);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
@@ -51,8 +53,8 @@ function OffRampPageContent() {
   const [banksList, setBanksList] = useState<BankOption[]>(NIGERIAN_BANKS);
   const [loadingBanks, setLoadingBanks] = useState(false);
 
-  const isSendFlow = selectedCrypto === "SEND";
-  const minimumAmount = selectedCrypto === "SEND" ? minimumOfframpSEND : 1;
+  const isSendFlow = selectedNetwork === "send";
+  const minimumAmount = isSendFlow ? minimumOfframpSEND : 1;
   const sendAmountNum = parseFloat(sendAmount) || 0;
   const ngnAmount = sellRate != null && sellRate > 0 ? sendAmountNum * sellRate : 0;
   const meetsMinimumSell = sendAmountNum >= minimumAmount;
@@ -89,19 +91,23 @@ function OffRampPageContent() {
         .catch(() => {});
     }
 
-    // Read network and type from URL parameter
-    const networkParam = searchParams.get("network");
-    const typeParam = searchParams.get("type");
+    // Read network and type from URL. Network first: ?network=send|base|solana, ?type=send|usdc|usdt
+    const networkParam = (searchParams.get("network") || "").toLowerCase();
+    const typeParam = (searchParams.get("type") || "").toLowerCase();
     
     if (networkParam === "base" || networkParam === "solana") {
-      setNetwork(networkParam);
+      setSelectedNetwork(networkParam);
+      setShowNetworkSelectionCard(false);
+    } else if (networkParam === "send" || typeParam === "send") {
+      setSelectedNetwork("send");
+      setShowNetworkSelectionCard(false);
     }
     
-    // Set initial crypto from URL. Support ?type=send|usdc|usdt (networkType syncs from selectedCrypto)
-    const cryptoParam = (typeParam || "").toLowerCase();
-    if (cryptoParam === "usdc") setSelectedCrypto("USDC");
-    else if (cryptoParam === "usdt") setSelectedCrypto("USDT");
-    else setSelectedCrypto("SEND");
+    if (typeParam === "usdc") setSelectedCrypto("USDC");
+    else if (typeParam === "usdt") setSelectedCrypto("USDT");
+    else if (networkParam !== "base" && networkParam !== "solana" && typeParam !== "usdc" && typeParam !== "usdt") {
+      setSelectedCrypto("SEND");
+    }
 
     // Check dark mode
     const checkDarkMode = () => {
@@ -157,16 +163,22 @@ function OffRampPageContent() {
       .finally(() => setLoadingBanks(false));
   }, []);
 
-  // Sync networkType from selectedCrypto (SEND = send flow, USDC/USDT = base)
+  // Sync network, networkType, and crypto from selectedNetwork (network first, then crypto)
   useEffect(() => {
-    if (selectedCrypto === "SEND") {
+    if (selectedNetwork === "send") {
       setNetworkType("send");
       setNetwork("base");
-    } else {
+      setSelectedCrypto("SEND");
+    } else if (selectedNetwork === "base") {
       setNetworkType("base");
       setNetwork("base");
+      setSelectedCrypto((prev) => (prev === "SEND" ? "USDC" : prev));
+    } else {
+      setNetworkType("solana");
+      setNetwork("solana");
+      setSelectedCrypto((prev) => (prev === "SEND" ? "USDC" : prev));
     }
-  }, [selectedCrypto]);
+  }, [selectedNetwork]);
 
   // Update sell rate when selectedCrypto changes
   useEffect(() => {
@@ -427,9 +439,9 @@ function OffRampPageContent() {
         <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
       </div>
 
-      <div className="w-full max-w-lg mt-4 lg:mt-6 relative">
+      <div className="w-full max-w-lg mt-4 lg:mt-6 relative flex-1 flex flex-col">
         {/* Header */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-4 flex-shrink-0">
           <button
             onClick={() => router.back()}
             className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
@@ -440,9 +452,73 @@ function OffRampPageContent() {
           <p className="text-accent/70">Withdraw to your bank account instantly</p>
         </div>
 
-        {/* Form Card - glass style */}
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-xl p-3 sm:p-4 border border-secondary/10 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl -z-10" />
+        {/* Network Selection Card - centered overlay (same position as Naira to Crypto modal) */}
+        {!walletAddress && showNetworkSelectionCard && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm"
+            onClick={() => router.back()}
+          >
+            <div
+              className="w-full max-w-sm bg-surface/95 backdrop-blur-[24px] rounded-xl border border-secondary/10 shadow-xl p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-bold text-white font-display">Select Crypto Network</h2>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="p-1.5 rounded-lg hover:bg-primary/40 text-accent/70 hover:text-white transition-colors"
+                  aria-label="Close"
+                >
+                  <span className="material-icons-outlined text-lg">close</span>
+                </button>
+              </div>
+              <p className="text-xs text-accent/70 mb-3">Choose the network you want to withdraw from</p>
+              <div className="space-y-2">
+                {(["send", "base", "solana"] as const).map((net) => (
+                  <button
+                    key={net}
+                    type="button"
+                    onClick={() => {
+                      setSelectedNetwork(net);
+                      setShowNetworkSelectionCard(false);
+                      if (net === "send") setCryptoDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
+                        {net === "send" ? (
+                          getTokenLogo("SEND") ? (
+                            <img src={getTokenLogo("SEND")!} alt="SEND" className="w-5 h-5 object-contain" />
+                          ) : (
+                            <span className="text-secondary font-bold text-sm">S</span>
+                          )
+                        ) : getChainLogo(net) ? (
+                          <img src={getChainLogo(net)} alt={net} className="w-5 h-5 object-contain" />
+                        ) : (
+                          <span className="text-secondary font-bold text-xs">{net === "base" ? "B" : "S"}</span>
+                        )}
+                      </div>
+                      <span className="font-semibold text-sm text-white uppercase tracking-wide">
+                        {net === "send" ? "SEND" : net === "base" ? "Base" : "Solana"}
+                      </span>
+                    </div>
+                    <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Card - shown when network selected or when deposit address exists (centered like selector) */}
+        {(walletAddress || !showNetworkSelectionCard) && (
+        <div className="flex-1 flex items-center justify-center min-h-0">
+          <div className="w-full bg-surface/60 backdrop-blur-[24px] rounded-xl p-3 sm:p-4 border border-secondary/10 shadow-2xl relative">
+          <div className="absolute inset-0 overflow-hidden rounded-xl -z-10 pointer-events-none">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl" />
+          </div>
           {!walletAddress ? (
             <>
               {error && (
@@ -486,8 +562,8 @@ function OffRampPageContent() {
                 {/* You Send */}
                 <div className="space-y-1.5 mb-3">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Send</label>
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
-                    <div className="flex flex-col">
+                  <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all flex-wrap">
+                    <div className="flex flex-col flex-1 min-w-0">
                       <input
                         id="send_amount"
                         type="text"
@@ -502,21 +578,24 @@ function OffRampPageContent() {
                       />
                       <span className="text-xs text-accent/60">Min: {minimumAmount} {selectedCrypto}</span>
                     </div>
+                    {/* Crypto dropdown (network already selected from card) */}
                     <div ref={cryptoDropdownRef} className="relative">
                       <button
                         type="button"
-                        onClick={() => setCryptoDropdownOpen(!cryptoDropdownOpen)}
-                        className="flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5 hover:border-accent/20 transition-colors"
+                        onClick={() => selectedNetwork !== "send" && setCryptoDropdownOpen(!cryptoDropdownOpen)}
+                        className={`flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5 hover:border-accent/20 transition-colors ${selectedNetwork === "send" ? "cursor-default" : ""}`}
                       >
                         {getTokenLogo(selectedCrypto) ? (
                           <img src={getTokenLogo(selectedCrypto)!} alt={selectedCrypto} className="w-5 h-5 rounded-full object-cover" />
                         ) : null}
                         <span className="font-bold text-white text-sm">{selectedCrypto}</span>
-                        <span className="material-icons-outlined text-accent/60 text-sm">{cryptoDropdownOpen ? "expand_less" : "expand_more"}</span>
+                        {selectedNetwork !== "send" && (
+                          <span className="material-icons-outlined text-accent/60 text-sm">{cryptoDropdownOpen ? "expand_less" : "expand_more"}</span>
+                        )}
                       </button>
-                      {cryptoDropdownOpen && (
+                      {cryptoDropdownOpen && selectedNetwork !== "send" && (
                         <div className="absolute top-full right-0 mt-1 z-20 rounded-xl border border-secondary/20 bg-surface/95 backdrop-blur-xl shadow-xl overflow-hidden min-w-[140px]">
-                          {(["SEND", "USDC", "USDT"] as const).map((token) => (
+                          {(["USDC", "USDT"] as const).map((token) => (
                             <button
                               key={token}
                               type="button"
@@ -592,7 +671,7 @@ function OffRampPageContent() {
                         maxLength={10}
                       />
                     </div>
-                    <div ref={bankDropdownRef} className="relative">
+                    <div ref={bankDropdownRef} className="relative min-w-0">
                       <button
                           type="button"
                           onClick={() => setBankDropdownOpen(!bankDropdownOpen)}
@@ -610,15 +689,15 @@ function OffRampPageContent() {
                           <span className="material-icons-outlined text-accent/60">expand_more</span>
                         </button>
                         {bankDropdownOpen && (
-                          <div className="absolute z-20 mt-2 w-full rounded-2xl border border-secondary/20 bg-surface/95 backdrop-blur-xl shadow-xl max-h-56 overflow-hidden">
+                          <div className="absolute z-20 left-0 right-0 mt-2 min-w-0 w-full rounded-2xl border border-secondary/20 bg-surface/95 backdrop-blur-xl shadow-xl max-h-56 overflow-hidden">
                             <input
                               type="text"
                               value={bankSearchQuery}
                               onChange={(e) => setBankSearchQuery(e.target.value)}
                               placeholder="Search banks..."
-                              className="w-full px-4 py-3 border-b border-white/10 bg-surface text-white placeholder-white/40 text-sm"
+                              className="w-full px-4 py-3 border-b border-white/10 bg-surface text-white placeholder-white/40 text-sm focus:outline-none focus:ring-0"
                             />
-                            <div className="overflow-y-auto max-h-44 custom-scrollbar">
+                            <div className="overflow-y-auto overflow-x-hidden max-h-44 custom-scrollbar">
                               {filteredBanks.map((bank) => (
                                 <button
                                   key={bank.code}
@@ -864,6 +943,8 @@ function OffRampPageContent() {
                     setVerifiedAccountName("");
                     setAccountNumber("");
                     setSelectedBankCode("");
+                    setSelectedNetwork("send");
+                    setShowNetworkSelectionCard(true);
                     setNetwork("base");
                     setPayoutError("");
                     setPayoutSuccess(null);
@@ -876,7 +957,9 @@ function OffRampPageContent() {
               </div>
             </>
           )}
+          </div>
         </div>
+        )}
 
         <p className="text-center text-accent/40 text-xs mt-10">
           Powered by Flippay • Licensed Financial Provider

@@ -105,6 +105,7 @@ export default function UserDashboard() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [showCryptoOptions, setShowCryptoOptions] = useState(false);
   const [showOfframpOptions, setShowOfframpOptions] = useState(false);
+  const [showDepositOptions, setShowDepositOptions] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showAssetsModal, setShowAssetsModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<{ chainId: string; tokenAddress: string; tokenInfo: any } | null>(null);
@@ -386,8 +387,8 @@ export default function UserDashboard() {
   const handleServiceClick = (service: Service) => {
     // Map services to existing routes
     if (service.id === "crypto-to-naira") {
-      // Navigate directly to offramp (SEND flow - crypto to NGN)
-      router.push("/offramp?network=base&type=send");
+      // Navigate to offramp - network selection card shows first, then form
+      router.push("/offramp");
     } else if (service.id === "naira-to-crypto") {
       // Show modal with options instead of routing directly
       setShowCryptoOptions(true);
@@ -403,11 +404,11 @@ export default function UserDashboard() {
   const handleCryptoOptionClick = (option: "SEND" | "BASE" | "SOLANA") => {
     setShowCryptoOptions(false);
     if (option === "SEND") {
-      router.push("/payment");
+      router.push("/payment?flow=buy&network=send");
     } else if (option === "BASE") {
-      router.push("/payment?network=base");
+      router.push("/payment?flow=buy&network=base");
     } else if (option === "SOLANA") {
-      router.push("/payment?network=solana");
+      router.push("/payment?flow=buy&network=solana");
     }
   };
 
@@ -420,6 +421,17 @@ export default function UserDashboard() {
       router.push("/offramp?network=base&type=base");
     } else if (option === "SOLANA") {
       router.push("/offramp?network=solana&type=solana");
+    }
+  };
+
+  const handleDepositOptionClick = (option: "send" | "receive") => {
+    setShowDepositOptions(false);
+    if (option === "send") {
+      // Send Naira to buy crypto (Naira to Crypto flow)
+      setShowCryptoOptions(true);
+    } else {
+      // Receive crypto - get wallet address
+      router.push("/receive");
     }
   };
 
@@ -566,12 +578,45 @@ export default function UserDashboard() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => handleServiceClick(services[1])}
-                className="bg-secondary text-primary px-4 py-2 rounded-xl font-bold text-sm shadow-[0_4px_14px_rgba(19,236,90,0.2)] hover:brightness-110 transition-all flex items-center gap-2">
-                <span className="material-icons-outlined text-lg">add</span>
-                Deposit
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowDepositOptions((v) => !v)}
+                  className="bg-secondary text-primary px-4 py-2 rounded-xl font-bold text-sm shadow-[0_4px_14px_rgba(19,236,90,0.2)] hover:brightness-110 transition-all flex items-center gap-2">
+                  <span className="material-icons-outlined text-lg">add</span>
+                  Deposit
+                  <span className={`material-icons-outlined text-lg transition-transform ${showDepositOptions ? "rotate-180" : ""}`}>expand_more</span>
+                </button>
+                {showDepositOptions && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowDepositOptions(false)}
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="absolute right-0 top-full mt-2 z-50 min-w-[180px] py-2 rounded-xl bg-surface/95 backdrop-blur-[24px] border border-secondary/10 shadow-xl"
+                      role="menu"
+                    >
+                      <button
+                        onClick={() => handleDepositOptionClick("send")}
+                        role="menuitem"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-primary/40 transition-colors text-white"
+                      >
+                        <span className="material-icons-outlined text-secondary text-lg">send</span>
+                        <span className="font-semibold text-sm">Send</span>
+                      </button>
+                      <button
+                        onClick={() => handleDepositOptionClick("receive")}
+                        role="menuitem"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-primary/40 transition-colors text-white"
+                      >
+                        <span className="material-icons-outlined text-secondary text-lg">call_received</span>
+                        <span className="font-semibold text-sm">Receive</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-primary p-6 rounded-2xl border border-accent/10 text-white">
@@ -789,94 +834,91 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* Crypto Options Modal - Naira to Crypto */}
+      {/* Crypto Options Modal - Naira to Crypto (compact selector card) */}
       {showCryptoOptions && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm"
           onClick={() => setShowCryptoOptions(false)}
         >
           <div 
-            className="glass-card rounded-2xl shadow-xl max-w-sm w-full p-6 border border-secondary/20"
+            className="w-full max-w-sm bg-surface/95 backdrop-blur-[24px] rounded-xl border border-secondary/10 shadow-xl p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">
-                Select Crypto Network
-              </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-white font-display">Select Crypto Network</h3>
               <button
                 onClick={() => setShowCryptoOptions(false)}
-                className="text-accent/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+                className="p-1.5 rounded-lg hover:bg-primary/40 text-accent/70 hover:text-white transition-colors"
+                aria-label="Close"
               >
-                <span className="material-icons-outlined">close</span>
+                <span className="material-icons-outlined text-lg">close</span>
               </button>
             </div>
-            
-            <div className="space-y-3">
+            <p className="text-xs text-accent/70 mb-3">Choose the network you want to buy from</p>
+            <div className="space-y-2">
               <button
                 onClick={() => handleCryptoOptionClick("SEND")}
-                className="w-full p-4 rounded-2xl input-box border border-white/10 hover:border-secondary/40 transition-all flex items-center justify-between group"
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center overflow-hidden relative">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
                       src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979129/71a616bbd4464dfc8c7a5dcb4b3ee043_fe2oeg.png"
                       alt="SEND"
-                      width={40}
-                      height={40}
-                      className="rounded-lg"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain"
                       unoptimized
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).style.display = "none";
                         const parent = (e.target as HTMLImageElement).parentElement;
                         if (parent) {
-                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-2xl">token</span>';
+                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-lg">token</span>';
                         }
                       }}
                     />
                   </div>
-                  <span className="text-lg font-semibold text-white">SEND</span>
+                  <span className="font-semibold text-sm text-white uppercase tracking-wide">SEND</span>
                 </div>
-                <span className="material-icons-outlined text-accent/60 group-hover:text-secondary transition-colors">
-                  arrow_forward
-                </span>
+                <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
               </button>
 
               <div
-                className="w-full p-4 rounded-2xl input-box border border-white/5 flex items-center justify-between opacity-60 cursor-not-allowed"
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
                 aria-disabled="true"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/50 flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
                       src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979509/108554348_rdxd9x.png"
                       alt="BASE"
-                      width={40}
-                      height={40}
-                      className="rounded-lg opacity-70"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain opacity-70"
                       unoptimized
                     />
                   </div>
-                  <span className="text-lg font-semibold text-accent/80">BASE</span>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">BASE</span>
                 </div>
                 <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
               </div>
 
               <div
-                className="w-full p-4 rounded-2xl input-box border border-white/5 flex items-center justify-between opacity-60 cursor-not-allowed"
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
                 aria-disabled="true"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/50 flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
                       src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
                       alt="SOLANA"
-                      width={40}
-                      height={40}
-                      className="rounded-lg opacity-70"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain opacity-70"
                       unoptimized
                     />
                   </div>
-                  <span className="text-lg font-semibold text-accent/80">SOLANA</span>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">SOLANA</span>
                 </div>
                 <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
               </div>
@@ -885,114 +927,107 @@ export default function UserDashboard() {
         </div>
       )}
 
-      {/* Crypto to Naira Options Modal */}
+      {/* Crypto to Naira Options Modal (compact selector card - showOfframpOptions unused; offramp uses in-page card) */}
       {showOfframpOptions && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm"
           onClick={() => setShowOfframpOptions(false)}
         >
           <div 
-            className="glass-card rounded-2xl shadow-xl max-w-sm w-full p-6 border border-secondary/20"
+            className="w-full max-w-sm bg-surface/95 backdrop-blur-[24px] rounded-xl border border-secondary/10 shadow-xl p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">
-                Select Crypto Network
-              </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold text-white font-display">Select Crypto Network</h3>
               <button
                 onClick={() => setShowOfframpOptions(false)}
-                className="text-accent/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+                className="p-1.5 rounded-lg hover:bg-primary/40 text-accent/70 hover:text-white transition-colors"
+                aria-label="Close"
               >
-                <span className="material-icons-outlined">close</span>
+                <span className="material-icons-outlined text-lg">close</span>
               </button>
             </div>
-            
-            <div className="space-y-3">
+            <p className="text-xs text-accent/70 mb-3">Choose the network you want to withdraw from</p>
+            <div className="space-y-2">
               <button
                 onClick={() => handleOfframpOptionClick("SEND")}
-                className="w-full p-4 rounded-2xl input-box border border-white/10 hover:border-secondary/40 transition-all flex items-center justify-between group"
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center overflow-hidden relative">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
                       src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979129/71a616bbd4464dfc8c7a5dcb4b3ee043_fe2oeg.png"
                       alt="SEND"
-                      width={40}
-                      height={40}
-                      className="rounded-lg"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain"
                       unoptimized
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).style.display = "none";
                         const parent = (e.target as HTMLImageElement).parentElement;
                         if (parent) {
-                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-2xl">token</span>';
+                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-lg">token</span>';
                         }
                       }}
                     />
                   </div>
-                  <span className="text-lg font-semibold text-white">SEND</span>
+                  <span className="font-semibold text-sm text-white uppercase tracking-wide">SEND</span>
                 </div>
-                <span className="material-icons-outlined text-accent/60 group-hover:text-secondary transition-colors">
-                  arrow_forward
-                </span>
+                <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
               </button>
 
               <button
                 onClick={() => handleOfframpOptionClick("BASE")}
-                className="w-full p-4 rounded-2xl input-box border border-white/10 hover:border-secondary/40 transition-all flex items-center justify-between group"
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
                       src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979509/108554348_rdxd9x.png"
                       alt="BASE"
-                      width={40}
-                      height={40}
-                      className="rounded-lg"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain"
                       unoptimized
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).style.display = "none";
                         const parent = (e.target as HTMLImageElement).parentElement;
                         if (parent) {
-                          parent.innerHTML = '<span class="material-icons-outlined text-secondary">account_balance</span>';
+                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-lg">account_balance</span>';
                         }
                       }}
                     />
                   </div>
-                  <span className="text-lg font-semibold text-white">BASE</span>
+                  <span className="font-semibold text-sm text-white uppercase tracking-wide">BASE</span>
                 </div>
-                <span className="material-icons-outlined text-accent/60 group-hover:text-secondary transition-colors">
-                  arrow_forward
-                </span>
+                <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
               </button>
 
               <button
                 onClick={() => handleOfframpOptionClick("SOLANA")}
-                className="w-full p-4 rounded-2xl input-box border border-white/10 hover:border-secondary/40 transition-all flex items-center justify-between group"
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center overflow-hidden">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
                       src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
                       alt="SOLANA"
-                      width={40}
-                      height={40}
-                      className="rounded-lg"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain"
                       unoptimized
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).style.display = "none";
                         const parent = (e.target as HTMLImageElement).parentElement;
                         if (parent) {
-                          parent.innerHTML = '<span class="material-icons-outlined text-secondary">account_balance_wallet</span>';
+                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-lg">account_balance_wallet</span>';
                         }
                       }}
                     />
                   </div>
-                  <span className="text-lg font-semibold text-white">SOLANA</span>
+                  <span className="font-semibold text-sm text-white uppercase tracking-wide">SOLANA</span>
                 </div>
-                <span className="material-icons-outlined text-accent/60 group-hover:text-secondary transition-colors">
-                  arrow_forward
-                </span>
+                <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
               </button>
             </div>
           </div>

@@ -1,3 +1,6 @@
+/** Local dev: bypass wallet auth and grant admin access immediately */
+export const USE_MOCK_ADMIN_AUTH = false;
+
 /**
  * Admin route → permission mapping.
  * Each tab has its own permission so admins can be granted access per tab.

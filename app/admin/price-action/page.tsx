@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import FSpinner from "@/components/FSpinner";
-import FSpinner from "@/components/FSpinner";
 
 type Tab = "buy" | "sell";
 

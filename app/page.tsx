@@ -1,11 +1,12 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { isUserLoggedIn, getUserFromStorage, clearUserSession } from "@/lib/session";
+
+const USE_MOCK_AUTH = false;
 import DashboardLayout from "@/components/DashboardLayout";
 import FSpinner from "@/components/FSpinner";
 
@@ -82,6 +83,13 @@ export default function Home() {
               window.location.href = "/auth";
             }
           }
+          return;
+        }
+
+        // Skip backend verification when using mock auth (local dev)
+        if (USE_MOCK_AUTH) {
+          setUser(currentUser);
+          setIsChecking(false);
           return;
         }
 

@@ -4,12 +4,26 @@ import { getApiUrl } from "@/lib/apiBase";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DarkModeToggle from "@/components/DarkModeToggle";
 import PoweredBySEND from "@/components/PoweredBySEND";
-import FSpinner from "@/components/FSpinner";
 import { authenticateWithPasskey, isPasskeySupported } from "@/lib/passkey";
 
 type AuthMode = "login" | "signup" | "verify";
+
+// Mock user data for local development (bypass auth for UI work)
+const MOCK_USER = {
+  id: "mock-user-id",
+  email: "",
+  name: "Mock User",
+  createdAt: new Date().toISOString(),
+  hasPasskey: false,
+  referralCode: "MOCK1234",
+  emailVerified: true,
+  totalTransactions: 0,
+  totalSpentNGN: 0,
+  totalReceivedSEND: "0",
+};
+
+const USE_MOCK_AUTH = false;
 
 export default function AuthPage() {
   const router = useRouter();
@@ -31,6 +45,13 @@ export default function AuthPage() {
   const [checkingPasskey, setCheckingPasskey] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryCodeSent, setRecoveryCodeSent] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+
+  // 5-second splash screen on page load
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Load last used email on mount
   useEffect(() => {
@@ -62,6 +83,14 @@ export default function AuthPage() {
     if (!emailToCheck || !emailToCheck.includes("@")) return;
 
     setCheckingPasskey(true);
+
+    if (USE_MOCK_AUTH) {
+      setHasPasskey(false);
+      setPasskeyUserId(null);
+      setPasskeyUser(null);
+      setCheckingPasskey(false);
+      return;
+    }
 
     try {
       const passkeyCheckResponse = await fetch(getApiUrl("/api/auth/passkey-login"), {
@@ -98,6 +127,24 @@ export default function AuthPage() {
     setHasPasskey(false);
     setPasskeyUserId(null);
     setPasskeyUser(null);
+
+    if (USE_MOCK_AUTH) {
+      setTimeout(() => {
+        if (mode === "login") {
+          setMessage("Login successful! Redirecting to passkey setup...");
+          const mockUser = { ...MOCK_USER, email };
+          localStorage.setItem("user", JSON.stringify(mockUser));
+          localStorage.setItem("last_email", email);
+          setTimeout(() => router.push("/passkey-setup"), 1500);
+        } else {
+          setMessage("Confirmation code sent to your email (mock auth)");
+          setCodeSent(true);
+          setResendCooldown(60);
+          setLoading(false);
+        }
+      }, 800);
+      return;
+    }
 
     try {
       if (mode === "login") {
@@ -185,6 +232,13 @@ export default function AuthPage() {
     setMessage("");
     setResending(true);
 
+    if (USE_MOCK_AUTH) {
+      setMessage(recoveryMode ? "Recovery code resent (mock)" : "Confirmation code resent (mock)");
+      setResendCooldown(60);
+      setResending(false);
+      return;
+    }
+
     try {
       // Use recovery endpoint if in recovery mode, otherwise use regular send-code
       const endpoint = getApiUrl(recoveryMode ? "/api/auth/recover-passkey" : "/api/auth/send-code");
@@ -232,6 +286,16 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setLoading(true);
+
+    if (USE_MOCK_AUTH) {
+      setMessage("Account created successfully! Redirecting...");
+      const mockUser = { ...MOCK_USER, email };
+      localStorage.setItem("user", JSON.stringify(mockUser));
+      localStorage.setItem("last_email", email);
+      setTimeout(() => router.push("/passkey-setup"), 1500);
+      setLoading(false);
+      return;
+    }
 
     try {
       // Sign up flow only (login doesn't need code verification)
@@ -285,6 +349,16 @@ export default function AuthPage() {
     setError("");
     setMessage("");
 
+    if (USE_MOCK_AUTH) {
+      setMessage("Passkey authentication successful! Redirecting...");
+      const mockUser = { ...MOCK_USER, email: passkeyUser?.email || email };
+      localStorage.setItem("user", JSON.stringify(mockUser));
+      if (mockUser.email) localStorage.setItem("last_email", mockUser.email);
+      setTimeout(() => router.push("/"), 1500);
+      setAuthenticatingPasskey(false);
+      return;
+    }
+
     try {
       const authResult = await authenticateWithPasskey(passkeyUserId);
 
@@ -329,6 +403,14 @@ export default function AuthPage() {
     setMessage("");
     setLoading(true);
 
+    if (USE_MOCK_AUTH) {
+      setMessage("Recovery code sent to your email (mock)");
+      setRecoveryCodeSent(true);
+      setResendCooldown(60);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch(getApiUrl("/api/auth/recover-passkey"), {
         method: "POST",
@@ -358,6 +440,16 @@ export default function AuthPage() {
     setMessage("");
     setLoading(true);
 
+    if (USE_MOCK_AUTH) {
+      setMessage("Recovery verified! Redirecting to create new passkey...");
+      const mockUser = { ...MOCK_USER, email };
+      localStorage.setItem("user", JSON.stringify(mockUser));
+      localStorage.setItem("last_email", email);
+      setTimeout(() => router.push("/passkey-setup?recovery=true"), 1500);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch(getApiUrl("/api/auth/recover-passkey"), {
         method: "PUT",
@@ -385,19 +477,42 @@ export default function AuthPage() {
     }
   };
 
+  // 4-second splash screen with GIF on page load
+  if (showSplash) {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center z-[100]"
+        style={{ backgroundColor: "#11281A" }}
+      >
+        <img
+          src="/asset/flippay-spinner.gif"
+          alt="FlipPay"
+          className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
+          aria-hidden
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
+          }}
+        />
+      </div>
+    );
+  }
+
   // Full-screen spinner when checking passkey on load
   if (mode === "login" && checkingPasskey && email && !recoveryMode) {
     return (
       <div
-        className="fixed inset-0 flex items-center justify-center z-50"
+        className="fixed inset-0 flex items-center justify-center z-[100]"
         style={{ backgroundColor: "#11281A" }}
       >
         <div className="flex flex-col items-center gap-4">
           <img
-            src="/asset/animated.gif"
+            src="/asset/flippay-spinner.gif"
             alt="Loading"
             className="w-16 h-16 object-contain"
             aria-hidden
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
+            }}
           />
           <p className="text-sm text-accent/80">Checking for passkey...</p>
         </div>
@@ -410,11 +525,6 @@ export default function AuthPage() {
       className="flex flex-col items-center justify-start min-h-screen px-4 pt-16 sm:pt-20 pb-8 relative"
       style={{ backgroundColor: "#11281A" }}
     >
-
-      {/* Header with Dark Mode Toggle */}
-      <div className="absolute top-4 left-4 flex items-center gap-4 z-10">
-        <DarkModeToggle fixed={false} />
-      </div>
 
       {/* Logo - floating above card (landscape layout) */}
       <div className="mb-4 flex justify-center">
@@ -498,7 +608,15 @@ export default function AuthPage() {
                 >
                   {authenticatingPasskey ? (
                     <>
-                      <FSpinner size="sm" />
+                      <img
+                        src="/asset/flippay-spinner.gif"
+                        alt=""
+                        className="h-5 w-5 object-contain shrink-0"
+                        aria-hidden
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
+                        }}
+                      />
                       <span>Authenticating...</span>
                     </>
                   ) : (

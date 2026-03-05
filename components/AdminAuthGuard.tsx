@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import WalletConnect from "./WalletConnect";
 import { useRouter } from "next/navigation";
 import FSpinner from "@/components/FSpinner";
+import { USE_MOCK_ADMIN_AUTH } from "@/lib/admin-permissions";
 
 interface AdminAuthGuardProps {
   children: React.ReactNode;
@@ -23,6 +24,12 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
   const checkAuth = async () => {
     setIsChecking(true);
+
+    if (USE_MOCK_ADMIN_AUTH) {
+      setIsAuthenticated(true);
+      setIsChecking(false);
+      return;
+    }
 
     // Check localStorage for session
     const session = localStorage.getItem("admin_session");

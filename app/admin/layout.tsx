@@ -19,6 +19,7 @@ import {
   canAccessRoute,
   filterNavByPermission,
   getAdminPageTitle,
+  USE_MOCK_ADMIN_AUTH,
   type AdminNavSection,
 } from "@/lib/admin-permissions";
 
@@ -36,6 +37,12 @@ function AdminLayoutContent({
   const [loadingMe, setLoadingMe] = useState(true);
 
   useEffect(() => {
+    if (USE_MOCK_ADMIN_AUTH) {
+      setRole("super_admin");
+      setPermissions([]);
+      setLoadingMe(false);
+      return;
+    }
     if (!address) {
       setRole(undefined);
       setPermissions([]);

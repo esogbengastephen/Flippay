@@ -99,12 +99,16 @@ export default function InvoicePage() {
   // Dropdown state
   const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
   const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
+  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [isEditChainDropdownOpen, setIsEditChainDropdownOpen] = useState(false);
   const [isEditTokenDropdownOpen, setIsEditTokenDropdownOpen] = useState(false);
+  const [isEditCurrencyDropdownOpen, setIsEditCurrencyDropdownOpen] = useState(false);
   const chainDropdownRef = useRef<HTMLDivElement>(null);
   const tokenDropdownRef = useRef<HTMLDivElement>(null);
+  const currencyDropdownRef = useRef<HTMLDivElement>(null);
   const editChainDropdownRef = useRef<HTMLDivElement>(null);
   const editTokenDropdownRef = useRef<HTMLDivElement>(null);
+  const editCurrencyDropdownRef = useRef<HTMLDivElement>(null);
   
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -144,6 +148,13 @@ export default function InvoicePage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"NGN" | "Crypto">("NGN");
+
+  // Create form wizard step (1: What, 2: Payment, 3: Who & When)
+  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
+
+  // Collapsible sections
+  const [showCustomWallet, setShowCustomWallet] = useState(false);
+  const [showAdditionalNotes, setShowAdditionalNotes] = useState(false);
 
   // Line items state
   interface LineItem {
@@ -217,11 +228,17 @@ export default function InvoicePage() {
       if (tokenDropdownRef.current && !tokenDropdownRef.current.contains(event.target as Node)) {
         setIsTokenDropdownOpen(false);
       }
+      if (currencyDropdownRef.current && !currencyDropdownRef.current.contains(event.target as Node)) {
+        setIsCurrencyDropdownOpen(false);
+      }
       if (editChainDropdownRef.current && !editChainDropdownRef.current.contains(event.target as Node)) {
         setIsEditChainDropdownOpen(false);
       }
       if (editTokenDropdownRef.current && !editTokenDropdownRef.current.contains(event.target as Node)) {
         setIsEditTokenDropdownOpen(false);
+      }
+      if (editCurrencyDropdownRef.current && !editCurrencyDropdownRef.current.contains(event.target as Node)) {
+        setIsEditCurrencyDropdownOpen(false);
       }
     };
 
@@ -400,6 +417,9 @@ export default function InvoicePage() {
           isVisible: true,
         });
         setShowCreateForm(false);
+        setCreateStep(1);
+        setShowCustomWallet(false);
+        setShowAdditionalNotes(false);
         setFormData({
           amount: "",
           currency: "NGN",
@@ -1296,33 +1316,60 @@ export default function InvoicePage() {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-md overflow-y-auto"
             onClick={() => {
               setShowCreateForm(false);
+              setCreateStep(1);
               setActiveTab("NGN");
             }}
           >
             <div
-              className="bg-surface/95 backdrop-blur-[24px] rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col border border-accent/10 my-4"
+              className="bg-surface/95 backdrop-blur-[24px] rounded-xl shadow-2xl max-w-sm w-full max-h-[80vh] flex flex-col border border-secondary/10 my-2"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-3 pb-0 flex-shrink-0">
-                <h2 className="text-base font-bold text-white">Create Invoice</h2>
+              <div className="flex items-center justify-between p-2.5 pb-0 flex-shrink-0">
+                <h2 className="text-sm font-bold text-white font-display">Create Invoice</h2>
                 <button
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setCreateStep(1);
+                  }}
                   className="text-accent/70 hover:text-white p-1 rounded-lg hover:bg-white/5"
                 >
                   <span className="material-icons-outlined">close</span>
                 </button>
               </div>
 
+              {/* Step progress */}
+              <div className="flex gap-1.5 px-2.5 pt-1.5 pb-0.5 flex-shrink-0">
+                {([1, 2, 3] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setCreateStep(s)}
+                    className={`flex-1 h-1.5 rounded-full transition-colors ${
+                      createStep === s ? "bg-secondary" : createStep > s ? "bg-secondary/40" : "bg-primary/60"
+                    }`}
+                    aria-label={`Step ${s}`}
+                  />
+                ))}
+              </div>
+              <p className="text-[11px] text-accent/60 px-2.5 pb-1.5 flex-shrink-0">
+                {createStep === 1 && "What — Line items & currency"}
+                {createStep === 2 && (activeTab === "NGN" ? "Payment — Bank details" : "Payment — Wallet")}
+                {createStep === 3 && "Who & when — Customer & due date"}
+              </p>
+
               <form onSubmit={handleCreateInvoice} className="flex flex-col flex-1 min-h-0">
-                <div className="overflow-y-auto flex-1 p-3 pt-2 space-y-3">
+                <div className="overflow-y-auto flex-1 p-2.5 pt-1.5 space-y-2">
+                {/* Step 1: What */}
+                {createStep === 1 && (
+                <>
                 {/* Invoice Type Display (read-only, managed in Settings) */}
-                <div className="mb-2 p-2.5 bg-surface-highlight/50 border border-accent/10 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-accent/90">
+                <div className="mb-1.5 p-2 bg-primary/40 border border-secondary/10 rounded-lg">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-accent/90">
                         Invoice Type: <span className="capitalize text-white">{formData.invoiceType}</span>
                       </p>
-                      <p className="text-xs text-accent/60 mt-1">
+                      <p className="text-[11px] text-accent/60 mt-0.5">
                         {formData.invoiceType === "personal" 
                           ? "Invoice will show your personal name and email"
                           : "Invoice will show your business information and logo"}
@@ -1353,7 +1400,7 @@ export default function InvoicePage() {
                         amount: "",
                       });
                     }}
-                    className={`flex-1 py-2 px-3 text-sm font-semibold transition-colors ${
+                    className={`flex-1 py-1.5 px-2.5 text-xs font-semibold transition-colors ${
                       activeTab === "NGN"
                         ? "border-b-2 border-secondary text-secondary"
                         : "text-accent/70 hover:text-white"
@@ -1374,7 +1421,7 @@ export default function InvoicePage() {
                         amount: "",
                       });
                     }}
-                    className={`flex-1 py-2 px-3 text-sm font-semibold transition-colors ${
+                    className={`flex-1 py-1.5 px-2.5 text-xs font-semibold transition-colors ${
                       activeTab === "Crypto"
                         ? "border-b-2 border-secondary text-secondary"
                         : "text-accent/70 hover:text-white"
@@ -1388,19 +1435,51 @@ export default function InvoicePage() {
                   /* Fiat Tab Content */
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-accent/80 mb-1">
+                      <label className="block text-xs font-medium text-accent/80 mb-0.5">
                         Select currency
                       </label>
-                      <select
-                        value={formData.fiatCurrency}
-                        onChange={(e) => setFormData({ ...formData, fiatCurrency: e.target.value })}
-                        className="w-full rounded-xl border border-accent/10 bg-primary/40 text-white px-3 py-2.5 focus:ring-2 focus:ring-secondary focus:border-secondary"
-                        title="Fiat currency"
-                      >
-                        {FIAT_CURRENCIES.map((c) => (
-                          <option key={c.code} value={c.code}>{c.label}</option>
-                        ))}
-                      </select>
+                      <div className="relative" ref={currencyDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsCurrencyDropdownOpen(!isCurrencyDropdownOpen)}
+                          className="w-full rounded-lg border border-secondary/10 bg-primary/40 text-white px-2.5 py-2 pl-3 pr-8 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between text-sm"
+                          title="Fiat currency"
+                        >
+                          <span className="text-sm truncate">
+                            {FIAT_CURRENCIES.find((c) => c.code === formData.fiatCurrency)?.label || formData.fiatCurrency}
+                          </span>
+                          <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
+                            {isCurrencyDropdownOpen ? "expand_less" : "expand_more"}
+                          </span>
+                        </button>
+                        {isCurrencyDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-surface border border-secondary/10 rounded-xl shadow-xl overflow-hidden">
+                            {FIAT_CURRENCIES.map((c) => {
+                              const isSelected = formData.fiatCurrency === c.code;
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({ ...formData, fiatCurrency: c.code });
+                                    setIsCurrencyDropdownOpen(false);
+                                  }}
+                                  className={`w-full p-3 flex items-center justify-between transition-colors text-left ${
+                                    isSelected
+                                      ? "bg-secondary/10 text-secondary"
+                                      : "bg-primary/40 text-white hover:bg-surface-highlight"
+                                  }`}
+                                >
+                                  <span className="text-sm font-medium">{c.label}</span>
+                                  {isSelected && (
+                                    <span className="material-icons-outlined text-secondary text-sm">check</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Amount will be calculated from line items */}
                   </div>
@@ -1616,67 +1695,19 @@ export default function InvoicePage() {
                     })()}
 
                     {/* Amount will be calculated from line items */}
-
-                    {/* Wallet Address Input */}
-                    {formData.cryptoChainId && (
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-sm font-medium text-accent/80">
-                            Wallet Address (Optional)
-                          </label>
-                          {(() => {
-                            const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
-                            const defaultAddress = walletAddresses[formData.cryptoChainId] || "";
-                            const isUsingDefault = formData.cryptoAddress === defaultAddress;
-                            
-                            if (defaultAddress && !isUsingDefault) {
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFormData({ ...formData, cryptoAddress: defaultAddress });
-                                  }}
-                                  className="text-xs text-primary hover:underline font-semibold"
-                                >
-                                  Use my wallet address
-                                </button>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.cryptoAddress}
-                          onChange={(e) => setFormData({ ...formData, cryptoAddress: e.target.value })}
-                          className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40 font-mono text-sm"
-                          placeholder="Enter custom wallet address (optional)"
-                        />
-                        <p className="text-xs text-accent/60 mt-1">
-                          {(() => {
-                            const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
-                            const defaultAddress = walletAddresses[formData.cryptoChainId] || "";
-                            if (defaultAddress) {
-                              return `If left empty, will use your ${formData.cryptoChainId} wallet: ${defaultAddress.slice(0, 6)}...${defaultAddress.slice(-4)}`;
-                            }
-                            return "Enter a custom wallet address (optional). If empty, you'll need to add a wallet address in your crypto dashboard first.";
-                          })()}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
                 {/* Line Items Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-accent/80">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60">
                       Items
                     </label>
                     <button
                       type="button"
                       onClick={addLineItem}
-                      className="text-sm text-primary hover:text-primary/80 font-semibold flex items-center gap-1"
+                      className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1 transition-colors"
                     >
                       <span className="material-icons-outlined text-sm">add</span>
                       Add Item
@@ -1719,12 +1750,12 @@ export default function InvoicePage() {
                   </div>
                   
                   {/* Total Display */}
-                  <div className="mt-3 p-3 bg-surface-highlight/50 rounded-lg border border-accent/10">
+                  <div className="mt-3 p-3 bg-primary/40 rounded-lg border border-secondary/10">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-accent/90">
+                      <span className="text-sm font-semibold text-accent/80">
                         Total:
                       </span>
-                      <span className="text-lg font-bold text-secondary">
+                      <span className="text-lg font-bold text-secondary font-display">
                         {activeTab === "NGN" 
                           ? (formData.fiatCurrency === "NGN" 
                               ? `₦${calculateTotal(lineItems).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -1735,15 +1766,17 @@ export default function InvoicePage() {
                     </div>
                   </div>
                 </div>
+                </>
+                )}
 
-                {/* Bank Details - NGN only */}
-                {activeTab === "NGN" && (
-                  <div className="space-y-3 p-3 bg-surface-highlight/50 border border-accent/10 rounded-xl">
-                    <p className="text-sm font-semibold text-white">Bank Details (for Fiat payment)</p>
+                {/* Step 2: Payment */}
+                {createStep === 2 && (
+                <>
+                {activeTab === "NGN" ? (
+                  <div className="space-y-3 p-3 bg-primary/40 border border-secondary/10 rounded-xl">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent/60">Bank Details (for Fiat payment)</p>
                     <div>
-                      <label className="block text-sm font-medium text-accent/80 mb-1">
-                        Account Name
-                      </label>
+                      <label className="block text-sm font-medium text-accent/80 mb-1">Account Name</label>
                       <input
                         type="text"
                         value={formData.accountName}
@@ -1753,9 +1786,7 @@ export default function InvoicePage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-accent/80 mb-1">
-                        Account Number
-                      </label>
+                      <label className="block text-sm font-medium text-accent/80 mb-1">Account Number</label>
                       <input
                         type="text"
                         value={formData.accountNumber}
@@ -1765,9 +1796,7 @@ export default function InvoicePage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-accent/80 mb-1">
-                        Bank
-                      </label>
+                      <label className="block text-sm font-medium text-accent/80 mb-1">Bank</label>
                       <input
                         type="text"
                         value={formData.bank}
@@ -1777,26 +1806,56 @@ export default function InvoicePage() {
                       />
                     </div>
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent/60">Wallet address</p>
+                    <p className="text-sm text-accent/80">
+                      {(() => {
+                        const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
+                        const defaultAddress = walletAddresses[formData.cryptoChainId] || "";
+                        if (defaultAddress) {
+                          return `Default: ${defaultAddress.slice(0, 10)}...${defaultAddress.slice(-8)}`;
+                        }
+                        return "Add a wallet in your dashboard, or enter a custom address below.";
+                      })()}
+                    </p>
+                    {!showCustomWallet ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomWallet(true)}
+                        className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1"
+                      >
+                        <span className="material-icons-outlined text-sm">add</span>
+                        Use custom wallet address
+                      </button>
+                    ) : (
+                      <div>
+                        <input
+                          type="text"
+                          value={formData.cryptoAddress}
+                          onChange={(e) => setFormData({ ...formData, cryptoAddress: e.target.value })}
+                          className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40 font-mono text-sm"
+                          placeholder="Enter custom wallet address"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setShowCustomWallet(false); setFormData({ ...formData, cryptoAddress: "" }); }}
+                          className="text-xs text-accent/60 hover:text-white mt-1"
+                        >
+                          Use default instead
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                </>
                 )}
 
-                {/* Optional Description Field */}
+                {/* Step 3: Who & When */}
+                {createStep === 3 && (
+                <>
                 <div>
-                  <label className="block text-sm font-medium text-accent/80 mb-1">
-                    Additional Notes (Optional)
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
-                    rows={2}
-                    placeholder="Additional notes or terms..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-accent/80 mb-1">
-                    Customer Name
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Customer Name</label>
                   <input
                     type="text"
                     value={formData.customerName}
@@ -1805,11 +1864,8 @@ export default function InvoicePage() {
                     placeholder="Customer name"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-accent/80 mb-1">
-                    Customer Email
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Customer Email</label>
                   <input
                     type="email"
                     value={formData.customerEmail}
@@ -1818,16 +1874,13 @@ export default function InvoicePage() {
                     placeholder="customer@example.com"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-accent/80 mb-1">
-                    Customer Phone
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Customer Phone (optional)</label>
                   <div className="flex gap-2">
                     <select
                       value={formData.customerPhoneCountryCode}
                       onChange={(e) => setFormData({ ...formData, customerPhoneCountryCode: e.target.value })}
-                      className="w-[130px] rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40 flex-shrink-0"
+                      className="w-[130px] rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary flex-shrink-0"
                       title="Country code"
                     >
                       {PHONE_COUNTRY_CODES.map((c) => (
@@ -1843,38 +1896,107 @@ export default function InvoicePage() {
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-accent/80 mb-1">
-                    Due Date
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Due Date</label>
                   <input
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary"
                   />
                 </div>
-                </div>
-
-                <div className="flex gap-3 pt-4 p-6 flex-shrink-0 border-t border-accent/10">
+                {!showAdditionalNotes ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowCreateForm(false);
-                      setActiveTab("NGN");
-                    }}
-                    className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2.5 px-4 rounded-xl hover:bg-primary/60 transition-colors"
+                    onClick={() => setShowAdditionalNotes(true)}
+                    className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1"
                   >
-                    Cancel
+                    <span className="material-icons-outlined text-sm">add</span>
+                    Add notes (optional)
                   </button>
-                  <button
-                    type="submit"
-                    disabled={isCreating}
-                    className="flex-1 bg-secondary text-primary font-bold py-2.5 px-4 rounded-xl hover:bg-secondary/90 transition-colors disabled:opacity-50 shadow-[0_0_15px_rgba(19,236,90,0.2)]"
-                  >
-                    {isCreating ? "Creating..." : "Create Invoice"}
-                  </button>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-accent/80 mb-1">Additional Notes</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
+                      rows={2}
+                      placeholder="Additional notes or terms..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setShowAdditionalNotes(false); setFormData({ ...formData, description: "" }); }}
+                      className="text-xs text-accent/60 hover:text-white mt-1"
+                    >
+                      Remove notes
+                    </button>
+                  </div>
+                )}
+                </>
+                )}
+
+                <div className="flex gap-2 pt-3 p-4 flex-shrink-0 border-t border-accent/10">
+                  {createStep === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateForm(false);
+                        setCreateStep(1);
+                        setActiveTab("NGN");
+                      }}
+                      className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2 px-3 rounded-lg hover:bg-primary/60 transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCreateStep((s) => (s - 1) as 1 | 2 | 3)}
+                      className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2 px-3 rounded-lg hover:bg-primary/60 transition-colors text-sm"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {createStep < 3 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const validItems = lineItems.filter(item =>
+                          item.description.trim() && item.amount && parseFloat(item.amount) > 0
+                        );
+                        if (createStep === 1) {
+                          if (validItems.length === 0) {
+                            setToast({ message: "Add at least one item with description and amount", type: "error", isVisible: true });
+                            return;
+                          }
+                          if (activeTab === "Crypto" && (!formData.cryptoChainId || !formData.cryptoToken)) {
+                            setToast({ message: "Select network and token", type: "error", isVisible: true });
+                            return;
+                          }
+                        }
+                        if (createStep === 2 && activeTab === "NGN") {
+                          if (!formData.accountName?.trim() || !formData.accountNumber?.trim() || !formData.bank?.trim()) {
+                            setToast({ message: "Fill in bank details", type: "error", isVisible: true });
+                            return;
+                          }
+                        }
+                        setCreateStep((s) => (s + 1) as 1 | 2 | 3);
+                      }}
+                      className="flex-1 bg-secondary text-primary font-bold py-2 px-3 rounded-lg hover:bg-secondary/90 transition-colors shadow-[0_0_15px_rgba(19,236,90,0.2)] text-sm"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={isCreating}
+                      className="flex-1 bg-secondary text-primary font-bold py-2 px-3 rounded-lg hover:bg-secondary/90 transition-colors disabled:opacity-50 shadow-[0_0_15px_rgba(19,236,90,0.2)] text-sm"
+                    >
+                      {isCreating ? "Creating..." : "Create Invoice"}
+                    </button>
+                  )}
+                </div>
                 </div>
               </form>
             </div>
@@ -1895,7 +2017,7 @@ export default function InvoicePage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between p-4 pb-0 flex-shrink-0">
-                <h2 className="text-lg font-bold text-white">Edit Invoice</h2>
+                <h2 className="text-lg font-bold text-white font-display">Edit Invoice</h2>
                 <button
                   onClick={() => {
                     setEditingInvoice(null);
@@ -1910,7 +2032,7 @@ export default function InvoicePage() {
               <form onSubmit={handleUpdateInvoice} className="flex flex-col flex-1 min-h-0">
                 <div className="overflow-y-auto flex-1 p-4 pt-3 space-y-4">
                 {/* Invoice Type Display (read-only, managed in Settings) */}
-                <div className="mb-3 p-3 bg-surface-highlight/50 border border-secondary/10 rounded-xl">
+                <div className="mb-3 p-3 bg-primary/40 border border-secondary/10 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-accent/90">
@@ -1981,19 +2103,51 @@ export default function InvoicePage() {
                 {editActiveTab === "NGN" ? (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-accent/80 mb-1">
+                      <label className="block text-xs font-medium text-accent/80 mb-0.5">
                         Select currency
                       </label>
-                      <select
-                        value={editFormData.fiatCurrency}
-                        onChange={(e) => setEditFormData({ ...editFormData, fiatCurrency: e.target.value })}
-                        className="w-full rounded-xl border border-accent/10 bg-primary/40 text-white px-3 py-2.5 focus:ring-2 focus:ring-secondary focus:border-secondary"
-                        title="Fiat currency"
-                      >
-                        {FIAT_CURRENCIES.map((c) => (
-                          <option key={c.code} value={c.code}>{c.label}</option>
-                        ))}
-                      </select>
+                      <div className="relative" ref={editCurrencyDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditCurrencyDropdownOpen(!isEditCurrencyDropdownOpen)}
+                          className="w-full rounded-xl border border-secondary/10 bg-primary/40 text-white px-3 py-2.5 pl-4 pr-10 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between"
+                          title="Fiat currency"
+                        >
+                          <span className="text-sm truncate">
+                            {FIAT_CURRENCIES.find((c) => c.code === editFormData.fiatCurrency)?.label || editFormData.fiatCurrency}
+                          </span>
+                          <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
+                            {isEditCurrencyDropdownOpen ? "expand_less" : "expand_more"}
+                          </span>
+                        </button>
+                        {isEditCurrencyDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-surface border border-secondary/10 rounded-xl shadow-xl overflow-hidden">
+                            {FIAT_CURRENCIES.map((c) => {
+                              const isSelected = editFormData.fiatCurrency === c.code;
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditFormData({ ...editFormData, fiatCurrency: c.code });
+                                    setIsEditCurrencyDropdownOpen(false);
+                                  }}
+                                  className={`w-full p-3 flex items-center justify-between transition-colors text-left ${
+                                    isSelected
+                                      ? "bg-secondary/10 text-secondary"
+                                      : "bg-primary/40 text-white hover:bg-surface-highlight"
+                                  }`}
+                                >
+                                  <span className="text-sm font-medium">{c.label}</span>
+                                  {isSelected && (
+                                    <span className="material-icons-outlined text-secondary text-sm">check</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Amount will be calculated from line items */}
                   </div>
@@ -2260,13 +2414,13 @@ export default function InvoicePage() {
                 {/* Line Items Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-accent/80">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60">
                       Items
                     </label>
                     <button
                       type="button"
                       onClick={addEditLineItem}
-                      className="text-sm text-primary hover:text-primary/80 font-semibold flex items-center gap-1"
+                      className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1 transition-colors"
                     >
                       <span className="material-icons-outlined text-sm">add</span>
                       Add Item
@@ -2309,12 +2463,12 @@ export default function InvoicePage() {
                   </div>
                   
                   {/* Total Display */}
-                  <div className="mt-3 p-3 bg-surface-highlight/50 rounded-lg border border-accent/10">
+                  <div className="mt-3 p-3 bg-primary/40 rounded-lg border border-secondary/10">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-accent/90">
+                      <span className="text-sm font-semibold text-accent/80">
                         Total:
                       </span>
-                      <span className="text-lg font-bold text-secondary">
+                      <span className="text-lg font-bold text-secondary font-display">
                         {editActiveTab === "NGN" 
                           ? (editFormData.fiatCurrency === "NGN" 
                               ? `₦${calculateTotal(editLineItems).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -2328,8 +2482,8 @@ export default function InvoicePage() {
 
                 {/* Bank Details - NGN only */}
                 {editActiveTab === "NGN" && (
-                  <div className="space-y-3 p-3 bg-surface-highlight/50 border border-accent/10 rounded-xl">
-                    <p className="text-sm font-semibold text-white">Bank Details (for Fiat payment)</p>
+                  <div className="space-y-3 p-3 bg-primary/40 border border-secondary/10 rounded-xl">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent/60">Bank Details (for Fiat payment)</p>
                     <div>
                       <label className="block text-sm font-medium text-accent/80 mb-1">
                         Account Name

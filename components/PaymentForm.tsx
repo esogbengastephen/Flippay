@@ -824,21 +824,21 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
   // Users will be redirected back after payment completion
 
   return (
-    <div className="w-full max-w-lg mx-auto">
+    <div className="w-full max-w-md mx-auto">
       <div className="flex flex-col items-center">
         {/* Header - centered */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Buy Crypto</h1>
-          <p className="text-accent/80">Convert your NGN to crypto instantly</p>
+        <div className="text-center mb-4">
+          <h1 className="text-xl font-bold text-white mb-1">Buy Crypto</h1>
+          <p className="text-sm text-accent/80">Convert your NGN to crypto instantly</p>
         </div>
 
-        {/* Form Card - Flippay branding */}
-        <div className="bg-surface/60 backdrop-blur-[24px] p-6 sm:p-8 rounded-[2.5rem] border border-secondary/10 w-full space-y-6">
+        {/* Form Card - compact */}
+        <div className="bg-surface/60 backdrop-blur-[24px] p-4 sm:p-5 rounded-xl border border-secondary/10 w-full space-y-4">
           {/* ZainPay Virtual Account — shown after "Pay Now" is clicked */}
           {isWaitingForTransfer && zainpayAccount && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="text-center">
-                <p className="text-lg font-semibold text-white">
+                <p className="text-base font-semibold text-white">
                   Complete Your Transfer
                 </p>
                 <p className="text-sm text-accent/80 mt-1">
@@ -850,7 +850,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                 </p>
               </div>
 
-              <div className="bg-primary/40 border border-accent/10 rounded-2xl p-5 space-y-4">
+              <div className="bg-primary/40 border border-accent/10 rounded-xl p-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-accent/80">Bank</span>
                   <span className="text-sm font-semibold text-white">{zainpayAccount.bankName}</span>
@@ -894,7 +894,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                 type="button"
                 onClick={handleCheckPaymentNow}
                 disabled={isCheckingNow}
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {isCheckingNow ? (
                   <>
@@ -926,11 +926,11 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
             </div>
           )}
 
-          <form className={`space-y-6${isWaitingForTransfer ? " hidden" : ""}`} onSubmit={handleSubmit}>
+          <form className={`space-y-4${isWaitingForTransfer ? " hidden" : ""}`} onSubmit={handleSubmit}>
             {/* You Pay */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Pay</label>
-              <div className={`flex items-center justify-between p-5 rounded-3xl transition-all ${errors.ngnAmount ? "border-2 border-red-500/50 bg-primary/40" : "bg-primary/40 border border-accent/10 focus-within:border-secondary/30"}`}>
+              <div className={`flex items-center justify-between p-3 rounded-xl transition-all ${errors.ngnAmount ? "border-2 border-red-500/50 bg-primary/40" : "bg-primary/40 border border-accent/10 focus-within:border-secondary/30"}`}>
                 <div className="flex flex-col">
                   <input
                     id="ngn_amount"
@@ -943,12 +943,12 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                       const v = e.target.value.replace(/[^\d.]/g, "").replace(/(\.\d*)\./g, "$1");
                       handleInputChange("ngnAmount", v);
                     }}
-                    className="bg-transparent border-none p-0 text-2xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
+                    className="bg-transparent border-none p-0 text-xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
                   />
                   <span className="text-xs text-accent/60">Min: ₦{minimumPurchase.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center gap-2 bg-primary px-4 py-2.5 rounded-2xl border border-accent/5">
-                  <span className="font-bold text-white">🇳🇬 NGN</span>
+                <div className="flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5">
+                  <span className="font-bold text-white text-sm">🇳🇬 NGN</span>
                 </div>
               </div>
               {errors.ngnAmount && (
@@ -957,18 +957,18 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
             </div>
 
             {/* Arrow */}
-            <div className="flex justify-center -my-2">
-              <div className="bg-primary border border-accent/10 rounded-full p-2 z-10">
-                <span className="material-icons-outlined text-secondary">arrow_downward</span>
+            <div className="flex justify-center -my-1">
+              <div className="bg-primary border border-accent/10 rounded-full p-1.5 z-10">
+                <span className="material-icons-outlined text-secondary text-lg">arrow_downward</span>
               </div>
             </div>
 
             {/* You Receive */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Receive</label>
-              <div className="flex items-center justify-between p-5 rounded-3xl bg-primary/40 border border-accent/10">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10">
                 <div className="flex flex-col">
-                  <div className="text-2xl font-bold text-white">{sendAmount}</div>
+                  <div className="text-xl font-bold text-white">{sendAmount}</div>
                   {network === "send" ? (
                     <span className="text-xs text-accent/60">
                       Rate: 1 NGN = <span className="text-secondary font-semibold">{exchangeRate}</span> SEND
@@ -981,15 +981,15 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                     <span className="text-xs text-accent/60">Loading rate for {selectedStablecoin}…</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 bg-primary px-4 py-2.5 rounded-2xl border border-accent/5">
+                <div className="flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5">
                   {network === "send" ? (
                     getTokenLogo("SEND") ? (
-                      <img src={getTokenLogo("SEND")!} alt="SEND" className="w-6 h-6 rounded-full object-cover" />
+                      <img src={getTokenLogo("SEND")!} alt="SEND" className="w-5 h-5 rounded-full object-cover" />
                     ) : null
                   ) : getTokenLogo(selectedStablecoin) ? (
-                    <img src={getTokenLogo(selectedStablecoin)!} alt={selectedStablecoin} className="w-6 h-6 rounded-full object-cover" />
+                    <img src={getTokenLogo(selectedStablecoin)!} alt={selectedStablecoin} className="w-5 h-5 rounded-full object-cover" />
                   ) : null}
-                  <span className="font-bold text-white">{network === "send" ? "SEND" : selectedStablecoin}</span>
+                  <span className="font-bold text-white text-sm">{network === "send" ? "SEND" : selectedStablecoin}</span>
                 </div>
               </div>
             </div>
@@ -1001,7 +1001,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                 <button
                   type="button"
                   onClick={() => setIsStablecoinDropdownOpen((v) => !v)}
-                  className="w-full flex items-center justify-between p-5 rounded-3xl bg-primary/40 border border-accent/10 cursor-pointer hover:border-secondary/30 transition-all"
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10 cursor-pointer hover:border-secondary/30 transition-all"
                 >
                   <div className="flex items-center gap-2">
                     {getTokenLogo(selectedStablecoin) ? (
@@ -1042,7 +1042,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
               <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">
                 {network === "solana" ? "Solana Wallet Address" : "Send App or Base Wallet Address"}
               </label>
-              <div className={`p-5 rounded-3xl transition-all ${errors.walletAddress ? "border-2 border-red-500/50 bg-primary/40" : "bg-primary/40 border border-accent/10 focus-within:border-secondary/30"}`}>
+              <div className={`p-3 rounded-xl transition-all ${errors.walletAddress ? "border-2 border-red-500/50 bg-primary/40" : "bg-primary/40 border border-accent/10 focus-within:border-secondary/30"}`}>
                 <input
                   id="wallet_address"
                   name="wallet_address"
@@ -1062,7 +1062,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
             {/* Submit */}
             <div>
               {!transactionsEnabled && (
-                <div className="mb-4 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+                <div className="mb-3 p-3 rounded-xl bg-red-500/20 border border-red-500/30">
                   <p className="text-sm font-semibold text-red-400 mb-1">Transactions Currently Disabled</p>
                   <p className="text-xs text-red-400/80">Transactions are temporarily disabled. Please check back later.</p>
                 </div>
@@ -1076,13 +1076,13 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                   !walletAddress ||
                   ((network === "base" || network === "solana") && effectiveExchangeRate <= 0)
                 }
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {isLoading ? "Processing..." : (network === "base" || network === "solana") && effectiveExchangeRate <= 0 ? "Loading rate..." : transactionsEnabled ? "Pay now" : "Transactions Disabled"}
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-6 pt-2">
+            <div className="flex items-center justify-center gap-4 pt-1">
               <div className="flex items-center gap-1.5 text-accent/60">
                 <span className="material-icons-outlined text-sm text-secondary">bolt</span>
                 <span className="text-[10px] uppercase tracking-wider font-semibold">Instant Processing</span>
@@ -1120,15 +1120,15 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         onClose={() => setToast({ ...toast, isVisible: false })}
       />
       
-      <div className="w-full mt-8">
+      <div className="w-full mt-5">
         <PoweredBySEND />
       </div>
-      <p className="text-center text-accent/40 text-sm mt-4">
+      <p className="text-center text-accent/40 text-xs mt-3">
         Powered by Flippay Infrastructure • Licensed Financial Provider
       </p>
       
       {/* Create Send App Account Link */}
-      <div className="mt-4 text-center px-4 w-full">
+      <div className="mt-3 text-center px-4 w-full">
         <a
           href="https://send.app/"
           target="_blank"

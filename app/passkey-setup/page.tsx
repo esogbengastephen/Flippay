@@ -1,14 +1,14 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import DarkModeToggle from "@/components/DarkModeToggle";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { createPasskey, isPasskeySupported, isPlatformAuthenticatorAvailable } from "@/lib/passkey";
 import FSpinner from "@/components/FSpinner";
 import { generateWalletFromSeed, generateSeedPhrase, encryptSeedPhrase } from "@/lib/wallet";
+
+const USE_MOCK_AUTH = false;
 
 export default function PasskeySetupPage() {
   const router = useRouter();
@@ -50,15 +50,21 @@ export default function PasskeySetupPage() {
     setUser(currentUser);
     setLoading(false);
 
-    // Check if user already has passkey
-    checkExistingPasskey();
+    // Check if user already has passkey (pass currentUser - state may not be updated yet)
+    checkExistingPasskey(currentUser);
   };
 
-  const checkExistingPasskey = async () => {
-    if (!user) return;
+  const checkExistingPasskey = async (userToCheck?: { id: string } | null) => {
+    const u = userToCheck ?? user;
+    if (!u) return;
+
+    if (USE_MOCK_AUTH) {
+      router.push("/");
+      return;
+    }
 
     try {
-      const response = await fetch(getApiUrl(`/api/user/check-passkey?userId=${user.id}`));
+      const response = await fetch(getApiUrl(`/api/user/check-passkey?userId=${u.id}`));
       const data = await response.json();
 
       if (data.success && data.hasPasskey) {
@@ -115,6 +121,15 @@ export default function PasskeySetupPage() {
     setSettingUp(true);
     setError("");
     setStep("creating");
+
+    if (USE_MOCK_AUTH) {
+      setTimeout(() => {
+        setStep("success");
+        setSettingUp(false);
+        setTimeout(() => router.push("/"), 1500);
+      }, 800);
+      return;
+    }
 
     try {
       // Step 1: Generate wallet
@@ -219,10 +234,6 @@ export default function PasskeySetupPage() {
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
         <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
-      </div>
-
-      <div className="absolute top-4 left-4 flex items-center gap-4 z-10">
-        <DarkModeToggle fixed={false} />
       </div>
 
       {/* Logo */}

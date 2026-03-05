@@ -24,7 +24,7 @@ export default function TokenPricesPage() {
     if (address) {
       fetchPrices();
     } else {
-      // When no wallet connected (e.g. mock auth), stop loading after wagmi settles
+      // When no wallet connected, stop loading after wagmi settles
       const t = setTimeout(() => setLoading(false), 800);
       return () => clearTimeout(t);
     }

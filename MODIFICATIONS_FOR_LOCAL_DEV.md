@@ -34,6 +34,12 @@ This file documents temporary modifications made to the codebase to facilitate U
 - **components/AdminAuthGuard.tsx**: When flag is true, bypasses wallet auth and grants access immediately
 - **app/admin/layout.tsx**: When flag is true, sets role to `super_admin` so all admin pages and nav items are visible without API call
 
+### 6. FlipPay GIF for all spinners (production – added 2025-03-05)
+- **Source**: `asset/FlipPay gif [74EAE73].gif` → processed by `scripts/make-gif-transparent.py` → `public/asset/flippay-spinner.gif`
+- **FSpinner**: Uses FlipPay GIF for all loading spinners platform-wide
+- **app/auth/page.tsx**: Uses same GIF for splash, passkey overlay, and authenticating button
+- **No revert needed**: Intended for production
+
 ## Important Notes
 
 - These modifications are for LOCAL DEVELOPMENT only
