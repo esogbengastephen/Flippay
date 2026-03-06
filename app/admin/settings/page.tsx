@@ -7,6 +7,7 @@ import { useAccount } from "wagmi";
 import { DEPOSIT_ACCOUNT } from "@/lib/constants";
 import { ALL_ADMIN_PERMISSIONS, getEffectivePermissions } from "@/lib/admin-permissions";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 // Edit Admin Form Component
 function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
@@ -557,14 +558,7 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent/70">Loading settings...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading settings..." bgClass="bg-background-dark" />;
   }
 
   return (

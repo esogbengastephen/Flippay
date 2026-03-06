@@ -3,6 +3,7 @@
 import { getApiUrl } from "@/lib/apiBase";
 import { getTokenLogo, getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -974,9 +975,7 @@ export default function OffRampPage() {
     <DashboardLayout>
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
-          <FSpinner size="lg" />
-        </div>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-background-light dark:bg-background-dark" />
       }
     >
       <OffRampPageContent />

@@ -8,10 +8,19 @@ import Image from "next/image";
 import { getUserFromStorage, clearUserSession } from "@/lib/session";
 import { getTokenLogo, getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { WalletCard } from "./WalletCard";
 import { ServiceButton } from "./ServiceButton";
-import NotificationBell from "./NotificationBell";
+import NotificationsFilter from "./ui/notifications-filter";
+import {
+  Dropdown,
+  DropdownContent,
+  DropdownItem,
+  DropdownSeparator,
+  DropdownTrigger,
+} from "./ui/basic-dropdown";
+import { UserCircle, Settings, LogOut } from "lucide-react";
 
 interface DashboardData {
   user: {
@@ -113,6 +122,7 @@ export default function UserDashboard() {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
 
   // Primary services (visible by default); secondary shown after "See more"
   const PRIMARY_SERVICE_IDS = ["crypto-to-naira", "naira-to-crypto", "generate-invoice", "create-prediction"];
@@ -463,14 +473,7 @@ export default function UserDashboard() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background-dark">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
   }
 
   return (
@@ -484,25 +487,39 @@ export default function UserDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
-          <NotificationBell />
+          <NotificationsFilter placement="bottom" />
           <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Toggle theme">
             <span className="material-icons-round text-accent">{isDarkMode ? "light_mode" : "dark_mode"}</span>
           </button>
           <div className="hidden sm:block h-8 w-px bg-white/10 mx-1"></div>
-          <button onClick={() => router.push("/settings")} className="flex items-center gap-2 p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Settings">
-            {userProfile?.photoUrl ? (
-              <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-secondary/30">
-                <Image src={userProfile.photoUrl} alt="" width={32} height={32} className="w-full h-full object-cover" unoptimized />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center border border-secondary/30">
-                <span className="material-icons-round text-secondary text-sm">person</span>
-              </div>
-            )}
-          </button>
-          <button onClick={handleLogout} className="p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="Logout">
-            <span className="material-icons-round text-accent text-xl">power_settings_new</span>
-          </button>
+          <Dropdown>
+            <DropdownTrigger className="rounded-full hover:bg-white/10 transition-colors p-1">
+              {userProfile?.photoUrl ? (
+                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-secondary/30">
+                  <Image src={userProfile.photoUrl} alt="" width={32} height={32} className="w-full h-full object-cover" unoptimized />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-primary/40 flex items-center justify-center border border-accent/10">
+                  <span className="material-icons-round text-secondary text-sm">person</span>
+                </div>
+              )}
+            </DropdownTrigger>
+            <DropdownContent align="end" className="w-56">
+              <DropdownItem onClick={() => router.push("/profile")} className="gap-2">
+                <UserCircle className="h-4 w-4 text-secondary" />
+                Profile
+              </DropdownItem>
+              <DropdownItem onClick={() => router.push("/settings")} className="gap-2">
+                <Settings className="h-4 w-4 text-secondary" />
+                Settings
+              </DropdownItem>
+              <DropdownSeparator />
+              <DropdownItem onClick={handleLogout} destructive className="gap-2">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </DropdownItem>
+            </DropdownContent>
+          </Dropdown>
         </div>
       </header>
 
@@ -644,12 +661,52 @@ export default function UserDashboard() {
                 <div className="text-xs text-accent/60">Multi-chain</div>
               </div>
             </div>
+            {/* Mobile only: Send to Crypto + Receive buttons in portfolio card (branding: bg-primary/40, border-accent/10) */}
+            <div className="flex gap-3 mt-4 lg:hidden">
+              <button
+                onClick={() => router.push("/payment")}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
+              >
+                <span className="material-icons-outlined text-lg text-white group-hover:scale-110 transition-transform">swap_vert</span>
+                <span className="text-sm font-semibold text-accent">Send to Crypto</span>
+                <span className="text-[10px] text-secondary/80">Naira to Crypto</span>
+              </button>
+              <button
+                onClick={() => router.push("/receive")}
+                className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
+              >
+                <span className="material-icons-outlined text-lg text-white group-hover:scale-110 transition-transform">call_received</span>
+                <span className="text-sm font-semibold text-accent">Receive</span>
+                <span className="text-[10px] text-secondary/80">Get Wallet Address</span>
+              </button>
+            </div>
           </div>
 
           {/* Quick Actions */}
           <div className="bg-surface/60 backdrop-blur-[24px] p-6 sm:p-8 rounded-2xl flex flex-col justify-between border border-secondary/10">
             <h3 className="text-lg font-bold mb-6 text-white font-display">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-4">
+            {/* Mobile: only Crypto to Naira + Naira to Crypto */}
+            <div className="grid grid-cols-2 gap-4 lg:hidden">
+              <button
+                onClick={() => canUseCryptoToNaira && handleServiceClick(services[0])}
+                className={`flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group ${!canUseCryptoToNaira ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}`}
+                disabled={!canUseCryptoToNaira}
+              >
+                <span className="material-icons-outlined mb-2 group-hover:scale-110 transition-transform text-white">account_balance</span>
+                <span className="text-sm font-semibold text-accent">Crypto to Naira</span>
+                <span className="text-[10px] text-secondary/80 mt-0.5">Withdraw to Bank</span>
+              </button>
+              <button
+                onClick={() => handleServiceClick(services[1])}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
+              >
+                <span className="material-icons-outlined mb-2 group-hover:scale-110 transition-transform text-white">swap_vert</span>
+                <span className="text-sm font-semibold text-accent">Naira to Crypto</span>
+                <span className="text-[10px] text-secondary/80 mt-0.5">Buy Crypto</span>
+              </button>
+            </div>
+            {/* Desktop: all 4 (Send, Receive, Crypto to Naira, Naira to Crypto) */}
+            <div className="hidden lg:grid grid-cols-2 gap-4">
               <button
                 onClick={() => router.push("/send")}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
@@ -762,67 +819,105 @@ export default function UserDashboard() {
               </div>
             </div>
           ) : allTransactions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-white/5 text-xs font-bold uppercase tracking-widest opacity-60">
-                    <th className="px-4 sm:px-6 py-4">Status</th>
-                    <th className="px-4 sm:px-6 py-4">Description</th>
-                    <th className="px-4 sm:px-6 py-4 hidden sm:table-cell">Type</th>
-                    <th className="px-4 sm:px-6 py-4">Amount</th>
-                    <th className="px-4 sm:px-6 py-4 text-right">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {allTransactions.slice(0, 5).map((tx) => {
-                    const getStatusBg = (status: string) => {
-                      if (status === "completed" || status === "paid") return "bg-green-500/20 text-green-400";
-                      if (status === "failed") return "bg-red-500/20 text-red-400";
-                      return "bg-yellow-500/20 text-yellow-400";
-                    };
-                    const getTypeLabel = (type: string) => {
-                      if (type === "naira_to_crypto" || type === "crypto_purchase") return "Deposit";
-                      if (type === "crypto_to_naira" || type === "offramp") return "Off-ramp";
-                      if (type?.includes("invoice")) return "Invoice";
-                      return type || "—";
-                    };
-                    return (
-                      <tr
-                        key={tx.id}
-                        onClick={() => router.push(`/history?tx=${tx.id}&type=${tx.type}`)}
-                        className="hover:bg-white/5 transition-colors cursor-pointer"
-                      >
-                        <td className="px-4 sm:px-6 py-4">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${tx.status === "completed" || tx.status === "paid" ? "bg-green-500/20 text-green-400" : tx.status === "failed" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
-                            <span className="material-icons-round text-sm">
-                              {tx.status === "completed" || tx.status === "paid" ? "check" : tx.status === "failed" ? "close" : "schedule"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4">
-                          <div className="font-bold text-white">{tx.title}</div>
-                          <div className="text-xs opacity-50 truncate max-w-[180px]">{tx.description}</div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 hidden sm:table-cell">
-                          <span className="px-2 py-1 rounded-md bg-surface-highlight/50 text-[10px] font-bold uppercase">
+            <>
+              {/* Mobile: stacked card layout */}
+              <div className="md:hidden divide-y divide-white/5">
+                {allTransactions.slice(0, 4).map((tx) => {
+                  const getTypeLabel = (type: string) => {
+                    if (type === "naira_to_crypto" || type === "crypto_purchase") return "Deposit";
+                    if (type === "crypto_to_naira" || type === "offramp") return "Off-ramp";
+                    if (type?.includes("invoice")) return "Invoice";
+                    return type || "—";
+                  };
+                  return (
+                    <button
+                      key={tx.id}
+                      onClick={() => setSelectedTransaction(tx)}
+                      className="w-full p-4 text-left hover:bg-white/5 transition-colors flex items-start gap-3"
+                    >
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${tx.status === "completed" || tx.status === "paid" ? "bg-green-500/20 text-green-400" : tx.status === "failed" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                        <span className="material-icons-round text-sm">
+                          {tx.status === "completed" || tx.status === "paid" ? "check" : tx.status === "failed" ? "close" : "schedule"}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-white">{tx.title}</div>
+                        <div className="text-xs text-accent/60 truncate">{tx.description}</div>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-md bg-surface-highlight/50 text-[10px] font-bold uppercase text-accent/80">
                             {getTypeLabel(tx.type)}
                           </span>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4">
-                          <div className="font-bold text-white">{tx.amountLabel}</div>
-                          {tx.secondaryAmountLabel && (
-                            <div className="text-xs text-secondary">{tx.secondaryAmountLabel}</div>
-                          )}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 text-right text-sm opacity-60">
-                          {new Date(tx.date).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <span className="text-xs text-accent/60">{new Date(tx.date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-bold text-white">{tx.amountLabel}</div>
+                        {tx.secondaryAmountLabel && (
+                          <div className="text-xs text-secondary">{tx.secondaryAmountLabel}</div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Desktop: table layout */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-white/5 text-xs font-bold uppercase tracking-widest opacity-60">
+                      <th className="px-4 sm:px-6 py-4">Status</th>
+                      <th className="px-4 sm:px-6 py-4">Description</th>
+                      <th className="px-4 sm:px-6 py-4">Type</th>
+                      <th className="px-4 sm:px-6 py-4">Amount</th>
+                      <th className="px-4 sm:px-6 py-4 text-right">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {allTransactions.slice(0, 4).map((tx) => {
+                      const getTypeLabel = (type: string) => {
+                        if (type === "naira_to_crypto" || type === "crypto_purchase") return "Deposit";
+                        if (type === "crypto_to_naira" || type === "offramp") return "Off-ramp";
+                        if (type?.includes("invoice")) return "Invoice";
+                        return type || "—";
+                      };
+                      return (
+                        <tr
+                          key={tx.id}
+                          onClick={() => setSelectedTransaction(tx)}
+                          className="hover:bg-white/5 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 sm:px-6 py-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${tx.status === "completed" || tx.status === "paid" ? "bg-green-500/20 text-green-400" : tx.status === "failed" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                              <span className="material-icons-round text-sm">
+                                {tx.status === "completed" || tx.status === "paid" ? "check" : tx.status === "failed" ? "close" : "schedule"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4">
+                            <div className="font-bold text-white">{tx.title}</div>
+                            <div className="text-xs opacity-50 truncate max-w-[180px]">{tx.description}</div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4">
+                            <span className="px-2 py-1 rounded-md bg-surface-highlight/50 text-[10px] font-bold uppercase">
+                              {getTypeLabel(tx.type)}
+                            </span>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4">
+                            <div className="font-bold text-white">{tx.amountLabel}</div>
+                            {tx.secondaryAmountLabel && (
+                              <div className="text-xs text-secondary">{tx.secondaryAmountLabel}</div>
+                            )}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 text-right text-sm opacity-60">
+                            {new Date(tx.date).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div className="p-12 flex items-center justify-center">
               <div className="text-center opacity-50">
@@ -833,6 +928,76 @@ export default function UserDashboard() {
           )}
         </div>
       </div>
+
+      {/* Transaction Detail Modal – BRANDING: Compact Selector Card (max-w-sm, rounded-xl, p-4, bg-surface/95, border-secondary/10) */}
+      {selectedTransaction && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm"
+          onClick={() => setSelectedTransaction(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-surface/95 backdrop-blur-[24px] rounded-xl border border-secondary/10 shadow-xl p-4"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="tx-detail-title"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <h3 id="tx-detail-title" className="text-base font-bold text-white font-display">Transaction Details</h3>
+              <button
+                onClick={() => setSelectedTransaction(null)}
+                className="p-1.5 rounded-lg hover:bg-primary/40 hover:border-secondary/30 text-accent/70 hover:text-white transition-colors border border-transparent"
+                aria-label="Close"
+              >
+                <span className="material-icons-outlined text-lg">close</span>
+              </button>
+            </div>
+            <p className="text-xs text-accent/70 mb-3">Quick preview of your transaction</p>
+            <div className="space-y-2">
+              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 flex items-center gap-3 transition-colors">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${selectedTransaction.status === "completed" || selectedTransaction.status === "paid" ? "bg-green-500/20 text-green-400" : selectedTransaction.status === "failed" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                  <span className="material-icons-round text-sm">
+                    {selectedTransaction.status === "completed" || selectedTransaction.status === "paid" ? "check" : selectedTransaction.status === "failed" ? "close" : "schedule"}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-white">{selectedTransaction.title}</div>
+                  <div className="text-xs text-accent/60 truncate">{selectedTransaction.description}</div>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 flex justify-between items-center transition-colors">
+                <span className="text-xs text-accent/70">Type</span>
+                <span className="text-sm font-semibold uppercase text-accent">
+                  {selectedTransaction.type === "naira_to_crypto" || selectedTransaction.type === "crypto_purchase" ? "Deposit" : selectedTransaction.type === "crypto_to_naira" || selectedTransaction.type === "offramp" ? "Off-ramp" : selectedTransaction.type?.includes("invoice") ? "Invoice" : selectedTransaction.type || "—"}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 flex justify-between items-center transition-colors">
+                <span className="text-xs text-accent/70">Amount</span>
+                <div className="text-right">
+                  <div className="text-sm font-bold text-white">{selectedTransaction.amountLabel}</div>
+                  {selectedTransaction.secondaryAmountLabel && (
+                    <div className="text-xs text-secondary">{selectedTransaction.secondaryAmountLabel}</div>
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 flex justify-between items-center transition-colors">
+                <span className="text-xs text-accent/70">Date</span>
+                <span className="text-sm font-semibold text-accent">{new Date(selectedTransaction.date).toLocaleDateString(undefined, { dateStyle: "medium" })}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                router.push(`/history?tx=${selectedTransaction.id}&type=${selectedTransaction.type}`);
+                setSelectedTransaction(null);
+              }}
+              className="w-full mt-4 flex items-center justify-center gap-2 py-3 rounded-xl bg-secondary text-primary font-bold text-sm shadow-[0_4px_14px_rgba(19,236,90,0.2)] hover:brightness-110 transition-all border border-secondary/20"
+            >
+              <span>View in History</span>
+              <span className="material-icons-outlined text-lg" aria-hidden>arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Crypto Options Modal - Naira to Crypto (compact selector card) */}
       {showCryptoOptions && (

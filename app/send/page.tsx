@@ -10,6 +10,7 @@ import { authenticateWithPasskey } from "@/lib/passkey";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo, getTokenLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
 
@@ -459,33 +460,33 @@ function SendPageContent() {
         <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
       </div>
 
-      <div className="w-full max-w-lg mt-8 lg:mt-16 relative">
+      <div className="w-full max-w-sm mt-6 lg:mt-12 relative">
         {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-6">
           <button
             onClick={() => router.back()}
             className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
           >
             <span className="material-icons-outlined">arrow_back</span>
           </button>
-          <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">Send</h1>
+          <h1 className="text-2xl font-bold mb-2 tracking-tight text-white font-display">Send</h1>
           <p className="text-accent/70">
             {sendType === "crypto" ? "Transfer crypto across multiple chains" : "Send NGN to users or bank accounts"}
           </p>
         </div>
 
-        {/* Main Card - glass style */}
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] p-6 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden">
+        {/* Main Card - glass style (compact) */}
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl p-4 sm:p-6 border border-secondary/10 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl -z-10" />
           {/* Type Selector */}
-          <div className="mb-6">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+          <div className="mb-4">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
               Send Type
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setSendType("ngn")}
-                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-1 ${
                   sendType === "ngn"
                     ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                     : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
@@ -496,7 +497,7 @@ function SendPageContent() {
               </button>
               <button
                 onClick={() => setSendType("crypto")}
-                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-1 ${
                   sendType === "crypto"
                     ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                     : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
@@ -511,12 +512,12 @@ function SendPageContent() {
           {sendType === "crypto" ? (
             <>
               {/* Chain selector - only show chains with balance > 0 */}
-              <div className="mb-6">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+              <div className="mb-4">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
                   Select Chain {loadingBalances && <span className="normal-case">(Loading...)</span>}
                 </label>
                 {loadingBalances ? (
-                  <div className="w-full p-5 rounded-3xl bg-primary/40 border border-accent/10 flex items-center justify-center gap-3">
+                  <div className="w-full p-4 rounded-2xl bg-primary/40 border border-accent/10 flex items-center justify-center gap-3">
                     <FSpinner size="sm" />
                     <span className="text-sm text-accent">Loading balances...</span>
                   </div>
@@ -525,11 +526,11 @@ function SendPageContent() {
                   {availableChains.length > 0 ? (
                     <>
                       {/* Chain selector with logo */}
-                      <div className="relative mb-4" ref={chainDropdownRef}>
+                      <div className="relative mb-3" ref={chainDropdownRef}>
                         <button
                           type="button"
                           onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
-                          className="w-full p-5 rounded-3xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-secondary/30"
+                          className="w-full p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-secondary/30"
                         >
                           <div className="flex items-center gap-4">
                             {getChainLogo(selectedChain) ? (
@@ -1052,9 +1053,7 @@ export default function SendPage() {
   return (
     <DashboardLayout>
       <Suspense fallback={
-        <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
-          <FSpinner size="lg" />
-        </div>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-background-light dark:bg-background-dark" />
       }>
         <SendPageContent />
       </Suspense>

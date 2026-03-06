@@ -5,6 +5,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 interface UtilityService {
   id: string;
@@ -253,14 +254,7 @@ export default function UtilityPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent/70">Loading utility settings...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading utility settings..." bgClass="bg-background-dark" />;
   }
 
   return (

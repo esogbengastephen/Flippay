@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import UtilityForm from "@/components/UtilityForm";
 import { isUserLoggedIn } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
-import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 interface GiftCardProduct {
   id: number;
@@ -68,12 +68,7 @@ export default function GiftCardRedeemPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
-          <div className="text-center">
-            <FSpinner size="lg" className="mx-auto mb-4" />
-            <p className="text-accent/70">Loading gift card products...</p>
-          </div>
-        </div>
+        <PageLoadingSpinner message="Loading gift card products..." bgClass="bg-background-dark" />
       </DashboardLayout>
     );
   }

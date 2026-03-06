@@ -2,7 +2,7 @@
 
 interface FSpinnerProps {
   className?: string;
-  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "page";
 }
 
 const sizeMap = {
@@ -11,6 +11,7 @@ const sizeMap = {
   md: { sizeClass: "h-8 w-8" },
   lg: { sizeClass: "h-12 w-12" },
   xl: { sizeClass: "h-16 w-16" },
+  page: { sizeClass: "w-80 h-80 sm:w-96 sm:h-96" },
 };
 
 const GIF_SRC = "/asset/flippay-spinner.gif";

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import PaymentForm from "@/components/PaymentForm";
 import PaymentHub from "@/components/PaymentHub";
 import { isUserLoggedIn } from "@/lib/session";
-import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import DashboardLayout from "@/components/DashboardLayout";
 
 function PaymentPageContent() {
@@ -65,9 +65,7 @@ function PaymentPageContent() {
 export default function PaymentPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen min-h-[100dvh] bg-background-dark flex items-center justify-center">
-        <FSpinner size="lg" />
-      </div>
+      <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />
     }>
       <PaymentPageContent />
     </Suspense>

@@ -9,6 +9,7 @@ import Cropper from "react-easy-crop";
 import { getUserFromStorage } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import imageCompression from "browser-image-compression";
 
 interface Area {
@@ -389,11 +390,7 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
-        <FSpinner size="lg" />
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />;
   }
 
   return (

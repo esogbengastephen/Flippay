@@ -10,6 +10,7 @@ import Modal from "@/components/Modal";
 import Toast from "@/components/Toast";
 import { getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import dynamic from "next/dynamic";
 
 // Lazy load QRCode component to reduce initial bundle
@@ -587,12 +588,7 @@ function InvoiceDetailContent() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen bg-primary pb-24 lg:pb-0">
-          <div className="text-center">
-            <FSpinner size="lg" className="mx-auto mb-4" />
-            <p className="text-secondary">Loading...</p>
-          </div>
-        </div>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />
       </DashboardLayout>
     );
   }
@@ -1085,12 +1081,7 @@ function InvoiceDetailContent() {
 export default function InvoiceDetailPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-primary">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-secondary">Loading...</p>
-        </div>
-      </div>
+      <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />
     }>
       <InvoiceDetailContent />
     </Suspense>

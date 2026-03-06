@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import WalletConnect from "./WalletConnect";
 import { useRouter } from "next/navigation";
-import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import { USE_MOCK_ADMIN_AUTH } from "@/lib/admin-permissions";
 
 interface AdminAuthGuardProps {
@@ -82,14 +82,7 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   };
 
   if (isChecking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-surface">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent/80">Checking authentication...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Checking authentication..." bgClass="bg-surface" />;
   }
 
   if (!isAuthenticated) {

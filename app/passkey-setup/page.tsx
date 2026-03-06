@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { createPasskey, isPasskeySupported, isPlatformAuthenticatorAvailable } from "@/lib/passkey";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import { generateWalletFromSeed, generateSeedPhrase, encryptSeedPhrase } from "@/lib/wallet";
 
 const USE_MOCK_AUTH = false;
@@ -218,14 +219,7 @@ export default function PasskeySetupPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background-dark">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent/80">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
   }
 
   return (
@@ -366,15 +360,10 @@ export default function PasskeySetupPage() {
           )}
 
           {step === "creating" && (
-            <div className="text-center py-4">
-              <FSpinner size="xl" className="mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-white mb-2">
-                Creating Your Wallet
-              </h2>
-              <p className="text-sm text-accent/80">
-                Please follow the prompts on your device to set up your passkey...
-              </p>
-            </div>
+            <PageLoadingSpinner
+              message="Creating Your Wallet - Please follow the prompts on your device..."
+              bgClass="bg-background-dark"
+            />
           )}
 
           {step === "success" && (

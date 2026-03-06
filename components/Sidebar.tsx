@@ -4,7 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getUserFromStorage } from "@/lib/session";
+import { getUserFromStorage, clearUserSession } from "@/lib/session";
+import {
+  Dropdown,
+  DropdownContent,
+  DropdownItem,
+  DropdownSeparator,
+  DropdownTrigger,
+} from "./ui/basic-dropdown";
+import { UserCircle, Settings, LogOut } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: "account_balance_wallet", label: "Wallet" },
@@ -43,18 +51,27 @@ function NavLink({
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [displayName, setDisplayName] = useState("User");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const user = getUserFromStorage();
-      const u = user as { displayName?: string; display_name?: string; email?: string };
-      const name = u?.displayName || u?.display_name || u?.email?.split("@")[0] || "User";
-      setDisplayName(name);
+      const u = user as { displayName?: string; display_name?: string; email?: string; photoUrl?: string };
+      setDisplayName(u?.displayName || u?.display_name || u?.email?.split("@")[0] || "User");
+      setPhotoUrl((u as { photoUrl?: string })?.photoUrl ?? null);
     } catch {
       setDisplayName("User");
     }
   }, []);
+
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to sign out?")) {
+      clearUserSession();
+      router.push("/auth");
+    }
+  };
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -89,16 +106,36 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* User Account Card - clickable to settings */}
-      <Link
-        href="/settings"
-        className="bg-surface-highlight/50 p-3 rounded-xl flex items-center gap-2 border border-white/5 hover:bg-surface-highlight/70 hover:border-accent/20 transition-colors block"
-      >
-          <div className="w-7 h-7 bg-secondary rounded-full border-2 border-accent/20 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
+      {/* User Account - dropdown with Profile, Settings, Sign out */}
+      <Dropdown>
+        <DropdownTrigger className="w-full bg-surface-highlight/50 p-3 rounded-xl flex items-center gap-2 border border-white/5 hover:bg-surface-highlight/70 hover:border-accent/20 transition-colors">
+          {photoUrl ? (
+            <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-accent/20 flex-shrink-0">
+              <Image src={photoUrl} alt="" width={28} height={28} className="w-full h-full object-cover" unoptimized />
+            </div>
+          ) : (
+            <div className="w-7 h-7 bg-secondary rounded-full border-2 border-accent/20 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div className="text-xs font-semibold truncate text-accent min-w-0">{displayName}</div>
-      </Link>
+        </DropdownTrigger>
+        <DropdownContent align="start" side="left" placement="top" className="w-56">
+          <DropdownItem onClick={() => router.push("/profile")} className="gap-2">
+            <UserCircle className="h-4 w-4 text-secondary" />
+            Profile
+          </DropdownItem>
+          <DropdownItem onClick={() => router.push("/settings")} className="gap-2">
+            <Settings className="h-4 w-4 text-secondary" />
+            Settings
+          </DropdownItem>
+          <DropdownSeparator />
+          <DropdownItem onClick={handleLogout} destructive className="gap-2">
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </DropdownItem>
+        </DropdownContent>
+      </Dropdown>
     </aside>
   );
 }

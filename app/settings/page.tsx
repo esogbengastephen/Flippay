@@ -12,6 +12,7 @@ import { decryptSeedPhrase } from "@/lib/wallet";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import { getKYCTierInfo, canUpgradeTier, formatCurrency, type KYCTier, KYC_TIERS } from "@/lib/kyc-tiers";
 
 // Add Phone Number Form Component
@@ -248,9 +249,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-background-dark flex items-center justify-center pb-24 lg:pb-0">
-          <FSpinner size="lg" />
-        </div>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />
       </DashboardLayout>
     );
   }

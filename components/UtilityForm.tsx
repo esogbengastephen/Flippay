@@ -8,6 +8,7 @@ import Image from "next/image";
 import { getUserFromStorage } from "@/lib/session";
 import { getBettingNetworkLogo, getTelecomNetworkLogo, getTVNetworkLogo, getGiftCardNetworkLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 interface GiftCardProduct {
   id: number;
@@ -565,14 +566,7 @@ export default function UtilityForm({
   }, [phoneNumber, networks]);
 
   if (loadingSettings || !serviceSettings) {
-    return (
-      <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent/70">Loading service...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading service..." bgClass="bg-background-dark" />;
   }
 
   if (serviceSettings.status !== "active") {

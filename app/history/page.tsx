@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 function HistoryPageContent() {
   const router = useRouter();
@@ -255,10 +256,7 @@ function HistoryPageContent() {
 
         {/* Content */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <FSpinner size="lg" />
-            <span className="ml-3 text-accent/70">Loading transactions...</span>
-          </div>
+          <PageLoadingSpinner message="Loading transactions..." bgClass="bg-background-light dark:bg-background-dark" />
         ) : filteredTransactions.length === 0 ? (
           <div className="glass-panel rounded-2xl p-12 text-center border border-white/5">
             <span className="material-icons-outlined text-6xl text-accent/40 mb-4 block">receipt</span>
@@ -641,10 +639,8 @@ export default function HistoryPage() {
   return (
     <DashboardLayout>
       <Suspense fallback={
-      <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
-        <FSpinner size="lg" />
-      </div>
-    }>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-background-light dark:bg-background-dark" />
+      }>
         <HistoryPageContent />
       </Suspense>
     </DashboardLayout>

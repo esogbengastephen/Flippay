@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isUserLoggedIn, getUserFromStorage, clearUserSession } from "@/lib/session";
 import { getApiUrl } from "@/lib/apiBase";
-import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -76,14 +76,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   };
 
   if (isChecking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-slate-50 dark:bg-slate-900" />;
   }
 
   if (!isAuthenticated) {

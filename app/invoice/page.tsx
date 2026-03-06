@@ -12,6 +12,7 @@ import Toast from "@/components/Toast";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo, getTokenLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 const FIAT_CURRENCIES = [
   { code: "NGN", label: "NGN (Nigerian Naira)" },
@@ -958,14 +959,7 @@ export default function InvoicePage() {
 
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background-dark">
-        <div className="text-center">
-          <FSpinner size="lg" className="mx-auto mb-4" />
-          <p className="text-accent/70">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
   }
 
   const stats = calculateStats();

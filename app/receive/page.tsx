@@ -11,6 +11,7 @@ import { authenticateWithPasskey } from "@/lib/passkey";
 import { decryptSeedPhrase } from "@/lib/wallet";
 import { getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import dynamic from "next/dynamic";
 import DashboardLayout from "@/components/DashboardLayout";
 
@@ -445,10 +446,7 @@ export default function ReceivePage() {
 
               {/* Address display */}
               {loadingAddresses ? (
-                <div className="text-center py-12">
-                  <FSpinner size="lg" className="mx-auto mb-4" />
-                  <p className="text-accent/70">Loading wallet addresses...</p>
-                </div>
+                <PageLoadingSpinner message="Loading wallet addresses..." bgClass="bg-background-dark" />
               ) : !hasPasskey ? (
                 <div className="text-center py-12">
                   <span className="material-icons-outlined text-6xl text-accent/30 mb-4">fingerprint</span>
