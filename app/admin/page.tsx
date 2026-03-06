@@ -123,12 +123,12 @@ interface ChartData {
 }
 
 const COLORS = {
-  primary: "#13EC5A",
-  backgroundDark: "#05110B",
+  primary: "#00BFFF",
+  backgroundDark: "#011931",
   success: "#10B981",
   warning: "#F59E0B",
   error: "#EF4444",
-  surfaceHighlight: "#23423E",
+  info: "#3B82F6",
 };
 
 export default function AdminDashboard() {
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
   // Prepare KYC pie chart data
   const kycChartData = stats.kyc ? [
     { name: "Tier 1", value: stats.kyc.tier1, color: COLORS.warning },
-    { name: "Tier 2", value: stats.kyc.tier2, color: COLORS.primary },
+    { name: "Tier 2", value: stats.kyc.tier2, color: COLORS.info },
     { name: "Tier 3", value: stats.kyc.tier3, color: COLORS.success },
   ] : [];
 
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
   // Prepare revenue breakdown chart data
   const revenueBreakdownData = stats.revenueBreakdown ? [
     { name: "Onramp", value: stats.revenueBreakdown.onramp || 0, color: COLORS.primary },
-    { name: "Offramp", value: stats.revenueBreakdown.offramp || 0, color: COLORS.surfaceHighlight },
+    { name: "Offramp", value: stats.revenueBreakdown.offramp || 0, color: COLORS.info },
   ] : [];
 
   const statCards = [
@@ -323,336 +323,159 @@ export default function AdminDashboard() {
     },
   ];
 
-  const topStats = [
-    {
-      title: "Total Volume",
-      value: loading ? "..." : `₦${(stats.totalVolumeProcessed ?? stats.revenueBreakdown?.total ?? 0).toLocaleString()}`,
-      icon: "savings",
-      change: stats.percentageChanges?.totalVolumeProcessed ?? "0%",
-      subtitle: "All funds processed (onramp + offramp)",
-    },
-    {
-      title: "Active Users",
-      value: loading ? "..." : (stats.totalUsers || 0).toLocaleString(),
-      icon: "people",
-      change: "0%",
-    },
-    {
-      title: "Total Revenue (NGN)",
-      value: loading ? "..." : `₦${((stats.revenueBreakdown?.total || stats.totalRevenue || 0)).toLocaleString()}`,
-      icon: "payments",
-      change: stats.percentageChanges?.totalRevenue || "0%",
-    },
-  ];
-
   return (
-    <div className="flex flex-col min-h-screen bg-surface">
-      {/* Header controls */}
-      <header className="h-20 flex items-center justify-between gap-4 px-6 lg:px-8 border-b border-accent/10 bg-surface/95 backdrop-blur z-10">
-        <div className="relative hidden sm:block flex-1 min-w-0 max-w-xs">
-            <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white">search</span>
-            <input
-              className="w-full pl-10 pr-4 py-2 bg-primary border border-accent/10 rounded-lg text-sm text-white focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none placeholder:text-accent/50"
-              placeholder="Search data..."
-              type="text"
-            />
-        </div>
-        <button className="p-2 text-white hover:text-secondary transition-colors relative flex-shrink-0" aria-label="Notifications">
-            <span className="material-icons-outlined">notifications</span>
-            {(stats.pendingPayments || 0) > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-secondary rounded-full shadow-[0_0_5px_rgba(19,236,90,0.8)]" />
-            )}
-        </button>
-      </header>
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 min-h-screen" style={{ backgroundColor: "var(--background-light)" }}>
+      <style jsx global>{`
+        :root {
+          --background-light: #FFFFFF;
+          --background-dark: #011931;
+        }
+        .dark {
+          --background-light: #011931;
+        }
+      `}</style>
+      
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-text-primary dark:text-text-primary-dark">
+          Dashboard Overview
+        </h1>
+        <p className="text-sm sm:text-base text-medium-grey dark:text-light-grey mt-1 sm:mt-2">
+          Monitor transactions, payments, token distributions, and multi-chain activity
+        </p>
+      </div>
 
-      <div className="flex-1 overflow-auto pt-6 px-6 lg:px-8 pb-6 lg:pb-8">
-        {/* Top 3 Stats - Flippay card style */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {topStats.map((stat, index) => (
-            <div
-              key={index}
-              className="bg-primary rounded-xl p-6 border border-accent/10 hover:border-secondary/30 transition-all group relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <span className="material-icons-outlined text-6xl text-white">{stat.icon}</span>
-              </div>
-              <p className="text-sm font-medium text-accent/70 mb-1">{stat.title}</p>
-              {"subtitle" in stat && stat.subtitle && (
-                <p className="text-xs text-accent/50 mb-1">{stat.subtitle}</p>
-              )}
-              <div className="flex items-end gap-2">
-                <h3 className="text-2xl sm:text-3xl font-bold text-white">
-                  {stat.value}
-                </h3>
-                <span className={`text-sm font-semibold mb-1 flex items-center ${
-                  stat.change.startsWith("+") ? "text-secondary" : stat.change.startsWith("-") ? "text-red-400" : "text-accent/60"
-                }`}>
-                  <span className="material-icons-outlined text-sm text-white">trending_up</span> {stat.change}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Charts + Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 bg-primary rounded-xl border border-accent/10 p-6 flex flex-col">
+      {/* Main Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        {statCards.map((stat, index) => (
+          <div
+            key={index}
+            className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey"
+            style={{ 
+              backgroundColor: "var(--card-light)",
+            }}
+          >
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  Revenue Trends
-                  <span className="bg-secondary/10 text-secondary text-xs px-2 py-0.5 rounded border border-secondary/20">SEND/NGN</span>
-                </h3>
-                <p className="text-xs text-accent/60 mt-1">Last 30 days</p>
-              </div>
-            </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" style={{ fontSize: "12px" }} />
-                  <YAxis stroke="rgba(255,255,255,0.5)" style={{ fontSize: "12px" }} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#11281A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
-                    formatter={(value: number | undefined) => value != null ? [`₦${value?.toLocaleString()}`, "Revenue"] : ["", "Revenue"]}
-                  />
-                  <Line type="monotone" dataKey="revenue" stroke="#13EC5A" strokeWidth={2} name="Revenue (NGN)" dot={{ fill: "#13EC5A", r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-primary rounded-xl border border-accent/10 p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <Link
-                href="/admin/users"
-                className="flex items-center justify-between p-4 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40 transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                    <span className="material-icons-outlined">block</span>
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-white font-semibold">Block User</span>
-                    <span className="text-xs text-accent/60">Restrict account access</span>
-                  </div>
-                </div>
-                <span className="material-icons-outlined text-white/20 group-hover:text-white transition-colors">arrow_forward_ios</span>
-              </Link>
-              <Link
-                href="/admin/payments"
-                className="flex items-center justify-between p-4 rounded-lg bg-secondary/5 border border-secondary/20 hover:bg-secondary/10 hover:border-secondary/40 transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                    <span className="material-icons-outlined">verified</span>
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-white font-semibold">Verify Payment</span>
-                    <span className="text-xs text-accent/60">Manual TX confirmation</span>
-                  </div>
-                </div>
-                <span className="material-icons-outlined text-white/20 group-hover:text-white transition-colors">arrow_forward_ios</span>
-              </Link>
-              <Link
-                href="/admin/price-action"
-                className="flex items-center justify-between p-4 rounded-lg bg-accent/5 border border-accent/10 hover:bg-accent/10 hover:border-secondary/30 transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                    <span className="material-icons-outlined">percent</span>
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-white font-semibold">Adjust Margins</span>
-                    <span className="text-xs text-accent/60">Global fee settings</span>
-                  </div>
-                </div>
-                <span className="material-icons-outlined text-white/20 group-hover:text-white transition-colors">arrow_forward_ios</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity Table */}
-        <div className="bg-primary rounded-xl border border-accent/10 overflow-hidden mb-8">
-          <div className="p-6 border-b border-accent/10 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-white">Recent Activity</h3>
-            <Link href="/admin/transactions" className="text-xs text-secondary hover:underline">View All</Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-accent/70">
-              <thead className="bg-accent/5 text-xs uppercase font-medium text-white">
-                <tr>
-                  <th className="px-6 py-4">Event Type</th>
-                  <th className="px-6 py-4">User / ID</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Timestamp</th>
-                  <th className="px-6 py-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-accent/10">
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-accent/60">Loading...</td>
-                  </tr>
-                ) : recentActivities.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-accent/60">No recent activity</td>
-                  </tr>
-                ) : (
-                  recentActivities.slice(0, 5).map((activity, i) => (
-                    <tr key={i} className="hover:bg-accent/5 transition-colors">
-                      <td className="px-6 py-4 flex items-center gap-3">
-                        <span className={`w-2 h-2 rounded-full ${
-                          activity.type === "completed" ? "bg-secondary shadow-[0_0_5px_rgba(19,236,90,0.8)]" :
-                          activity.type === "failed" ? "bg-red-500" : "bg-yellow-500"
-                        }`} />
-                        {activity.message}
-                      </td>
-                      <td className="px-6 py-4 text-white">{activity.wallet || "-"}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
-                          activity.type === "completed" ? "bg-secondary/10 text-secondary border-secondary/20" :
-                          activity.type === "failed" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                          "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                        }`}>
-                          {activity.type === "completed" ? "Completed" : activity.type === "failed" ? "Failed" : "Pending"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">{activity.time}</td>
-                      <td className="px-6 py-4 text-right">
-                        {activity.txHash ? (
-                          <a href={`https://basescan.org/tx/${activity.txHash}`} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline">
-                            Details
-                          </a>
-                        ) : (
-                          <span className="text-accent/50">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Additional Stats Grid - keep our project content */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          {statCards.slice(3).map((stat, index) => (
-            <div
-              key={index}
-              className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10 hover:border-secondary/30 transition-all"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-lg bg-accent/10">
-                  <span className="material-icons-outlined text-white">
-                    {stat.icon}
-                  </span>
-                </div>
-                <span className={`text-sm font-medium ${
-                  stat.change.startsWith("+") ? "text-secondary" : stat.change.startsWith("-") ? "text-red-400" : "text-accent/60"
-                }`}>
-                  {stat.change}
+              <div className={`${stat.color} p-3 rounded-lg`} style={{ backgroundColor: stat.color.includes("primary") ? COLORS.primary : stat.color.includes("success") ? COLORS.success : stat.color.includes("warning") ? COLORS.warning : COLORS.error }}>
+                <span className="material-icons-outlined text-white">
+                  {stat.icon}
                 </span>
               </div>
-              <h3 className="text-xs sm:text-sm font-medium text-accent/70 mb-1">{stat.title}</h3>
-              {"subtitle" in stat && stat.subtitle && (
-                <p className="text-xs text-accent/50 mb-1">{stat.subtitle}</p>
-              )}
-              <p className="text-xl sm:text-2xl font-bold text-white">
-                {loading ? "..." : stat.value}
-              </p>
+              <span
+                className={`text-sm font-medium ${
+                  stat.change.startsWith("+")
+                    ? "text-success dark:text-success"
+                    : stat.change === "0%" || stat.change.includes("%") && !stat.change.startsWith("-")
+                    ? "text-medium-grey dark:text-light-grey"
+                    : "text-error dark:text-error"
+                }`}
+                style={{
+                  color: stat.change.startsWith("+") ? COLORS.success : stat.change.startsWith("-") ? COLORS.error : undefined
+                }}
+              >
+                {stat.change}
+              </span>
             </div>
-          ))}
-        </div>
+            <h3 className="text-xs sm:text-sm font-medium text-medium-grey dark:text-light-grey mb-1">
+              {stat.title}
+            </h3>
+            {"subtitle" in stat && stat.subtitle && (
+              <p className="text-xs text-medium-grey dark:text-light-grey mb-1">
+                {stat.subtitle}
+              </p>
+            )}
+            <p className="text-xl sm:text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+              {loading ? "..." : stat.value}
+            </p>
+          </div>
+        ))}
+      </div>
 
       {/* Network Breakdown Section */}
       {stats.offramp && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+          <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+            <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
               Base Network
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-accent/70">Transactions</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-sm text-medium-grey dark:text-light-grey">Transactions</p>
+                <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
                   {stats.offramp.base.transactions.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Volume</p>
-                <p className="text-xl font-bold text-secondary">₦{stats.offramp.base.volume.toLocaleString()}</p>
+                <p className="text-sm text-medium-grey dark:text-light-grey">Volume</p>
+                <p className="text-xl font-bold text-primary">₦{stats.offramp.base.volume.toLocaleString()}</p>
               </div>
               <div className="flex gap-4">
                 <div>
-                  <p className="text-xs text-accent/60">Completed</p>
-                  <p className="text-lg font-semibold text-secondary">{stats.offramp.base.completed}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Completed</p>
+                  <p className="text-lg font-semibold text-success">{stats.offramp.base.completed}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-accent/60">Pending</p>
-                  <p className="text-lg font-semibold text-yellow-500">{stats.offramp.base.pending}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Pending</p>
+                  <p className="text-lg font-semibold text-warning">{stats.offramp.base.pending}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-accent/60">Failed</p>
-                  <p className="text-lg font-semibold text-red-400">{stats.offramp.base.failed}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Failed</p>
+                  <p className="text-lg font-semibold text-error">{stats.offramp.base.failed}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+          <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+            <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
               Solana Network
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-accent/70">Transactions</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-sm text-medium-grey dark:text-light-grey">Transactions</p>
+                <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
                   {stats.offramp.solana.transactions.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Volume</p>
-                <p className="text-xl font-bold text-secondary">₦{stats.offramp.solana.volume.toLocaleString()}</p>
+                <p className="text-sm text-medium-grey dark:text-light-grey">Volume</p>
+                <p className="text-xl font-bold text-primary">₦{stats.offramp.solana.volume.toLocaleString()}</p>
               </div>
               <div className="flex gap-4">
                 <div>
-                  <p className="text-xs text-accent/70">Completed</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Completed</p>
                   <p className="text-lg font-semibold text-success">{stats.offramp.solana.completed}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-accent/70">Pending</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Pending</p>
                   <p className="text-lg font-semibold text-warning">{stats.offramp.solana.pending}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-accent/70">Failed</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Failed</p>
                   <p className="text-lg font-semibold text-error">{stats.offramp.solana.failed}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+          <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+            <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
               Offramp Summary
             </h2>
             <div className="space-y-3">
               <div>
-                <p className="text-sm text-accent/70">Total Transactions</p>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-sm text-medium-grey dark:text-light-grey">Total Transactions</p>
+                <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
                   {stats.offramp.total.transactions.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Total Volume</p>
-                <p className="text-xl font-bold text-secondary">₦{stats.offramp.total.volume.toLocaleString()}</p>
+                <p className="text-sm text-medium-grey dark:text-light-grey">Total Volume</p>
+                <p className="text-xl font-bold text-primary">₦{stats.offramp.total.volume.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Success Rate</p>
-                <p className="text-xl font-bold text-secondary">{stats.offramp.total.successRate}%</p>
+                <p className="text-sm text-medium-grey dark:text-light-grey">Success Rate</p>
+                <p className="text-xl font-bold text-success">{stats.offramp.total.successRate}%</p>
               </div>
             </div>
           </div>
@@ -662,36 +485,36 @@ export default function AdminDashboard() {
       {/* Smart Wallet & KYC Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {stats.smartWallets && (
-          <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+          <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+            <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
               Smart Wallet Adoption
             </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-accent/70">Base Wallets</p>
-                  <p className="text-2xl font-bold text-secondary">{stats.smartWallets.usersWithSmartWallets.toLocaleString()}</p>
-                  <p className="text-xs text-accent/60 mt-1">
+                  <p className="text-sm text-medium-grey dark:text-light-grey">Base Wallets</p>
+                  <p className="text-2xl font-bold text-primary">{stats.smartWallets.usersWithSmartWallets.toLocaleString()}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey mt-1">
                     {stats.smartWallets.smartWalletAdoptionRate}% adoption
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-accent/70">Solana Wallets</p>
-                  <p className="text-2xl font-bold text-secondary">{stats.smartWallets.usersWithSolanaWallets.toLocaleString()}</p>
-                  <p className="text-xs text-accent/60 mt-1">
+                  <p className="text-sm text-medium-grey dark:text-light-grey">Solana Wallets</p>
+                  <p className="text-2xl font-bold text-primary">{stats.smartWallets.usersWithSolanaWallets.toLocaleString()}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey mt-1">
                     {stats.smartWallets.solanaWalletAdoptionRate}% adoption
                   </p>
                 </div>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Users with Both</p>
-                <p className="text-xl font-bold text-white">
+                <p className="text-sm text-medium-grey dark:text-light-grey">Users with Both</p>
+                <p className="text-xl font-bold text-text-primary dark:text-text-primary-dark">
                   {stats.smartWallets.usersWithBothWallets.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Total Users</p>
-                <p className="text-lg font-semibold text-white">
+                <p className="text-sm text-medium-grey dark:text-light-grey">Total Users</p>
+                <p className="text-lg font-semibold text-text-primary dark:text-text-primary-dark">
                   {stats.smartWallets.totalUsers.toLocaleString()}
                 </p>
               </div>
@@ -700,8 +523,8 @@ export default function AdminDashboard() {
         )}
 
         {stats.kyc && (
-          <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-            <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+          <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+            <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
               KYC Tier Distribution
             </h2>
             <div className="space-y-4">
@@ -728,16 +551,16 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center">
-                  <p className="text-xs text-accent/60">Tier 1</p>
-                  <p className="text-lg font-bold text-amber-500">{stats.kyc.tier1}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Tier 1</p>
+                  <p className="text-lg font-bold text-warning">{stats.kyc.tier1}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs text-accent/60">Tier 2</p>
-                  <p className="text-lg font-bold text-secondary">{stats.kyc.tier2}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Tier 2</p>
+                  <p className="text-lg font-bold text-info">{stats.kyc.tier2}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xs text-accent/60">Tier 3</p>
-                  <p className="text-lg font-bold text-secondary">{stats.kyc.tier3}</p>
+                  <p className="text-xs text-medium-grey dark:text-light-grey">Tier 3</p>
+                  <p className="text-lg font-bold text-success">{stats.kyc.tier3}</p>
                 </div>
               </div>
             </div>
@@ -747,8 +570,8 @@ export default function AdminDashboard() {
 
       {/* Revenue Breakdown */}
       {stats.revenueBreakdown && (
-        <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
             Revenue Breakdown by Service Type
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -776,16 +599,16 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-accent/70">Onramp Revenue</p>
-                <p className="text-2xl font-bold text-secondary">₦{(stats.revenueBreakdown?.onramp || 0).toLocaleString()}</p>
+                <p className="text-sm text-medium-grey dark:text-light-grey">Onramp Revenue</p>
+                <p className="text-2xl font-bold text-primary">₦{(stats.revenueBreakdown?.onramp || 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Offramp Revenue</p>
-                <p className="text-2xl font-bold text-secondary">₦{(stats.revenueBreakdown?.offramp || 0).toLocaleString()}</p>
+                <p className="text-sm text-medium-grey dark:text-light-grey">Offramp Revenue</p>
+                <p className="text-2xl font-bold text-primary">₦{(stats.revenueBreakdown?.offramp || 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-sm text-accent/70">Total Revenue</p>
-                <p className="text-3xl font-bold text-white">
+                <p className="text-sm text-medium-grey dark:text-light-grey">Total Revenue</p>
+                <p className="text-3xl font-bold text-text-primary dark:text-text-primary-dark">
                   ₦{(stats.revenueBreakdown?.total || stats.totalRevenue || 0).toLocaleString()}
                 </p>
               </div>
@@ -796,67 +619,223 @@ export default function AdminDashboard() {
 
       {/* Network Breakdown Chart */}
       {networkChartData.length > 0 && (
-        <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-4">
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
             Network Revenue Breakdown
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={networkChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" />
-              <YAxis stroke="rgba(255,255,255,0.5)" tickFormatter={(value) => `₦${(value / 1000).toFixed(0)}k`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="name" stroke="#64748b" />
+              <YAxis stroke="#64748b" tickFormatter={(value) => `₦${(value / 1000).toFixed(0)}k`} />
               <Tooltip
                 formatter={(value: number | undefined) => value != null ? `₦${value.toLocaleString()}` : ""}
-                contentStyle={{ backgroundColor: "#11281A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                }}
               />
               <Legend />
-              <Bar dataKey="onramp" fill="#13EC5A" name="Onramp" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="offramp" fill="#23423E" name="Offramp" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="onramp" fill={COLORS.primary} name="Onramp" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="offramp" fill={COLORS.info} name="Offramp" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-3 sm:mb-4">
+            Quick Actions
+          </h2>
+          <div className="space-y-3">
+            <Link
+              href="/admin/onramp"
+              className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+            >
+              <span className="material-icons-outlined" style={{ color: COLORS.primary }}>
+                arrow_downward
+              </span>
+              <span className="text-text-primary dark:text-text-primary-dark">Onramp Transactions</span>
+            </Link>
+            <Link
+              href="/admin/offramp"
+              className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+            >
+              <span className="material-icons-outlined" style={{ color: COLORS.primary }}>
+                arrow_upward
+              </span>
+              <span className="text-text-primary dark:text-text-primary-dark">Offramp Transactions</span>
+            </Link>
+            <Link
+              href="/admin/transactions"
+              className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+            >
+              <span className="material-icons-outlined" style={{ color: COLORS.primary }}>
+                receipt_long
+              </span>
+              <span className="text-text-primary dark:text-text-primary-dark">View All Transactions</span>
+            </Link>
+            <Link
+              href="/admin/kyc"
+              className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+            >
+              <span className="material-icons-outlined" style={{ color: COLORS.primary }}>
+                verified_user
+              </span>
+              <span className="text-text-primary dark:text-text-primary-dark">KYC Management</span>
+            </Link>
+            <Link
+              href="/admin/payments"
+              className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+            >
+              <span className="material-icons-outlined" style={{ color: COLORS.primary }}>
+                payment
+              </span>
+              <span className="text-text-primary dark:text-text-primary-dark">Verify Pending Payments</span>
+            </Link>
+            <Link
+              href="/admin/invoices"
+              className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+            >
+              <span className="material-icons-outlined" style={{ color: COLORS.primary }}>
+                description
+              </span>
+              <span className="text-text-primary dark:text-text-primary-dark">View Invoices</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-3 sm:mb-4">
+            Recent Activity
+          </h2>
+          <div className="space-y-3">
+            {loading ? (
+              <p className="text-medium-grey dark:text-light-grey">Loading...</p>
+            ) : recentActivities.length === 0 ? (
+              <p className="text-medium-grey dark:text-light-grey">No recent activity</p>
+            ) : (
+              recentActivities.map((activity, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-light-blue dark:bg-background-dark hover:opacity-80 transition-opacity"
+                >
+                  <div className={`p-2 rounded-full ${
+                    activity.type === "completed" 
+                      ? "bg-success" 
+                      : activity.type === "failed"
+                      ? "bg-error"
+                      : "bg-warning"
+                  }`}>
+                    <span className="material-icons-outlined text-white text-sm">
+                      {activity.type === "completed" ? "check_circle" : activity.type === "failed" ? "error" : "schedule"}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary dark:text-text-primary-dark">
+                      {activity.message}
+                    </p>
+                    <p className="text-xs text-medium-grey dark:text-light-grey mt-1">
+                      {activity.time} • {activity.wallet}
+                    </p>
+                    {activity.txHash && (
+                      <a
+                        href={`https://basescan.org/tx/${activity.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs hover:underline mt-1 inline-block"
+                        style={{ color: COLORS.primary }}
+                      >
+                        View on Basescan →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-primary p-4 sm:p-6 rounded-xl border border-accent/10">
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">
+        {/* Revenue Trends */}
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-text-primary-dark mb-3 sm:mb-4">
             Revenue Trends (Last 30 Days)
           </h2>
           <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
             <LineChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" style={{ fontSize: "12px" }} />
-              <YAxis stroke="rgba(255,255,255,0.5)" style={{ fontSize: "12px" }} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="date"
+                stroke="#64748b"
+                style={{ fontSize: "12px" }}
+              />
+              <YAxis
+                stroke="#64748b"
+                style={{ fontSize: "12px" }}
+                tickFormatter={(value) => `₦${(value / 1000).toFixed(0)}k`}
+              />
               <Tooltip
-                contentStyle={{ backgroundColor: "#11281A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                }}
                 formatter={(value: number | undefined) => value != null ? [`₦${value.toLocaleString()}`, "Revenue"] : ["", "Revenue"]}
               />
               <Legend />
-              <Line type="monotone" dataKey="revenue" stroke="#13EC5A" strokeWidth={2} name="Revenue (NGN)" dot={{ fill: "#13EC5A", r: 3 }} />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke={COLORS.primary}
+                strokeWidth={2}
+                name="Revenue (NGN)"
+                dot={{ fill: COLORS.primary, r: 3 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-primary p-6 rounded-xl border border-accent/10">
-          <h2 className="text-xl font-bold text-white mb-4">
+        {/* Transaction Volume */}
+        <div className="bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <h2 className="text-xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
             Transaction Volume (Last 30 Days)
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={transactionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="date" stroke="rgba(255,255,255,0.5)" style={{ fontSize: "12px" }} />
-              <YAxis stroke="rgba(255,255,255,0.5)" style={{ fontSize: "12px" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="date"
+                stroke="#64748b"
+                style={{ fontSize: "12px" }}
+              />
+              <YAxis
+                stroke="#64748b"
+                style={{ fontSize: "12px" }}
+              />
               <Tooltip
-                contentStyle={{ backgroundColor: "#11281A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                }}
                 formatter={(value: number | undefined) => [value ?? 0, "Transactions"]}
               />
               <Legend />
-              <Bar dataKey="transactions" fill="#13EC5A" name="Transactions" radius={[8, 8, 0, 0]} />
+              <Bar
+                dataKey="transactions"
+                fill={COLORS.primary}
+                name="Transactions"
+                radius={[8, 8, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
       </div>
     </div>
   );

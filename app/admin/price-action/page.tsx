@@ -5,7 +5,6 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import FSpinner from "@/components/FSpinner";
 
 type Tab = "buy" | "sell";
 
@@ -720,47 +719,47 @@ export default function PriceActionPage() {
   };
 
   return (
-    <div className="flex-1 overflow-auto pt-0 px-6 lg:px-8 pb-6 lg:pb-8 space-y-6 lg:space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 bg-surface/60 border border-accent/10 rounded-full text-xs font-medium text-accent/70">
-            <span className="w-2 h-2 rounded-full bg-secondary" />
-            Market Feed: OK
-          </div>
-        </div>
-      </header>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+          Price Action
+        </h1>
+        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
+          View live token prices and price-related metrics. Manage rates in Settings.
+        </p>
+      </div>
 
       {/* SELL / BUY Tabs (Offramp / Onramp) */}
-      <div className="flex gap-0 rounded-xl border border-accent/10 p-1 bg-surface/40 w-fit">
+      <div className="flex gap-0 rounded-lg border border-slate-200 dark:border-slate-700 p-1 bg-slate-100 dark:bg-slate-800 w-fit">
         <button
           type="button"
           onClick={() => setActiveTab("buy")}
-          className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === "buy"
-              ? "bg-secondary/20 text-secondary border border-secondary/30 shadow-[0_0_10px_rgba(19,236,90,0.1)]"
-              : "text-accent/70 hover:text-white hover:bg-accent/5"
+              ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
           }`}
         >
-          <span className="material-icons-outlined text-lg text-white">arrow_downward</span>
+          <span className="material-icons-outlined text-lg">arrow_downward</span>
           BUY (Onramp)
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("sell")}
-          className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-md text-sm font-medium transition-colors ${
             activeTab === "sell"
-              ? "bg-secondary/20 text-secondary border border-secondary/30 shadow-[0_0_10px_rgba(19,236,90,0.1)]"
-              : "text-accent/70 hover:text-white hover:bg-accent/5"
+              ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
           }`}
         >
-          <span className="material-icons-outlined text-lg text-white">arrow_upward</span>
+          <span className="material-icons-outlined text-lg">arrow_upward</span>
           SELL (Offramp)
         </button>
       </div>
 
       {/* Tab description */}
-      <p className="text-sm text-accent/70">
+      <p className="text-sm text-slate-600 dark:text-slate-400">
         {activeTab === "buy"
           ? "Onramp: users buy crypto (SEND, USDC, USDT) with NGN. Prices below apply to buy orders."
           : "Offramp: users sell crypto for NGN. Prices below apply to sell orders."}
@@ -768,68 +767,61 @@ export default function PriceActionPage() {
 
       {/* Success Message */}
       {success && (
-        <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-4">
-          <p className="text-secondary text-sm font-medium flex items-center gap-2">
-            <span className="material-icons-outlined text-lg">check_circle</span>
-            Settings saved successfully.
-          </p>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <p className="text-green-800 dark:text-green-200 text-sm font-medium">Settings saved successfully.</p>
         </div>
       )}
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-          <p className="text-red-400 text-sm font-medium flex items-center gap-2">
-            <span className="material-icons-outlined text-lg">error</span>
-            {error}
-          </p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200 text-sm font-medium">{error}</p>
         </div>
       )}
 
       {/* CoinGecko Price – at top for BUY & SELL */}
-      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <span className="material-icons-outlined text-secondary">show_chart</span>
+      <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
           CoinGecko Price
         </h2>
         {/* Indicators: auto pricing, 30s refresh, profit stored, auto-publish */}
-        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-xl bg-primary/40 border border-accent/10">
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary border border-secondary/20">
-            <span className="material-icons-outlined text-sm text-white">schedule</span>
+        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-primary/20 text-primary dark:bg-primary/30 dark:text-primary">
+            <span className="material-icons-outlined text-sm">schedule</span>
             Prices refresh every 30s
           </span>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-accent/10 text-accent/80">
-            <span className="material-icons-outlined text-sm text-white">savings</span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+            <span className="material-icons-outlined text-sm">savings</span>
             {activeTab === "buy" ? "Buy profit" : "Sell profit"} stored in DB, applied on publish
           </span>
           {coingeckoAutoPublish && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-secondary/20 text-secondary border border-secondary/30">
-              <span className="material-icons-outlined text-sm text-white">autorenew</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-green-200 dark:bg-green-900/40 text-green-800 dark:text-green-200">
+              <span className="material-icons-outlined text-sm">autorenew</span>
               Auto-publish (buy): every 30s
             </span>
           )}
           {coingeckoAutoPublishSell && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-secondary/20 text-secondary border border-secondary/30">
-              <span className="material-icons-outlined text-sm text-white">autorenew</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-green-200 dark:bg-green-900/40 text-green-800 dark:text-green-200">
+              <span className="material-icons-outlined text-sm">autorenew</span>
               Auto-publish (sell): every 30s
             </span>
           )}
           {savingProfit && (
-            <span className="text-xs text-accent/60">Saving profit…</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Saving profit…</span>
           )}
         </div>
         <div className="space-y-4">
           {loadingCoingecko ? (
-            <div className="flex items-center gap-2 text-accent/70">
-              <FSpinner size="xs" />
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
               <span className="text-sm">Fetching price from CoinGecko...</span>
             </div>
           ) : coingeckoError ? (
-            <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-xl">
-              <p className="text-sm text-red-400">{coingeckoError}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{coingeckoError}</p>
               <button
                 onClick={fetchCoingeckoPrice}
-                className="mt-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+                className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline"
               >
                 Retry
               </button>
@@ -840,12 +832,12 @@ export default function PriceActionPage() {
               <div className="pt-0">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <p className="text-sm font-medium text-accent/80">Current Price (SEND)</p>
-                    <p className="text-lg font-bold text-white">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Current Price (SEND)</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                       ${coingeckoPrice.usd.toFixed(6)} USD
                     </p>
                     {coingeckoPrice.ngn != null && (
-                      <p className="text-sm text-accent/70">
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
                         ≈ ₦{coingeckoPrice.ngn.toFixed(2)} NGN
                       </p>
                     )}
@@ -853,13 +845,13 @@ export default function PriceActionPage() {
                   <button
                     onClick={fetchCoingeckoPrice}
                     disabled={loadingCoingecko}
-                    className="px-3 py-1.5 text-xs font-medium bg-primary border border-accent/10 text-accent/80 rounded-lg hover:bg-accent/10 hover:text-white transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
                   >
                     Refresh
                   </button>
                 </div>
                 <div className="mt-3">
-                  <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Profit (NGN) – {activeTab === "buy" ? "Buy" : "Sell"}</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Profit (NGN) – {activeTab === "buy" ? "Buy" : "Sell"}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -869,35 +861,35 @@ export default function PriceActionPage() {
                     onBlur={activeTab === "sell" ? saveProfitMarginsSell : undefined}
                     placeholder="0"
                     disabled={saving}
-                    className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <p className="text-xs text-accent/60 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     {activeTab === "buy" ? "Added to SEND buy rate in NGN when publishing (1 $SEND = CoinGecko NGN + this profit)." : "Added to SEND sell rate in NGN when publishing (1 $SEND = CoinGecko NGN + this profit). Stored in DB."}
                   </p>
                 </div>
               </div>
 
               {/* USDC – own line + Profit (NGN) */}
-              <div className="pt-2 border-t border-accent/10">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
                 <div>
-                  <p className="text-sm font-medium text-accent/80">Current Price (USDC)</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Current Price (USDC)</p>
                   {coingeckoPrice.USDC ? (
                     <>
-                      <p className="text-lg font-bold text-white">
+                      <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                         ${coingeckoPrice.USDC.usd.toFixed(4)} USD
                       </p>
                       {coingeckoPrice.USDC.ngn != null && (
-                        <p className="text-sm text-accent/70">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
                           ≈ ₦{coingeckoPrice.USDC.ngn.toFixed(2)} NGN
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="text-sm text-accent/60">—</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">—</p>
                   )}
                 </div>
                 <div className="mt-3">
-                  <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Profit (NGN) – {activeTab === "buy" ? "Buy" : "Sell"}</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Profit (NGN) – {activeTab === "buy" ? "Buy" : "Sell"}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -907,35 +899,35 @@ export default function PriceActionPage() {
                     onBlur={activeTab === "sell" ? saveProfitMarginsSell : undefined}
                     placeholder="0"
                     disabled={saving}
-                    className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <p className="text-xs text-accent/60 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     {activeTab === "buy" ? "Added to USDC buy rate in NGN when publishing." : "Added to USDC sell rate in NGN when publishing. Stored in DB."}
                   </p>
                 </div>
               </div>
 
               {/* USDT – own line + Profit (NGN) */}
-              <div className="pt-2 border-t border-accent/10">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
                 <div>
-                  <p className="text-sm font-medium text-accent/80">Current Price (USDT)</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Current Price (USDT)</p>
                   {coingeckoPrice.USDT ? (
                     <>
-                      <p className="text-lg font-bold text-white">
+                      <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                         ${coingeckoPrice.USDT.usd.toFixed(4)} USD
                       </p>
                       {coingeckoPrice.USDT.ngn != null && (
-                        <p className="text-sm text-accent/70">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
                           ≈ ₦{coingeckoPrice.USDT.ngn.toFixed(2)} NGN
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="text-sm text-accent/60">—</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">—</p>
                   )}
                 </div>
                 <div className="mt-3">
-                  <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Profit (NGN) – {activeTab === "buy" ? "Buy" : "Sell"}</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Profit (NGN) – {activeTab === "buy" ? "Buy" : "Sell"}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -945,28 +937,28 @@ export default function PriceActionPage() {
                     onBlur={activeTab === "sell" ? saveProfitMarginsSell : undefined}
                     placeholder="0"
                     disabled={saving}
-                    className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <p className="text-xs text-accent/60 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     {activeTab === "buy" ? "Added to USDT buy rate in NGN when publishing." : "Added to USDT sell rate in NGN when publishing. Stored in DB."}
                   </p>
                 </div>
               </div>
 
               {/* Auto-publish toggle – Buy tab: buy only; Sell tab: offramp (sell) has its own */}
-              <div className="flex items-center justify-between p-3 rounded-xl border border-accent/10 bg-primary/40">
+              <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                 <div>
-                  <p className="text-sm font-medium text-white">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {activeTab === "buy" ? "Auto-publish CoinGecko + buy profit every 30s" : "Auto-publish CoinGecko + sell profit every 30s"}
                   </p>
-                  <p className="text-xs text-accent/60 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     {activeTab === "buy"
                       ? "When on, buy rates are published automatically every 30s."
                       : "When on, sell (offramp) rates are published automatically every 30s."}
                   </p>
                 </div>
                 <label className="cursor-pointer">
-                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${activeTab === "buy" ? (coingeckoAutoPublish ? "bg-secondary" : "bg-accent/20") : (coingeckoAutoPublishSell ? "bg-secondary" : "bg-accent/20")}`}>
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${activeTab === "buy" ? (coingeckoAutoPublish ? "bg-primary" : "bg-slate-300 dark:bg-slate-600") : (coingeckoAutoPublishSell ? "bg-primary" : "bg-slate-300 dark:bg-slate-600")}`}>
                     <input
                       type="checkbox"
                       checked={activeTab === "buy" ? coingeckoAutoPublish : coingeckoAutoPublishSell}
@@ -983,11 +975,11 @@ export default function PriceActionPage() {
               <button
                 onClick={activeTab === "buy" ? publishCoingeckoPrice : publishCoingeckoPriceSell}
                 disabled={saving || !coingeckoPrice}
-                className="w-full bg-secondary text-primary font-bold px-4 py-2 rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-primary text-slate-900 font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>
-                    <FSpinner size="xs" />
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
                     Publishing...
                   </>
                 ) : activeTab === "buy" ? (
@@ -996,7 +988,7 @@ export default function PriceActionPage() {
                   "Publish CoinGecko with Profit (Sell)"
                 )}
               </button>
-              <p className="text-xs text-accent/60">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {activeTab === "buy"
                   ? "Overwrites buy exchange rate and token buy prices with CoinGecko + buy profit."
                   : "Overwrites sell rates (1 SEND = X NGN, etc.) with CoinGecko + sell profit."}
@@ -1005,58 +997,58 @@ export default function PriceActionPage() {
               </p>
             </div>
           ) : (
-            <p className="text-sm text-accent/70">No price data available. Connect wallet and refresh.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">No price data available. Connect wallet and refresh.</p>
           )}
         </div>
       </div>
 
       {/* Live Token Prices – On Ramp only */}
       {activeTab === "buy" && (
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">show_chart</span>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <span className="material-icons-outlined text-primary">show_chart</span>
             Live Token Prices (On Ramp)
           </h2>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <FSpinner size="md" className="mb-4" />
-                <p className="text-accent/70">Loading prices...</p>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                <p className="text-slate-600 dark:text-slate-400">Loading prices...</p>
               </div>
             </div>
           ) : livePrices ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">SEND (USD)</p>
-                  <p className="text-xl font-bold text-white">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">SEND (USD)</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {livePrices.SEND != null ? `$${livePrices.SEND.toFixed(6)}` : "—"}
                   </p>
                   {livePrices.pricesNGN?.SEND != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.SEND.toFixed(2)} NGN</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">≈ ₦{livePrices.pricesNGN.SEND.toFixed(2)} NGN</p>
                   )}
                 </div>
-                <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDC (USD)</p>
-                  <p className="text-xl font-bold text-white">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">USDC (USD)</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {livePrices.USDC != null ? `$${livePrices.USDC.toFixed(4)}` : "—"}
                   </p>
                   {livePrices.pricesNGN?.USDC != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.USDC.toFixed(2)} NGN</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">≈ ₦{livePrices.pricesNGN.USDC.toFixed(2)} NGN</p>
                   )}
                 </div>
-                <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDT (USD)</p>
-                  <p className="text-xl font-bold text-white">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">USDT (USD)</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {livePrices.USDT != null ? `$${livePrices.USDT.toFixed(4)}` : "—"}
                   </p>
                   {livePrices.pricesNGN?.USDT != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.USDT.toFixed(2)} NGN</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">≈ ₦{livePrices.pricesNGN.USDT.toFixed(2)} NGN</p>
                   )}
                 </div>
               </div>
               {livePrices?.source && (
-                <p className="text-xs text-accent/60 mt-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-4">
                   Source: {livePrices.source}. Used for buy (onramp: NGN → crypto).
                 </p>
               )}
@@ -1067,51 +1059,51 @@ export default function PriceActionPage() {
 
       {/* Live Token Prices – Off Ramp only */}
       {activeTab === "sell" && (
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">show_chart</span>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <span className="material-icons-outlined text-primary">show_chart</span>
             Live Token Prices (Off Ramp)
           </h2>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <FSpinner size="md" className="mb-4" />
-                <p className="text-accent/70">Loading prices...</p>
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                <p className="text-slate-600 dark:text-slate-400">Loading prices...</p>
               </div>
             </div>
           ) : livePrices ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">SEND (USD)</p>
-                  <p className="text-xl font-bold text-white">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">SEND (USD)</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {livePrices.SEND != null ? `$${livePrices.SEND.toFixed(6)}` : "—"}
                   </p>
                   {livePrices.pricesNGNSell?.SEND != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGNSell.SEND.toFixed(2)} NGN (sell)</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">≈ ₦{livePrices.pricesNGNSell.SEND.toFixed(2)} NGN (sell)</p>
                   )}
                 </div>
-                <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDC (USD)</p>
-                  <p className="text-xl font-bold text-white">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">USDC (USD)</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {livePrices.USDC != null ? `$${livePrices.USDC.toFixed(4)}` : "—"}
                   </p>
                   {livePrices.pricesNGNSell?.USDC != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGNSell.USDC.toFixed(2)} NGN (sell)</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">≈ ₦{livePrices.pricesNGNSell.USDC.toFixed(2)} NGN (sell)</p>
                   )}
                 </div>
-                <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDT (USD)</p>
-                  <p className="text-xl font-bold text-white">
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">USDT (USD)</p>
+                  <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                     {livePrices.USDT != null ? `$${livePrices.USDT.toFixed(4)}` : "—"}
                   </p>
                   {livePrices.pricesNGNSell?.USDT != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGNSell.USDT.toFixed(2)} NGN (sell)</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">≈ ₦{livePrices.pricesNGNSell.USDT.toFixed(2)} NGN (sell)</p>
                   )}
                 </div>
               </div>
               {livePrices?.source && (
-                <p className="text-xs text-accent/60 mt-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-4">
                   Source: {livePrices.source}. Used for sell (offramp: crypto → NGN).
                 </p>
               )}
@@ -1122,17 +1114,16 @@ export default function PriceActionPage() {
 
       {/* Exchange Rate (On Ramp only) – Admin set buy rates */}
       {activeTab === "buy" && (
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">swap_horiz</span>
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
             Exchange Rate (On Ramp)
           </h2>
-          <p className="text-sm text-accent/70 mb-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Set token exchange rates for BUY (Onramp). Used for NGN ↔ SEND, USDC, and USDT.
           </p>
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">NGN to SEND Exchange Rate</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">NGN to SEND Exchange Rate</label>
               <input
                 type="number"
                 step="0.00001"
@@ -1147,12 +1138,12 @@ export default function PriceActionPage() {
                 }}
                 placeholder="0.01754"
                 disabled={savingExchangeRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 NGN = {exchangeRate || "0"} $SEND</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 NGN = {exchangeRate || "0"} $SEND</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">$SEND to NGN Exchange Rate</label>
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">$SEND to NGN Exchange Rate</label>
               <input
                 type="number"
                 step="0.01"
@@ -1167,12 +1158,12 @@ export default function PriceActionPage() {
                 }}
                 placeholder="57.01"
                 disabled={savingExchangeRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 $SEND = {sendToNgnRate || "0"} NGN</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 $SEND = {sendToNgnRate || "0"} NGN</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">USDC to NGN Exchange Rate</label>
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">USDC to NGN Exchange Rate</label>
               <input
                 type="number"
                 step="0.01"
@@ -1181,12 +1172,12 @@ export default function PriceActionPage() {
                 onChange={(e) => { setUsdcNgnRate(e.target.value); setError(null); }}
                 placeholder="1500"
                 disabled={savingExchangeRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 USDC = {usdcNgnRate || "0"} NGN</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 USDC = {usdcNgnRate || "0"} NGN</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">USDT to NGN Exchange Rate</label>
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">USDT to NGN Exchange Rate</label>
               <input
                 type="number"
                 step="0.01"
@@ -1195,18 +1186,18 @@ export default function PriceActionPage() {
                 onChange={(e) => { setUsdtNgnRate(e.target.value); setError(null); }}
                 placeholder="1500"
                 disabled={savingExchangeRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 USDT = {usdtNgnRate || "0"} NGN</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 USDT = {usdtNgnRate || "0"} NGN</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
               <button
                 type="button"
                 onClick={saveExchangeRates}
                 disabled={savingExchangeRates || !address || !exchangeRate || parseFloat(exchangeRate) <= 0}
-                className="bg-secondary text-primary font-bold px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="bg-primary text-slate-900 font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {savingExchangeRates ? (<><FSpinner size="xs" /> Saving...</>) : "Save Exchange Rates"}
+                {savingExchangeRates ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div> Saving...</>) : "Save Exchange Rates"}
               </button>
             </div>
           </div>
@@ -1215,14 +1206,10 @@ export default function PriceActionPage() {
 
       {/* Off Ramp only – Admin set sell rates */}
       {activeTab === "sell" && (
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">swap_horiz</span>
-            Exchange Rate (Off Ramp)
-          </h2>
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">$SEND to NGN (Sell)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">$SEND to NGN (Sell)</label>
               <input
                 type="number"
                 step="0.01"
@@ -1231,12 +1218,12 @@ export default function PriceActionPage() {
                 onChange={(e) => { setSendToNgnSellRate(e.target.value); setError(null); }}
                 placeholder="46.71"
                 disabled={savingSellRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 $SEND = {sendToNgnSellRate || "0"} NGN</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 $SEND = {sendToNgnSellRate || "0"} NGN</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">USDC to NGN (Sell)</label>
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">USDC to NGN (Sell)</label>
               <input
                 type="number"
                 step="0.01"
@@ -1245,12 +1232,12 @@ export default function PriceActionPage() {
                 onChange={(e) => { setUsdcSellNgnRate(e.target.value); setError(null); }}
                 placeholder="1470"
                 disabled={savingSellRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 USDC = {usdcSellNgnRate || "0"} NGN</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 USDC = {usdcSellNgnRate || "0"} NGN</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">USDT to NGN (Sell)</label>
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">USDT to NGN (Sell)</label>
               <input
                 type="number"
                 step="0.01"
@@ -1259,18 +1246,18 @@ export default function PriceActionPage() {
                 onChange={(e) => { setUsdtSellNgnRate(e.target.value); setError(null); }}
                 placeholder="1470"
                 disabled={savingSellRates}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-accent/60 mt-1">1 USDT = {usdtSellNgnRate || "0"} NGN</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">1 USDT = {usdtSellNgnRate || "0"} NGN</p>
             </div>
-            <div className="border-t border-accent/10 pt-4">
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
               <button
                 type="button"
                 onClick={saveSellExchangeRates}
                 disabled={savingSellRates || !address || !sendToNgnSellRate || parseFloat(sendToNgnSellRate) <= 0}
-                className="bg-secondary text-primary font-bold px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="bg-primary text-slate-900 font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {savingSellRates ? (<><FSpinner size="xs" /> Saving...</>) : "Save Sell Exchange Rates"}
+                {savingSellRates ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div> Saving...</>) : "Save Sell Exchange Rates"}
               </button>
             </div>
           </div>
@@ -1279,59 +1266,49 @@ export default function PriceActionPage() {
 
       {/* Onramp / Offramp transaction status (tab-specific) */}
       {activeTab === "buy" && (
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">toggle_on</span>
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
             Onramp transaction status
           </h2>
-          <p className="text-sm text-accent/70 mb-6">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Enable or disable buy (onramp) only. When disabled, users cannot buy crypto with NGN. The global toggle in Settings affects all; this one affects only onramp.
           </p>
-          <label
-            className={`flex flex-wrap items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all select-none ${
-              onrampEnabled
-                ? "bg-secondary/5 border-secondary/30 hover:border-secondary/50"
-                : "bg-red-500/5 border-red-500/20 hover:border-red-500/40"
-            } ${savingOnrampStatus || !address ? "opacity-70 cursor-not-allowed" : ""}`}
-          >
-            <input
-              type="checkbox"
-              checked={onrampEnabled}
-              onChange={(e) => handleOnrampToggle(e.target.checked)}
-              disabled={savingOnrampStatus || !address}
-              className="sr-only"
-              aria-label="Toggle onramp on or off"
-            />
-            <div
-              className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-                onrampEnabled ? "bg-secondary" : "bg-accent/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
-                  onrampEnabled ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer">
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  onrampEnabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-600"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={onrampEnabled}
+                    onChange={(e) => handleOnrampToggle(e.target.checked)}
+                    disabled={savingOnrampStatus || !address}
+                    className="sr-only"
+                    aria-label="Toggle onramp on or off"
+                  />
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      onrampEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </div>
+              </label>
+              <div>
+                <span className={`text-sm font-medium ${
+                  onrampEnabled ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                }`}>
+                  {onrampEnabled ? "Onramp enabled" : "Onramp disabled"}
+                </span>
+                {savingOnrampStatus && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Saving...</p>
+                )}
+              </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className={`text-sm font-bold ${onrampEnabled ? "text-secondary" : "text-red-400"}`}>
-                {onrampEnabled ? "Onramp enabled" : "Onramp disabled"}
-              </span>
-              {savingOnrampStatus && (
-                <span className="text-xs text-accent/60">Saving...</span>
-              )}
-            </div>
-            <span
-              className={`ml-auto px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                onrampEnabled ? "bg-secondary/20 text-secondary" : "bg-red-500/20 text-red-400"
-              }`}
-            >
-              {onrampEnabled ? "Active" : "Inactive"}
-            </span>
-          </label>
+          </div>
           {!onrampEnabled && (
-            <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-              <p className="text-sm text-red-400">
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-700 dark:text-red-300">
                 Buy (onramp) is disabled. Users cannot buy crypto with NGN until this is enabled (and global transactions in Settings are enabled).
               </p>
             </div>
@@ -1339,59 +1316,49 @@ export default function PriceActionPage() {
         </div>
       )}
       {activeTab === "sell" && (
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">toggle_on</span>
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
             Offramp transaction status
           </h2>
-          <p className="text-sm text-accent/70 mb-6">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Enable or disable sell (offramp) only. When disabled, users cannot sell crypto for NGN. The global toggle in Settings affects all; this one affects only offramp.
           </p>
-          <label
-            className={`flex flex-wrap items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all select-none ${
-              offrampEnabled
-                ? "bg-secondary/5 border-secondary/30 hover:border-secondary/50"
-                : "bg-red-500/5 border-red-500/20 hover:border-red-500/40"
-            } ${savingOfframpStatus || !address ? "opacity-70 cursor-not-allowed" : ""}`}
-          >
-            <input
-              type="checkbox"
-              checked={offrampEnabled}
-              onChange={(e) => handleOfframpToggle(e.target.checked)}
-              disabled={savingOfframpStatus || !address}
-              className="sr-only"
-              aria-label="Toggle offramp on or off"
-            />
-            <div
-              className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
-                offrampEnabled ? "bg-secondary" : "bg-accent/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
-                  offrampEnabled ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer">
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  offrampEnabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-600"
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={offrampEnabled}
+                    onChange={(e) => handleOfframpToggle(e.target.checked)}
+                    disabled={savingOfframpStatus || !address}
+                    className="sr-only"
+                    aria-label="Toggle offramp on or off"
+                  />
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      offrampEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </div>
+              </label>
+              <div>
+                <span className={`text-sm font-medium ${
+                  offrampEnabled ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                }`}>
+                  {offrampEnabled ? "Offramp enabled" : "Offramp disabled"}
+                </span>
+                {savingOfframpStatus && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Saving...</p>
+                )}
+              </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className={`text-sm font-bold ${offrampEnabled ? "text-secondary" : "text-red-400"}`}>
-                {offrampEnabled ? "Offramp enabled" : "Offramp disabled"}
-              </span>
-              {savingOfframpStatus && (
-                <span className="text-xs text-accent/60">Saving...</span>
-              )}
-            </div>
-            <span
-              className={`ml-auto px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                offrampEnabled ? "bg-secondary/20 text-secondary" : "bg-red-500/20 text-red-400"
-              }`}
-            >
-              {offrampEnabled ? "Active" : "Inactive"}
-            </span>
-          </label>
+          </div>
           {!offrampEnabled && (
-            <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-              <p className="text-sm text-red-400">
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-700 dark:text-red-300">
                 Sell (offramp) is disabled. Users cannot sell crypto for NGN until this is enabled (and global transactions in Settings are enabled).
               </p>
             </div>
@@ -1400,39 +1367,40 @@ export default function PriceActionPage() {
       )}
 
       {/* Minimum Purchase (Onramp) & Minimum Sell (Offramp) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">shopping_cart</span>
+      <div className="grid grid-cols-1 lg:grid-cols-1 space-y-4">
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
             Minimum Purchase (Onramp)
           </h2>
-          <p className="text-sm text-accent/70 mb-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Set the minimum NGN amount users must spend when buying crypto (Naira to Crypto).
           </p>
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Minimum Purchase (NGN)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Minimum Purchase (NGN)
+              </label>
               <input
                 type="number"
                 value={minimumPurchase}
                 onChange={(e) => setMinimumPurchase(parseFloat(e.target.value) || 3000)}
                 min={1}
                 step={1}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="3000"
               />
-              <p className="mt-2 text-xs text-accent/60">
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Users must purchase at least ₦{minimumPurchase.toLocaleString()} to proceed with a buy transaction.
               </p>
             </div>
             <button
               onClick={saveMinimumPurchase}
               disabled={savingMinimumPurchase || !address || minimumPurchase <= 0}
-              className="bg-secondary text-primary font-bold px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-primary text-slate-900 font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {savingMinimumPurchase ? (
                 <>
-                  <FSpinner size="xs" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
                   Saving...
                 </>
               ) : (
@@ -1441,38 +1409,39 @@ export default function PriceActionPage() {
             </button>
           </div>
         </div>
-        <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <span className="material-icons-outlined text-secondary">sell</span>
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mb-3 sm:mb-4">
             Minimum Sell (Offramp)
           </h2>
-          <p className="text-sm text-accent/70 mb-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
             Set the minimum $SEND amount users must sell when converting crypto to Naira (Crypto to Naira).
           </p>
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-accent/60 uppercase mb-2">Minimum Sell ($SEND)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Minimum Sell ($SEND)
+              </label>
               <input
                 type="number"
                 value={minimumOfframpSEND}
                 onChange={(e) => setMinimumOfframpSEND(parseFloat(e.target.value) || 1)}
                 min={0.01}
                 step={0.1}
-                className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="1"
               />
-              <p className="mt-2 text-xs text-accent/60">
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Users must sell at least {minimumOfframpSEND} $SEND to proceed with a sell transaction.
               </p>
             </div>
             <button
               onClick={saveMinimumOfframp}
               disabled={savingMinimumOfframp || !address || minimumOfframpSEND <= 0}
-              className="bg-secondary text-primary font-bold px-6 py-3 rounded-xl hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-primary text-slate-900 font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {savingMinimumOfframp ? (
                 <>
-                  <FSpinner size="xs" />
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
                   Saving...
                 </>
               ) : (
@@ -1484,34 +1453,37 @@ export default function PriceActionPage() {
       </div>
 
       {/* Quick Links (tab-specific) */}
-      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
-        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-          <span className="material-icons-outlined text-secondary">link</span>
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
           Related
         </h2>
         <div className="flex flex-wrap gap-3">
           {activeTab === "buy" ? (
-            <Link
-              href="/admin/onramp"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/40 border border-accent/10 hover:bg-accent/10 hover:border-secondary/30 text-white text-sm font-medium transition-colors"
-            >
-              <span className="material-icons-outlined text-lg text-white">arrow_downward</span>
-              Onramp Transactions
-            </Link>
+            <>
+              <Link
+                href="/admin/onramp"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm font-medium transition-colors"
+              >
+                <span className="material-icons-outlined text-lg">arrow_downward</span>
+                Onramp Transactions
+              </Link>
+            </>
           ) : (
-            <Link
-              href="/admin/offramp"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/40 border border-accent/10 hover:bg-accent/10 hover:border-secondary/30 text-white text-sm font-medium transition-colors"
-            >
-              <span className="material-icons-outlined text-lg text-white">arrow_upward</span>
-              Offramp Transactions
-            </Link>
+            <>
+              <Link
+                href="/admin/offramp"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm font-medium transition-colors"
+              >
+                <span className="material-icons-outlined text-lg">arrow_upward</span>
+                Offramp Transactions
+              </Link>
+            </>
           )}
           <Link
             href="/admin/settings"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/40 border border-accent/10 hover:bg-accent/10 hover:border-secondary/30 text-white text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm font-medium transition-colors"
           >
-            <span className="material-icons-outlined text-lg text-white">settings</span>
+            <span className="material-icons-outlined text-lg">settings</span>
             Settings (SEND/NGN rate)
           </Link>
         </div>

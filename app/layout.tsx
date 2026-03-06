@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
-import { Montserrat, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import SplashScreen from "@/components/SplashScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Montserrat - primary display font (brand reference)
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-  preload: true,
-  variable: "--font-montserrat",
-});
-
-// Inter - fallback
+// Optimize font loading with Next.js font optimization
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -27,8 +19,8 @@ export const metadata: Metadata = {
   description: "Deposit Naira and receive $SEND tokens on Base",
   manifest: "/manifest.json",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#05110B" },
-    { media: "(prefers-color-scheme: dark)", color: "#05110B" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
   appleWebApp: {
     capable: true,
@@ -52,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${montserrat.variable} ${inter.variable} dark`}>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
       <head>
         {/* Resource hints for faster external resource loading */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -300,8 +292,9 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className="bg-background-dark text-accent font-sans min-h-screen flex flex-col transition-colors duration-300 selection:bg-secondary selection:text-primary" style={{ fontFamily: 'var(--font-montserrat), var(--font-inter), sans-serif' }}>
+      <body className="bg-background-light dark:bg-background-dark font-display" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
         <ErrorBoundary>
+          <SplashScreen />
           {children}
         </ErrorBoundary>
       </body>

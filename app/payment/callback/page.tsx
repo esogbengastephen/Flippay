@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import Modal from "@/components/Modal";
 import Link from "next/link";
 import { getUserFromStorage } from "@/lib/session";
-import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 function PaymentCallbackContent() {
   const searchParams = useSearchParams();
@@ -200,7 +199,15 @@ function PaymentCallbackContent() {
     <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark p-4">
       <div className="w-full max-w-md">
         {status === "loading" && (
-          <PageLoadingSpinner message="Verifying Payment..." bgClass="bg-background-light dark:bg-background-dark" />
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+              Verifying Payment...
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400">
+              {message || "Please wait while we verify your payment."}
+            </p>
+          </div>
         )}
 
         {status === "success" && (
@@ -269,7 +276,16 @@ export default function PaymentCallback() {
   return (
     <Suspense
       fallback={
-        <PageLoadingSpinner message="Loading..." bgClass="bg-background-light dark:bg-background-dark" />
+        <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark p-4">
+          <div className="w-full max-w-md">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                Loading...
+              </h2>
+            </div>
+          </div>
+        </div>
       }
     >
       <PaymentCallbackContent />

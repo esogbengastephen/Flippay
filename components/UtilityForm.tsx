@@ -7,8 +7,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getUserFromStorage } from "@/lib/session";
 import { getBettingNetworkLogo, getTelecomNetworkLogo, getTVNetworkLogo, getGiftCardNetworkLogo } from "@/lib/logos";
-import FSpinner from "@/components/FSpinner";
-import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 interface GiftCardProduct {
   id: number;
@@ -566,16 +564,25 @@ export default function UtilityForm({
   }, [phoneNumber, networks]);
 
   if (loadingSettings || !serviceSettings) {
-    return <PageLoadingSpinner message="Loading service..." bgClass="bg-background-dark" />;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading service...</p>
+        </div>
+      </div>
+    );
   }
 
   if (serviceSettings.status !== "active") {
     return (
-      <div className="min-h-screen bg-background-dark flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-surface/60 backdrop-blur-[24px] p-8 rounded-2xl border border-secondary/10 text-center">
-          <span className="material-icons-outlined text-6xl text-red-400 mb-4">error_outline</span>
-          <h2 className="text-xl font-bold text-white mb-2">Service Unavailable</h2>
-          <p className="text-accent/70">
+      <div className="max-w-md mx-auto mt-8 p-6 bg-white dark:bg-slate-900 rounded-xl shadow-lg">
+        <div className="text-center">
+          <span className="material-icons-outlined text-6xl text-red-500 mb-4">error_outline</span>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            Service Unavailable
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400">
             {serviceName} is currently disabled. Please check back later.
           </p>
         </div>
@@ -583,58 +590,60 @@ export default function UtilityForm({
     );
   }
 
-  const subtitle =
-    serviceId === "gift-card-redeem"
-      ? "Enter your gift card code to redeem its value"
-      : serviceId === "electricity"
-      ? "Pay your electricity bills quickly and securely"
-      : "Quick and secure transactions";
-
   return (
-    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-4 pb-24 lg:pb-8">
-      {/* Background blur orbs - Flippay branding */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
-        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
-      </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 py-8 px-4">
+      <div className="max-w-md mx-auto">
+        {/* Back Button - Top Left */}
+        <button
+          onClick={() => router.push("/")}
+          className="mb-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+        >
+          <span className="material-icons-outlined">arrow_back</span>
+          <span className="font-medium">Back to Dashboard</span>
+        </button>
 
-      <div className="w-full max-w-lg mt-8 lg:mt-16 relative">
-        {/* Header - match offramp */}
-        <div className="text-center mb-10 relative">
-          <button
-            onClick={() => router.back()}
-            className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
-          >
-            <span className="material-icons-outlined">arrow_back</span>
-          </button>
-          <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">{serviceName}</h1>
-          <p className="text-accent/70">{subtitle}</p>
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="bg-primary/10 dark:bg-primary/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="material-icons-outlined text-primary text-4xl">{icon}</span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            {serviceName}
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400">
+            {serviceId === "gift-card-redeem" 
+              ? "Enter your gift card code to redeem its value"
+              : serviceId === "electricity"
+              ? "Pay your electricity bills quickly and securely"
+              : "Quick and secure transactions"}
+          </p>
         </div>
 
-        {/* Form Card - glass style like offramp */}
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] p-6 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Form Card */}
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Network Selection */}
             {networks.length > 0 && (
               <div ref={networkDropdownRef} className="relative">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Select Network
                   {phoneNumber && detectNetwork(phoneNumber) && (
-                    <span className="ml-2 text-secondary font-normal normal-case">
+                    <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">
                       (Auto-detected: {detectNetwork(phoneNumber)})
                     </span>
                   )}
                 </label>
                 {(serviceId === "betting" || serviceId === "airtime" || serviceId === "data" || serviceId === "tv" || serviceId === "gift-card-redeem") ? (
                   <>
+                    {/* Custom dropdown with logos for betting, telecom, and TV networks */}
                     <button
                       type="button"
                       onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
-                      className={`w-full rounded-3xl border px-5 py-4 flex items-center justify-between transition-all ${
+                      className={`w-full rounded-lg border ${
                         phoneNumber && detectNetwork(phoneNumber) && selectedNetwork === detectNetwork(phoneNumber)
-                          ? "bg-primary/60 border-secondary/30"
-                          : "bg-primary/40 border-accent/10 hover:border-secondary/20"
-                      }`}
+                          ? "border-green-500 dark:border-green-400"
+                          : "border-slate-300 dark:border-slate-600"
+                      } bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary flex items-center justify-between`}
                     >
                       <div className="flex items-center gap-3">
                         {selectedNetwork && (
@@ -673,8 +682,8 @@ export default function UtilityForm({
                                     />
                                   ) : (
                                     // Fallback - show letter only if logo failed or unavailable
-                                    <div className="w-6 h-6 rounded bg-primary/60 flex items-center justify-center">
-                                      <span className="text-xs text-white font-bold">{selectedNetwork.charAt(0)}</span>
+                                    <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                                      <span className="text-xs text-slate-600 dark:text-slate-300 font-bold">{selectedNetwork.charAt(0)}</span>
                                     </div>
                                   )}
                                 </>
@@ -682,15 +691,15 @@ export default function UtilityForm({
                             })()}
                           </div>
                         )}
-                        <span className="font-medium text-white">{selectedNetwork || "Select a network"}</span>
+                        <span className="font-medium">{selectedNetwork || "Select a network"}</span>
                       </div>
-                      <span className="material-icons-outlined text-accent/60">
+                      <span className="material-icons-outlined text-sm text-slate-600 dark:text-slate-300">
                         {isNetworkDropdownOpen ? "expand_less" : "expand_more"}
                       </span>
                     </button>
 
                     {isNetworkDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-2 bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/20 shadow-xl max-h-64 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 backdrop-blur-md rounded-lg border border-slate-300 dark:border-slate-600 shadow-lg max-h-64 overflow-y-auto">
                         {networks.map((network) => (
                           <button
                             key={network}
@@ -699,10 +708,10 @@ export default function UtilityForm({
                               setSelectedNetwork(network);
                               setIsNetworkDropdownOpen(false);
                             }}
-                            className={`w-full p-4 flex items-center gap-3 transition-colors text-left ${
-                              selectedNetwork === network
-                                ? "bg-secondary/10 text-secondary"
-                                : "text-white hover:bg-primary/50"
+                            className={`w-full p-3 flex items-center gap-3 transition-colors ${
+                              selectedNetwork === network 
+                                ? "bg-primary/20 dark:bg-primary/30 hover:bg-primary/30 dark:hover:bg-primary/40" 
+                                : "hover:bg-slate-100 dark:hover:bg-slate-700/50"
                             }`}
                           >
                             <div className="relative w-6 h-6">
@@ -741,17 +750,17 @@ export default function UtilityForm({
                                       />
                                     ) : (
                                       // Fallback - show letter only if logo failed or unavailable
-                                      <div className="w-6 h-6 rounded bg-primary/60 flex items-center justify-center">
-                                        <span className="text-xs text-white font-bold">{network.charAt(0)}</span>
+                                      <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                                        <span className="text-xs text-slate-600 dark:text-slate-300 font-bold">{network.charAt(0)}</span>
                                       </div>
                                     )}
                                   </>
                                 );
                               })()}
                             </div>
-                            <span className="font-medium">{network}</span>
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{network}</span>
                             {selectedNetwork === network && (
-                              <span className="material-icons-outlined text-secondary ml-auto text-sm">
+                              <span className="material-icons-outlined text-primary dark:text-primary ml-auto text-sm">
                                 check
                               </span>
                             )}
@@ -761,26 +770,27 @@ export default function UtilityForm({
                     )}
                   </>
                 ) : (
+                  /* Regular select for non-betting services */
                   <select
                     value={selectedNetwork}
                     onChange={(e) => setSelectedNetwork(e.target.value)}
-                    className={`w-full rounded-3xl border px-5 py-4 bg-primary/40 text-white placeholder-white/30 focus:border-secondary/30 focus:ring-0 outline-none ${
+                    className={`w-full rounded-lg border ${
                       phoneNumber && detectNetwork(phoneNumber) && selectedNetwork === detectNetwork(phoneNumber)
-                        ? "border-secondary/30"
-                        : "border-accent/10"
-                    }`}
+                        ? "border-green-500 dark:border-green-400"
+                        : "border-slate-300 dark:border-slate-600"
+                    } bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary`}
                     required
                   >
                     <option value="">Select a network</option>
                     {networks.map((network) => (
-                      <option key={network} value={network} className="bg-primary text-white">
+                      <option key={network} value={network}>
                         {network}
                       </option>
                     ))}
                   </select>
                 )}
                 {phoneNumber && detectNetwork(phoneNumber) && selectedNetwork === detectNetwork(phoneNumber) && (
-                  <p className="text-xs text-secondary mt-1 flex items-center gap-1">
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
                     <span className="material-icons-outlined text-sm">check_circle</span>
                     Network automatically detected
                   </p>
@@ -788,34 +798,34 @@ export default function UtilityForm({
               </div>
             )}
 
-            {/* Package Selection */}
+            {/* Package Selection for TV Subscriptions */}
             {showPackageDropdown && selectedNetwork && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Select Package
                 </label>
                 {loadingPackages ? (
-                  <div className="w-full rounded-3xl border border-accent/10 bg-primary/40 px-5 py-4 flex items-center gap-2">
-                    <FSpinner size="xs" />
-                    <span className="text-sm text-accent/70">Loading packages...</span>
+                  <div className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-4 py-3 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                    <span className="text-sm text-slate-600 dark:text-slate-400">Loading packages...</span>
                   </div>
                 ) : (
                   <select
                     value={selectedPackage}
                     onChange={(e) => setSelectedPackage(e.target.value)}
-                    className="w-full rounded-3xl border border-accent/10 bg-primary/40 text-white px-5 py-4 focus:border-secondary/30 focus:ring-0 outline-none"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary"
                     required
                   >
-                    <option value="" className="bg-primary text-white">Select a package</option>
+                    <option value="">Select a package</option>
                     {packages.map((pkg) => (
-                      <option key={pkg.id || pkg.name} value={pkg.id || pkg.name} className="bg-primary text-white">
+                      <option key={pkg.id || pkg.name} value={pkg.id || pkg.name}>
                         {pkg.name} {pkg.amount ? `- ₦${pkg.amount.toLocaleString()}` : ""} {pkg.data ? `(${pkg.data})` : ""} {pkg.validity ? `- ${pkg.validity}` : ""}
                       </option>
                     ))}
                   </select>
                 )}
                 {packages.length === 0 && !loadingPackages && selectedNetwork && (
-                  <p className="text-xs text-accent/50 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     No packages available for {selectedNetwork}
                   </p>
                 )}
@@ -824,60 +834,53 @@ export default function UtilityForm({
 
             {/* Phone Number / Gift Card Code */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 {placeholder}
               </label>
-              <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
-                <span className="material-icons-outlined text-accent/40">
-                  {serviceId === "gift-card-redeem" ? "card_giftcard" : serviceId === "electricity" ? "bolt" : "phone"}
-                </span>
-                <input
-                  type="text"
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    if (serviceId === "gift-card-redeem" || serviceId === "electricity") {
-                      setPhoneNumber(e.target.value);
-                    } else {
-                      setPhoneNumber(formatPhoneNumber(e.target.value));
-                    }
-                  }}
-                  placeholder={
-                    serviceId === "gift-card-redeem"
-                      ? "Enter gift card code"
-                      : serviceId === "electricity"
-                      ? "Enter meter number"
-                      : placeholder || "08012345678 or +2348012345678"
+              <input
+                type="text"
+                value={phoneNumber}
+                onChange={(e) => {
+                  if (serviceId === "gift-card-redeem" || serviceId === "electricity") {
+                    // For gift cards and electricity, don't format as phone number
+                    setPhoneNumber(e.target.value);
+                  } else {
+                    setPhoneNumber(formatPhoneNumber(e.target.value));
                   }
-                  maxLength={serviceId === "gift-card-redeem" ? 50 : serviceId === "electricity" ? 15 : 14}
-                  className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                  required
-                />
-              </div>
+                }}
+                placeholder={
+                  serviceId === "gift-card-redeem" 
+                    ? "Enter gift card code" 
+                    : serviceId === "electricity"
+                    ? "Enter meter number"
+                    : placeholder || "08012345678 or +2348012345678"
+                }
+                maxLength={serviceId === "gift-card-redeem" ? 50 : serviceId === "electricity" ? 15 : 14}
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary"
+                required
+              />
             </div>
 
-            {/* Amount */}
+            {/* Amount - Hidden for gift card redemption (amount comes from gift card) */}
             {serviceId !== "gift-card-redeem" && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Amount (₦)
                 </label>
-                <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
-                  <span className="material-icons-outlined text-accent/40">payments</span>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder={showPackageDropdown ? "Select a package or enter amount" : "Enter amount"}
-                    min={serviceSettings.minAmount || 1}
-                    max={serviceSettings.maxAmount || 1000000}
-                    step="1"
-                    className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                    required={!showPackageDropdown || !selectedPackage}
-                    disabled={showPackageDropdown && selectedPackage ? true : false}
-                  />
-                </div>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder={showPackageDropdown ? "Select a package or enter amount" : "Enter amount"}
+                  min={serviceSettings.minAmount || 1}
+                  max={serviceSettings.maxAmount || 1000000}
+                  step="1"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary"
+                  required={!showPackageDropdown || !selectedPackage}
+                  disabled={showPackageDropdown && selectedPackage ? true : false}
+                />
                 {serviceSettings.minAmount && serviceSettings.maxAmount && (
-                  <p className="text-xs text-accent/50 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Min: ₦{serviceSettings.minAmount.toLocaleString()} - Max: ₦{serviceSettings.maxAmount.toLocaleString()}
                   </p>
                 )}
@@ -886,11 +889,11 @@ export default function UtilityForm({
             
             {/* Gift Card Info Message */}
             {serviceId === "gift-card-redeem" && (
-              <div className="p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-                <p className="text-sm text-accent/90 flex items-start gap-2">
-                  <span className="material-icons-outlined text-secondary text-lg">info</span>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
+                  <span className="material-icons-outlined text-lg">info</span>
                   <span>
-                    <strong className="text-white">Redeem your existing gift card:</strong> Enter the gift card code you already have.
+                    <strong>Redeem your existing gift card:</strong> Enter the gift card code you already have. 
                     The value will be automatically detected from the code and credited to your account.
                   </span>
                 </p>
@@ -899,22 +902,24 @@ export default function UtilityForm({
 
             {/* Price Breakdown */}
             {calculatedTotal > 0 && (
-              <div className="p-5 rounded-2xl bg-primary/40 border border-accent/10 space-y-2">
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-accent/70">Amount:</span>
-                  <span className="text-white font-medium">₦{parseFloat(amount).toLocaleString()}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Amount:</span>
+                  <span className="text-slate-900 dark:text-slate-100 font-medium">
+                    ₦{parseFloat(amount).toLocaleString()}
+                  </span>
                 </div>
                 {serviceSettings.markup > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-accent/70">Service Fee ({serviceSettings.markup}%):</span>
-                    <span className="text-white font-medium">
+                    <span className="text-slate-600 dark:text-slate-400">Service Fee ({serviceSettings.markup}%):</span>
+                    <span className="text-slate-900 dark:text-slate-100 font-medium">
                       ₦{((parseFloat(amount) * serviceSettings.markup) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm pt-2 border-t border-accent/10">
-                  <span className="text-white font-bold">Total:</span>
-                  <span className="text-secondary font-bold text-lg">
+                <div className="flex justify-between text-sm pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-900 dark:text-slate-100 font-bold">Total:</span>
+                  <span className="text-primary font-bold text-lg">
                     ₦{calculatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -923,42 +928,43 @@ export default function UtilityForm({
 
             {/* Error Message */}
             {error && (
-              <div className="p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
-                <p className="text-sm text-red-400">{error}</p>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               </div>
             )}
 
             {/* Success Message */}
             {success && (
-              <div className="p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-                <p className="text-sm text-secondary">{success}</p>
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-lg">
+                <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
               </div>
             )}
 
-            {/* Submit Button - match offramp */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading || !phoneNumber || (serviceId !== "gift-card-redeem" && (!amount || calculatedTotal === 0))}
-              className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary text-white dark:text-white font-bold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
-                  <FSpinner size="sm" />
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                   Processing...
                 </>
               ) : (
-                <>
-                  <span className="material-icons-outlined font-bold">{icon}</span>
-                  {serviceId === "gift-card-redeem" ? "Redeem Gift Card" : `Purchase ${serviceName}`}
-                </>
+                serviceId === "gift-card-redeem" ? `Redeem Gift Card` : `Purchase ${serviceName}`
               )}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-accent/40 text-xs mt-10">
-          Powered by Flippay • Quick and secure transactions
-        </p>
+        {/* Back Button */}
+        <button
+          onClick={() => router.push("/")}
+          className="mt-4 w-full text-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+        >
+          ← Back to Dashboard
+        </button>
       </div>
     </div>
   );

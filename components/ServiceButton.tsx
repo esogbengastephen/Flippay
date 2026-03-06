@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React from 'react';
 
 interface ServiceButtonProps {
   icon: string;
@@ -10,10 +10,6 @@ interface ServiceButtonProps {
   comingSoon?: boolean;
 }
 
-/**
- * Service card styled like portfolio balance cards (bg-primary, white icons).
- * Flippay branding: primary #11281A, secondary #13EC5A, accent #E2E8F0.
- */
 export const ServiceButton: React.FC<ServiceButtonProps> = ({
   icon,
   label,
@@ -27,20 +23,22 @@ export const ServiceButton: React.FC<ServiceButtonProps> = ({
       onClick={comingSoon ? undefined : onClick}
       disabled={comingSoon}
       aria-disabled={comingSoon ? "true" : "false"}
-      className={`flex flex-col items-center justify-center gap-2 p-5 rounded-2xl bg-primary border border-accent/10 text-white w-full min-h-[100px] group transition-all ${
-        comingSoon
-          ? "cursor-not-allowed opacity-60"
-          : "hover:border-secondary/30 hover:shadow-[0_0_20px_rgba(19,236,90,0.15)] active:scale-[0.98]"
-      }`}
+      className={`flex flex-col items-center gap-2 group w-full relative ${comingSoon ? "cursor-not-allowed opacity-65" : ""}`}
     >
-      <span className="material-icons-outlined text-3xl text-white opacity-90">
-        {icon}
-      </span>
-      <span className="text-[10px] font-bold text-center leading-tight text-white/90 font-display whitespace-pre-wrap">
+      <div className={`w-full aspect-square bg-ds-surface-soft dark:bg-ds-dark-surface-soft rounded-ds-lg flex items-center justify-center shadow-ds-soft border border-ds-border/50 dark:border-white/10 ${!comingSoon ? "group-active:scale-[0.98] transition-all duration-motion-fast ease-standard hover:opacity-90" : ""}`}>
+        {useCustomIcon ? (
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/90 dark:bg-white/20">
+            <span className="material-icons-round text-xl text-ds-primary">{icon}</span>
+          </div>
+        ) : (
+          <span className="material-icons-outlined text-3xl text-ds-primary">{icon}</span>
+        )}
+      </div>
+      <span className="text-[10px] font-bold text-center leading-tight text-ds-text-primary whitespace-pre-wrap">
         {label}
       </span>
       {comingSoon && (
-        <span className="text-[8px] font-semibold uppercase tracking-wide text-accent/60">
+        <span className="text-[8px] font-semibold uppercase tracking-wide text-ds-text-muted">
           Coming soon
         </span>
       )}

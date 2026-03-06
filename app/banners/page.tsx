@@ -5,7 +5,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import DashboardLayout from "@/components/DashboardLayout";
+import BottomNavigation from "@/components/BottomNavigation";
 
 interface Banner {
   id: string;
@@ -60,14 +60,13 @@ export default function BannersPage() {
   };
 
   return (
-    <DashboardLayout>
-    <div className="min-h-screen bg-gradient-to-br from-primary via-accent-blue to-accent-green pb-24 lg:pb-6">
+    <div className="min-h-screen bg-gradient-to-br from-primary via-accent-blue to-accent-green pb-20">
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="hidden lg:flex mb-4 items-center gap-2 text-white/80 hover:text-white transition"
+            className="mb-4 flex items-center gap-2 text-white/80 hover:text-white transition"
           >
             <span className="material-icons-outlined">arrow_back</span>
             <span>Back</span>
@@ -98,7 +97,7 @@ export default function BannersPage() {
                   banner.link_url ? "cursor-pointer" : "cursor-default"
                 }`}
               >
-                <div className="relative w-full aspect-[16/9] bg-surface">
+                <div className="relative w-full aspect-[16/9] bg-slate-200 dark:bg-slate-700">
                   <Image
                     src={banner.image_url}
                     alt={banner.title || "Banner"}
@@ -112,7 +111,7 @@ export default function BannersPage() {
                     </div>
                   )}
                   {banner.link_url && (
-                    <div className="absolute top-2 right-2 bg-surface/90 rounded-full p-1.5">
+                    <div className="absolute top-2 right-2 bg-white/90 dark:bg-slate-800/90 rounded-full p-1.5">
                       <span className="material-icons-outlined text-sm text-primary">
                         open_in_new
                       </span>
@@ -125,7 +124,7 @@ export default function BannersPage() {
         )}
       </div>
 
+      <BottomNavigation />
     </div>
-    </DashboardLayout>
   );
 }

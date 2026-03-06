@@ -4,26 +4,11 @@ import { getApiUrl } from "@/lib/apiBase";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import DarkModeToggle from "@/components/DarkModeToggle";
 import PoweredBySEND from "@/components/PoweredBySEND";
 import { authenticateWithPasskey, isPasskeySupported } from "@/lib/passkey";
 
 type AuthMode = "login" | "signup" | "verify";
-
-// Mock user data for local development (bypass auth for UI work)
-const MOCK_USER = {
-  id: "mock-user-id",
-  email: "",
-  name: "Mock User",
-  createdAt: new Date().toISOString(),
-  hasPasskey: false,
-  referralCode: "MOCK1234",
-  emailVerified: true,
-  totalTransactions: 0,
-  totalSpentNGN: 0,
-  totalReceivedSEND: "0",
-};
-
-const USE_MOCK_AUTH = false;
 
 export default function AuthPage() {
   const router = useRouter();
@@ -45,13 +30,6 @@ export default function AuthPage() {
   const [checkingPasskey, setCheckingPasskey] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recoveryCodeSent, setRecoveryCodeSent] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-
-  // 5-second splash screen on page load
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 5000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Load last used email on mount
   useEffect(() => {
@@ -83,15 +61,6 @@ export default function AuthPage() {
     if (!emailToCheck || !emailToCheck.includes("@")) return;
 
     setCheckingPasskey(true);
-
-    if (USE_MOCK_AUTH) {
-      setHasPasskey(false);
-      setPasskeyUserId(null);
-      setPasskeyUser(null);
-      setCheckingPasskey(false);
-      return;
-    }
-
     try {
       const passkeyCheckResponse = await fetch(getApiUrl("/api/auth/passkey-login"), {
         method: "POST",
@@ -127,24 +96,6 @@ export default function AuthPage() {
     setHasPasskey(false);
     setPasskeyUserId(null);
     setPasskeyUser(null);
-
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        if (mode === "login") {
-          setMessage("Login successful! Redirecting to passkey setup...");
-          const mockUser = { ...MOCK_USER, email };
-          localStorage.setItem("user", JSON.stringify(mockUser));
-          localStorage.setItem("last_email", email);
-          setTimeout(() => router.push("/passkey-setup"), 1500);
-        } else {
-          setMessage("Confirmation code sent to your email (mock auth)");
-          setCodeSent(true);
-          setResendCooldown(60);
-          setLoading(false);
-        }
-      }, 800);
-      return;
-    }
 
     try {
       if (mode === "login") {
@@ -219,7 +170,13 @@ export default function AuthPage() {
         setResendCooldown(60);
       }
     } catch (err: any) {
-      setError("Failed to process request. Please try again.");
+      const msg = err?.message || String(err);
+      const isNetwork = /fetch|network|failed to fetch/i.test(msg) || err?.name === "TypeError";
+      setError(
+        isNetwork
+          ? "Cannot reach the server. Make sure the backend is running (e.g. cd backend && npm run dev) and NEXT_PUBLIC_API_URL is set in frontend/.env.local (e.g. http://localhost:3001)."
+          : "Failed to process request. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -231,13 +188,6 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setResending(true);
-
-    if (USE_MOCK_AUTH) {
-      setMessage(recoveryMode ? "Recovery code resent (mock)" : "Confirmation code resent (mock)");
-      setResendCooldown(60);
-      setResending(false);
-      return;
-    }
 
     try {
       // Use recovery endpoint if in recovery mode, otherwise use regular send-code
@@ -286,16 +236,6 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setLoading(true);
-
-    if (USE_MOCK_AUTH) {
-      setMessage("Account created successfully! Redirecting...");
-      const mockUser = { ...MOCK_USER, email };
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      localStorage.setItem("last_email", email);
-      setTimeout(() => router.push("/passkey-setup"), 1500);
-      setLoading(false);
-      return;
-    }
 
     try {
       // Sign up flow only (login doesn't need code verification)
@@ -349,16 +289,6 @@ export default function AuthPage() {
     setError("");
     setMessage("");
 
-    if (USE_MOCK_AUTH) {
-      setMessage("Passkey authentication successful! Redirecting...");
-      const mockUser = { ...MOCK_USER, email: passkeyUser?.email || email };
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      if (mockUser.email) localStorage.setItem("last_email", mockUser.email);
-      setTimeout(() => router.push("/"), 1500);
-      setAuthenticatingPasskey(false);
-      return;
-    }
-
     try {
       const authResult = await authenticateWithPasskey(passkeyUserId);
 
@@ -403,14 +333,6 @@ export default function AuthPage() {
     setMessage("");
     setLoading(true);
 
-    if (USE_MOCK_AUTH) {
-      setMessage("Recovery code sent to your email (mock)");
-      setRecoveryCodeSent(true);
-      setResendCooldown(60);
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await fetch(getApiUrl("/api/auth/recover-passkey"), {
         method: "POST",
@@ -440,16 +362,6 @@ export default function AuthPage() {
     setMessage("");
     setLoading(true);
 
-    if (USE_MOCK_AUTH) {
-      setMessage("Recovery verified! Redirecting to create new passkey...");
-      const mockUser = { ...MOCK_USER, email };
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      localStorage.setItem("last_email", email);
-      setTimeout(() => router.push("/passkey-setup?recovery=true"), 1500);
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await fetch(getApiUrl("/api/auth/recover-passkey"), {
         method: "PUT",
@@ -477,69 +389,35 @@ export default function AuthPage() {
     }
   };
 
-  // 4-second splash screen with GIF on page load
-  if (showSplash) {
-    return (
-      <div
-        className="fixed inset-0 flex items-center justify-center z-[100]"
-        style={{ backgroundColor: "#11281A" }}
-      >
-        <img
-          src="/asset/flippay-spinner.gif"
-          alt="FlipPay"
-          className="w-80 h-80 sm:w-96 sm:h-96 object-contain"
-          aria-hidden
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
-          }}
-        />
-      </div>
-    );
-  }
-
-  // Full-screen spinner when checking passkey on load
-  if (mode === "login" && checkingPasskey && email && !recoveryMode) {
-    return (
-      <div
-        className="fixed inset-0 flex items-center justify-center z-[100]"
-        style={{ backgroundColor: "#11281A" }}
-      >
-        <div className="flex flex-col items-center gap-4">
-          <img
-            src="/asset/flippay-spinner.gif"
-            alt="Loading"
-            className="w-32 h-32 object-contain"
-            aria-hidden
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
-            }}
-          />
-          <p className="text-sm text-accent/80">Checking for passkey...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="flex flex-col items-center justify-start min-h-screen px-4 pt-16 sm:pt-20 pb-8 relative"
-      style={{ backgroundColor: "#11281A" }}
-    >
-
-      {/* Logo - floating above card (landscape layout) */}
-      <div className="mb-4 flex justify-center">
-        <img src="/flippay-logo-white.png" alt="FlipPay" className="h-12 sm:h-14 w-auto object-contain mix-blend-lighten" />
+    <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 px-4 relative">
+      {/* Header with Dark Mode Toggle */}
+      <div className="absolute top-4 left-4 flex items-center gap-4 z-10">
+        <DarkModeToggle fixed={false} />
       </div>
-
-      {/* Compact landscape card - positioned in upper half */}
-      <div className="w-full max-w-md sm:max-w-lg">
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] border border-secondary/10 shadow-2xl p-5 sm:p-6">
-          {/* Header - left-aligned */}
-          <div className="mb-4">
-            <h1 className="text-xl sm:text-2xl font-bold text-white font-display mb-1">
-              {mode === "login" ? "Login" : "Sign Up"}
+      <div className="w-full max-w-md">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-6 sm:p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            {/* Logo */}
+            <div className="mb-6 flex justify-center">
+              {/* White logo for light mode */}
+              <img 
+                src="/whitelogo.png" 
+                alt="FlipPay" 
+                className="h-16 w-auto dark:hidden"
+              />
+              {/* Regular logo for dark mode */}
+              <img 
+                src="/logo.png" 
+                alt="FlipPay" 
+                className="h-16 w-auto hidden dark:block"
+              />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+              {mode === "login" ? "Welcome Back" : "Create Account"}
             </h1>
-            <p className="text-sm text-accent/80">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {mode === "login"
                 ? "Enter your email to login"
                 : "Sign up with your email and optional referral code"}
@@ -548,14 +426,14 @@ export default function AuthPage() {
 
           {/* Error/Message Display */}
           {error && (
-            <div className="mb-4 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
-              <p className="text-sm text-red-400">{error}</p>
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
           {message && (
-            <div className="mb-4 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-              <p className="text-sm text-secondary">{message}</p>
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <p className="text-sm text-green-600 dark:text-green-400">{message}</p>
             </div>
           )}
 
@@ -563,60 +441,49 @@ export default function AuthPage() {
           {!codeSent && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Email Address
                 </label>
-                <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
-                  <span className="material-icons-outlined text-accent/40">email</span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                    disabled={loading || authenticatingPasskey}
-                  />
-                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    // Don't reset passkey state immediately - let debounced check handle it
+                  }}
+                  placeholder="you@example.com"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary"
+                  disabled={loading || authenticatingPasskey}
+                />
               </div>
 
               {/* Referral Code (only for signup) */}
               {mode === "signup" && (
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
-                    Referral Code <span className="text-accent/50 normal-case">(Optional)</span>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Referral Code <span className="text-slate-400">(Optional)</span>
                   </label>
-                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 transition-all">
-                    <span className="material-icons-outlined text-accent/40">card_giftcard</span>
-                    <input
-                      type="text"
-                      value={referralCode}
-                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                      placeholder="Enter referral code"
-                      className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                      disabled={loading}
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="Enter referral code"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary"
+                    disabled={loading}
+                  />
                 </div>
               )}
 
-              {/* Passkey Login Button */}
+              {/* Passkey Login Button (only for login mode when passkey detected) */}
               {mode === "login" && hasPasskey && isPasskeySupported() && !recoveryMode && (
                 <button
                   onClick={handlePasskeyLogin}
                   disabled={authenticatingPasskey || checkingPasskey}
-                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-secondary text-primary font-bold px-4 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border-2 border-primary"
                 >
                   {authenticatingPasskey ? (
                     <>
-                      <img
-                        src="/asset/flippay-spinner.gif"
-                        alt=""
-                        className="h-5 w-5 object-contain shrink-0"
-                        aria-hidden
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/flippay-logo-white.png";
-                        }}
-                      />
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
                       <span>Authenticating...</span>
                     </>
                   ) : (
@@ -637,7 +504,7 @@ export default function AuthPage() {
                     setMessage("");
                     setHasPasskey(false);
                   }}
-                  className="w-full text-sm text-accent/70 hover:text-secondary transition-colors underline mt-2"
+                  className="w-full text-sm text-slate-600 dark:text-slate-400 hover:text-primary transition-colors underline mt-2"
                 >
                   Forgot Passkey? Recover Account
                 </button>
@@ -645,15 +512,15 @@ export default function AuthPage() {
 
               {/* Show checking indicator when verifying passkey */}
               {mode === "login" && checkingPasskey && email && !recoveryMode && (
-                <div className="text-xs text-accent/60 text-center">
+                <div className="text-xs text-slate-500 dark:text-slate-400 text-center">
                   Checking for passkey...
                 </div>
               )}
 
               {/* Recovery Mode UI */}
               {recoveryMode && !recoveryCodeSent && (
-                <div className="mb-4 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-                  <p className="text-sm text-secondary">
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
                     Enter your email to receive a recovery code. After verification, you can create a new passkey.
                   </p>
                 </div>
@@ -662,21 +529,19 @@ export default function AuthPage() {
               {recoveryMode && recoveryCodeSent && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                       Recovery Code
                     </label>
-                    <div className="p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 transition-all">
-                      <input
-                        type="text"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        placeholder="000000"
-                        maxLength={6}
-                        className="w-full bg-transparent border-none p-0 text-white text-center text-2xl tracking-widest placeholder-white/30 focus:ring-0 outline-none"
-                        disabled={loading}
-                      />
-                    </div>
-                    <p className="text-xs text-accent/60 mt-2 text-center">
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="000000"
+                      maxLength={6}
+                      className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-3 text-center text-2xl tracking-widest focus:ring-2 focus:ring-primary focus:border-primary"
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
                       Enter the 6-digit code sent to {email}
                     </p>
                     <div className="mt-3 text-center">
@@ -684,7 +549,7 @@ export default function AuthPage() {
                         type="button"
                         onClick={handleRecoverPasskey}
                         disabled={resending || resendCooldown > 0 || loading}
-                        className="text-sm text-secondary hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity underline"
+                        className="text-sm text-primary hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity underline"
                       >
                         {resending 
                           ? "Resending..." 
@@ -698,7 +563,7 @@ export default function AuthPage() {
                   <button
                     onClick={handleVerifyRecoveryCode}
                     disabled={loading || code.length !== 6}
-                    className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                    className="w-full bg-primary text-slate-900 font-bold px-4 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? "Verifying..." : "Verify & Recover Account"}
                   </button>
@@ -712,7 +577,7 @@ export default function AuthPage() {
                       setMessage("");
                       setResendCooldown(0);
                     }}
-                    className="w-full text-sm text-accent/70 hover:text-secondary transition-colors"
+                    className="w-full text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                   >
                     Cancel Recovery
                   </button>
@@ -722,9 +587,9 @@ export default function AuthPage() {
               {/* Divider */}
               {mode === "login" && hasPasskey && (
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 border-t border-accent/10"></div>
-                  <span className="text-xs text-accent/50">OR</span>
-                  <div className="flex-1 border-t border-accent/10"></div>
+                  <div className="flex-1 border-t border-slate-300 dark:border-slate-600"></div>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">OR</span>
+                  <div className="flex-1 border-t border-slate-300 dark:border-slate-600"></div>
                 </div>
               )}
 
@@ -732,7 +597,7 @@ export default function AuthPage() {
                 <button
                   onClick={handleSendCode}
                   disabled={loading || !email || authenticatingPasskey}
-                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                  className="w-full bg-primary text-slate-900 font-bold px-4 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading 
                     ? "Processing..." 
@@ -748,7 +613,7 @@ export default function AuthPage() {
                 <button
                   onClick={handleRecoverPasskey}
                   disabled={loading || !email}
-                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                  className="w-full bg-primary text-slate-900 font-bold px-4 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Sending..." : "Send Recovery Code"}
                 </button>
@@ -760,21 +625,19 @@ export default function AuthPage() {
           {codeSent && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Confirmation Code
                 </label>
-                <div className="p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 transition-all">
-                  <input
-                    type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="000000"
-                    maxLength={6}
-                    className="w-full bg-transparent border-none p-0 text-white text-center text-2xl tracking-widest placeholder-white/30 focus:ring-0 outline-none"
-                    disabled={loading}
-                  />
-                </div>
-                <p className="text-xs text-accent/60 mt-2 text-center">
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-3 text-center text-2xl tracking-widest focus:ring-2 focus:ring-primary focus:border-primary"
+                  disabled={loading}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
                   Enter the 6-digit code sent to {email}
                 </p>
                 <div className="mt-3 text-center">
@@ -782,7 +645,7 @@ export default function AuthPage() {
                     type="button"
                     onClick={handleResendCode}
                     disabled={resending || resendCooldown > 0 || loading}
-                    className="text-sm text-secondary hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity underline"
+                    className="text-sm text-primary hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity underline"
                   >
                     {resending 
                       ? "Resending..." 
@@ -796,29 +659,26 @@ export default function AuthPage() {
               {/* Phone Number Input - Only for Signup */}
               {mode === "signup" && (
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
-                    Phone Number <span className="text-red-400">*</span>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 transition-all">
-                    <span className="material-icons-outlined text-accent/40">phone</span>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "").slice(0, 11);
-                        setPhoneNumber(value);
-                      }}
-                      placeholder="08012345678"
-                      maxLength={11}
-                      className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                      disabled={loading}
-                    />
-                  </div>
-                  <p className="text-xs text-accent/60 mt-2">
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 11);
+                      setPhoneNumber(value);
+                    }}
+                    placeholder="08012345678"
+                    maxLength={11}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary"
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
                     Enter your 11-digit Nigerian phone number (e.g., 08012345678)
                   </p>
                   {phoneNumber && phoneNumber.length < 11 && (
-                    <p className="text-xs text-red-400 mt-1">
+                    <p className="text-xs text-red-500 dark:text-red-400 mt-1">
                       Phone number must be 11 digits
                     </p>
                   )}
@@ -828,7 +688,7 @@ export default function AuthPage() {
               <button
                 onClick={handleVerifyCode}
                 disabled={loading || code.length !== 6 || (mode === "signup" && (!phoneNumber || phoneNumber.length < 11))}
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                className="w-full bg-primary text-slate-900 font-bold px-4 py-3 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Verifying..." : mode === "login" ? "Login" : "Sign Up"}
               </button>
@@ -842,7 +702,7 @@ export default function AuthPage() {
                   setMessage("");
                   setResendCooldown(0); // Reset cooldown when changing email
                 }}
-                className="w-full text-sm text-accent/70 hover:text-secondary transition-colors"
+                className="w-full text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
               >
                 Change Email
               </button>
@@ -850,8 +710,8 @@ export default function AuthPage() {
           )}
 
           {/* Mode Toggle */}
-          <div className="mt-4 pt-4 border-t border-accent/10 text-center">
-            <p className="text-sm text-accent/80">
+          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {mode === "login" ? "Don't have an account? " : "Already have an account? "}
               <button
                 onClick={() => {
@@ -863,7 +723,7 @@ export default function AuthPage() {
                   setError("");
                   setMessage("");
                 }}
-                className="text-secondary font-medium hover:text-white transition-colors"
+                className="text-primary font-medium hover:opacity-80"
               >
                 {mode === "login" ? "Sign Up" : "Login"}
               </button>

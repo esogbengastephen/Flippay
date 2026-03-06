@@ -1,15 +1,12 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { createPasskey, isPasskeySupported, isPlatformAuthenticatorAvailable } from "@/lib/passkey";
-import FSpinner from "@/components/FSpinner";
-import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import { generateWalletFromSeed, generateSeedPhrase, encryptSeedPhrase } from "@/lib/wallet";
-
-const USE_MOCK_AUTH = false;
 
 export default function PasskeySetupPage() {
   const router = useRouter();
@@ -51,21 +48,15 @@ export default function PasskeySetupPage() {
     setUser(currentUser);
     setLoading(false);
 
-    // Check if user already has passkey (pass currentUser - state may not be updated yet)
-    checkExistingPasskey(currentUser);
+    // Check if user already has passkey
+    checkExistingPasskey();
   };
 
-  const checkExistingPasskey = async (userToCheck?: { id: string } | null) => {
-    const u = userToCheck ?? user;
-    if (!u) return;
-
-    if (USE_MOCK_AUTH) {
-      router.push("/");
-      return;
-    }
-
+  const checkExistingPasskey = async () => {
+    if (!user) return;
+    
     try {
-      const response = await fetch(getApiUrl(`/api/user/check-passkey?userId=${u.id}`));
+      const response = await fetch(getApiUrl(`/api/user/check-passkey?userId=${user.id}`));
       const data = await response.json();
 
       if (data.success && data.hasPasskey) {
@@ -106,7 +97,7 @@ export default function PasskeySetupPage() {
     // Show warning if user has existing wallet and not in recovery mode
     if (hasExistingWallet && !isRecoveryMode && !showWarning) {
       setShowWarning(true);
-      setError("WARNING: You already have a wallet. Creating a new passkey will generate a NEW wallet with NEW addresses. You will LOSE ACCESS to your old wallet and any funds in it. This action cannot be undone. Are you sure you want to continue?");
+      setError("⚠️ WARNING: You already have a wallet. Creating a new passkey will generate a NEW wallet with NEW addresses. You will LOSE ACCESS to your old wallet and any funds in it. This action cannot be undone. Are you sure you want to continue?");
       return;
     }
 
@@ -122,15 +113,6 @@ export default function PasskeySetupPage() {
     setSettingUp(true);
     setError("");
     setStep("creating");
-
-    if (USE_MOCK_AUTH) {
-      setTimeout(() => {
-        setStep("success");
-        setSettingUp(false);
-        setTimeout(() => router.push("/"), 1500);
-      }, 800);
-      return;
-    }
 
     try {
       // Step 1: Generate wallet
@@ -219,167 +201,166 @@ export default function PasskeySetupPage() {
   };
 
   if (loading) {
-    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen bg-background-dark px-4 pt-16 sm:pt-20 pb-8 relative">
-      {/* Background blur orbs - Flippay branding */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
-        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
-      </div>
-
-      {/* Logo */}
-      <div className="mb-4 flex justify-center">
-        <img src="/logo.png" alt="FlipPay" className="h-12 sm:h-14 w-auto" />
-      </div>
-
-      {/* Card */}
-      <div className="w-full max-w-md sm:max-w-lg">
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] border border-secondary/10 shadow-2xl p-5 sm:p-6">
-          {step === "intro" && (
-            <>
-              <div className="text-center mb-6">
-                <div className="w-14 h-14 bg-primary/40 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="material-icons-outlined text-secondary text-3xl">fingerprint</span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white font-display mb-1">
-                  Set Up Passkey
-                </h1>
-                <p className="text-sm text-accent/80">
-                  Secure your account with a passkey. This will also create your multi-chain wallet automatically.
-                </p>
+    <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 px-4">
+      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8">
+        {step === "intro" && (
+          <>
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="material-icons-outlined text-primary text-4xl">fingerprint</span>
               </div>
-
-              {error && (
-                <div className={`mb-5 p-4 rounded-2xl ${
-                  error.includes("WARNING")
-                    ? "bg-secondary/10 border border-secondary/20"
-                    : "bg-red-500/20 border border-red-500/30"
-                }`}>
-                  <p className={`text-sm ${
-                    error.includes("WARNING")
-                      ? "text-secondary"
-                      : "text-red-400"
-                  }`}>{error}</p>
-                  {error.includes("WARNING") && (
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={async () => {
-                          setError("");
-                          setShowWarning(true);
-                          await handleSetupPasskey();
-                        }}
-                        className="flex-1 bg-red-500/80 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-[1rem] transition-colors"
-                      >
-                        Yes, Continue (I understand the risk)
-                      </button>
-                      <button
-                        onClick={() => {
-                          setError("");
-                          setShowWarning(false);
-                        }}
-                        className="flex-1 bg-primary/60 hover:bg-primary/80 text-accent font-semibold py-2 px-4 rounded-[1rem] border border-accent/10 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {isRecoveryMode && hasExistingWallet && (
-                <div className="mb-5 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-                  <p className="text-sm text-secondary">
-                    <span className="material-icons-outlined align-middle text-base mr-1">info</span>
-                    <strong>Recovery Mode:</strong> You're recovering your account. Your existing wallet addresses will be preserved for reference, but you'll get a new wallet with new addresses. The old seed phrase cannot be recovered without the old passkey.
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-4 mb-5">
-                <div className="flex items-start gap-3">
-                  <span className="material-icons-outlined text-secondary text-xl">security</span>
-                  <div>
-                    <p className="font-semibold text-white">Enhanced Security</p>
-                    <p className="text-sm text-accent/80">
-                      Use biometric authentication or device PIN
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="material-icons-outlined text-secondary text-xl">account_balance_wallet</span>
-                  <div>
-                    <p className="font-semibold text-white">Multi-Chain Wallet</p>
-                    <p className="text-sm text-accent/80">
-                      Automatically creates wallets for Bitcoin, Ethereum, Solana, and more
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="material-icons-outlined text-secondary text-xl">speed</span>
-                  <div>
-                    <p className="font-semibold text-white">Quick Access</p>
-                    <p className="text-sm text-accent/80">
-                      Sign in instantly with your device
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSetupPasskey}
-                disabled={!passkeySupported || settingUp}
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-4 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
-              >
-                {settingUp ? (
-                  <>
-                    <FSpinner size="sm" />
-                    <span>Setting up...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-icons-outlined">fingerprint</span>
-                    <span>Set Up Passkey</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  if (confirm("You'll need a passkey to access your wallet. Skip for now?")) {
-                    router.push("/");
-                  }
-                }}
-                className="w-full mt-3 text-accent/70 hover:text-secondary text-sm py-2 transition-colors"
-              >
-                Skip for now (you'll be prompted again)
-              </button>
-            </>
-          )}
-
-          {step === "creating" && (
-            <PageLoadingSpinner
-              message="Creating Your Wallet - Please follow the prompts on your device..."
-              bgClass="bg-background-dark"
-            />
-          )}
-
-          {step === "success" && (
-            <div className="text-center py-4">
-              <div className="w-14 h-14 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="material-icons-outlined text-secondary text-3xl">check_circle</span>
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">
-                Passkey Set Up Successfully!
-              </h2>
-              <p className="text-sm text-accent/80 mb-4">
-                Your multi-chain wallet has been created. Redirecting to dashboard...
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                Set Up Passkey
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400">
+                Secure your account with a passkey. This will also create your multi-chain wallet automatically.
               </p>
             </div>
-          )}
-        </div>
+
+            {error && (
+              <div className={`mb-6 p-4 border rounded-lg ${
+                error.includes("WARNING") 
+                  ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+                  : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+              }`}>
+                <p className={`text-sm ${
+                  error.includes("WARNING")
+                    ? "text-yellow-800 dark:text-yellow-300"
+                    : "text-red-600 dark:text-red-400"
+                }`}>{error}</p>
+                {error.includes("WARNING") && (
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={async () => {
+                        setError("");
+                        setShowWarning(true);
+                        // Proceed with setup after user confirms
+                        await handleSetupPasskey();
+                      }}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Yes, Continue (I understand the risk)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setError("");
+                        setShowWarning(false);
+                      }}
+                      className="flex-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isRecoveryMode && hasExistingWallet && (
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  ℹ️ <strong>Recovery Mode:</strong> You're recovering your account. Your existing wallet addresses will be preserved for reference, but you'll get a new wallet with new addresses. The old seed phrase cannot be recovered without the old passkey.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div className="flex items-start gap-3">
+                <span className="material-icons-outlined text-primary text-xl">security</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Enhanced Security</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Use biometric authentication or device PIN
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="material-icons-outlined text-primary text-xl">account_balance_wallet</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Multi-Chain Wallet</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Automatically creates wallets for Bitcoin, Ethereum, Solana, and more
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="material-icons-outlined text-primary text-xl">speed</span>
+                <div>
+                  <p className="font-semibold text-slate-900 dark:text-white">Quick Access</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Sign in instantly with your device
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSetupPasskey}
+              disabled={!passkeySupported || settingUp}
+              className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {settingUp ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Setting up...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-icons-outlined">fingerprint</span>
+                  <span>Set Up Passkey</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                // Temporarily skip - but user will be prompted again next time
+                if (confirm("You'll need a passkey to access your wallet. Skip for now?")) {
+                  router.push("/");
+                }
+              }}
+              className="w-full mt-3 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-sm py-2"
+            >
+              Skip for now (you'll be prompted again)
+            </button>
+          </>
+        )}
+
+        {step === "creating" && (
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+              Creating Your Wallet
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400">
+              Please follow the prompts on your device to set up your passkey...
+            </p>
+          </div>
+        )}
+
+        {step === "success" && (
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-icons-outlined text-green-600 dark:text-green-400 text-4xl">check_circle</span>
+            </div>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+              Passkey Set Up Successfully!
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">
+              Your multi-chain wallet has been created. Redirecting to dashboard...
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

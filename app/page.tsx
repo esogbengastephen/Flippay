@@ -1,20 +1,22 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { isUserLoggedIn, getUserFromStorage, clearUserSession, setUserSession } from "@/lib/session";
-
-const USE_MOCK_AUTH = false;
-// Bypass auth for user dashboard only – UI/UX work (revert before push, added 2025-03-06)
-const BYPASS_AUTH_FOR_USER_DASHBOARD = false;
-import DashboardLayout from "@/components/DashboardLayout";
-import PageLoadingSpinner from "@/components/PageLoadingSpinner";
+import { isUserLoggedIn, getUserFromStorage, clearUserSession } from "@/lib/session";
 
 // Lazy load UserDashboard to reduce initial bundle size
 const UserDashboard = dynamic(() => import("@/components/UserDashboard"), {
-  loading: () => <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-screen bg-primary">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
+        <p className="text-secondary">Loading...</p>
+      </div>
+    </div>
+  ),
   ssr: false,
 });
 
@@ -36,23 +38,6 @@ export default function Home() {
       try {
         // Check if user is logged in
         if (!isUserLoggedIn()) {
-          // Bypass auth for user dashboard only (local dev – UI/UX work; admin stays protected)
-          if (BYPASS_AUTH_FOR_USER_DASHBOARD) {
-            const mockUser = {
-              id: "mock-dashboard-user",
-              email: "test@flippay.local",
-              referralCode: "MOCK1234",
-              emailVerified: true,
-              createdAt: new Date().toISOString(),
-              totalTransactions: 0,
-              totalSpentNGN: 0,
-              totalReceivedSEND: "0",
-            };
-            setUserSession(mockUser as any, "mock-session-token");
-            setUser(mockUser as any);
-            setIsChecking(false);
-            return;
-          }
           try {
             router.push("/auth");
           } catch (e) {
@@ -95,20 +80,6 @@ export default function Home() {
               window.location.href = "/auth";
             }
           }
-          return;
-        }
-
-        // Skip backend verification when using mock auth (local dev)
-        if (USE_MOCK_AUTH) {
-          setUser(currentUser);
-          setIsChecking(false);
-          return;
-        }
-
-        // Skip backend verification when bypassing auth for user dashboard (local dev)
-        if (BYPASS_AUTH_FOR_USER_DASHBOARD && currentUser.id === "mock-dashboard-user") {
-          setUser(currentUser);
-          setIsChecking(false);
           return;
         }
 
@@ -208,13 +179,16 @@ export default function Home() {
   }, [router]);
 
   if (isChecking) {
-    return <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-primary">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
+          <p className="text-secondary">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <DashboardLayout>
-      <UserDashboard />
-    </DashboardLayout>
-  );
+  return <UserDashboard />;
 }
 

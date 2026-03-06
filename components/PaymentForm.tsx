@@ -11,7 +11,6 @@ import PoweredBySEND from "./PoweredBySEND";
 import { calculateSendAmount } from "@/lib/transactions";
 import { getUserFromStorage } from "@/lib/session";
 import { getTokenLogo } from "@/lib/logos";
-import FSpinner from "@/components/FSpinner";
 
 // Helper function to safely access localStorage (for mobile browser compatibility)
 const safeLocalStorage = {
@@ -219,17 +218,13 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     }
   };
 
-  // Fetch transaction status on mount (uses same /api/rate endpoint)
+  // Fetch transaction status on mount (same-origin /api/payment-rate)
   useEffect(() => {
     const fetchTransactionStatus = async () => {
       try {
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        const data = await response.json();
-        if (response.ok && data.success) {
+        const res = await fetch(`/api/payment-rate?t=${Date.now()}`, { cache: "no-store" });
+        const data = await res.json();
+        if (data.transactionsEnabled !== undefined) {
           setTransactionsEnabled(data.transactionsEnabled !== false);
         }
       } catch (error) {
@@ -242,48 +237,35 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     return () => clearInterval(statusInterval);
   }, []);
 
-  // Fetch exchange rate on mount and periodically to get admin updates
+  // Fetch rate via same-origin /api/payment-rate (server fetches backend; no CORS)
   useEffect(() => {
     const fetchExchangeRate = async () => {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-      if (!apiBase.trim()) {
-        console.warn("[PaymentForm] NEXT_PUBLIC_API_URL is not set – rate and minimum purchase use defaults. Set it to your backend URL (e.g. https://flippayback.vercel.app) in the frontend env.");
-        setRateFromApi(false);
-        return;
-      }
       try {
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, {
+        const res = await fetch(`/api/payment-rate?t=${Date.now()}`, {
           cache: "no-store",
           headers: { "Cache-Control": "no-cache" },
         });
-        const data = await response.json();
-        console.log("[PaymentForm] Fetched exchange rate:", response.status, data);
-        if (response.ok && data.success && data.rate != null) {
-          const newRate = Number(data.rate);
-          if (!Number.isNaN(newRate) && newRate > 0) {
-            setExchangeRate(newRate);
-            setRateFromApi(true);
-          }
-          if (data.transactionsEnabled !== undefined) {
-            setTransactionsEnabled(data.transactionsEnabled !== false);
-          }
-          if (data.minimumPurchase !== undefined && Number(data.minimumPurchase) > 0) {
-            setMinimumPurchase(Number(data.minimumPurchase) || 3000);
-          }
-        } else {
+        const data = await res.json();
+        if (data.rate != null && Number(data.rate) > 0) {
+          setExchangeRate(Number(data.rate));
+          setRateFromApi(Boolean(data.rateFromApi));
+        }
+        if (data.minimumPurchase != null && Number(data.minimumPurchase) > 0) {
+          setMinimumPurchase(Number(data.minimumPurchase));
+        }
+        if (data.transactionsEnabled !== undefined) {
+          setTransactionsEnabled(data.transactionsEnabled !== false);
+        }
+        if (!res.ok || !data.success) {
           setRateFromApi(false);
         }
       } catch (error) {
-        console.error("[PaymentForm] Failed to fetch exchange rate:", error);
+        console.error("[PaymentForm] Failed to fetch rate:", error);
         setRateFromApi(false);
       }
     };
 
-    // Fetch immediately on mount
     fetchExchangeRate();
-
-    // Refresh every 10 seconds to get admin updates immediately
     const interval = setInterval(fetchExchangeRate, 10000);
 
     // Refresh when window regains focus (user comes back to tab)
@@ -824,41 +806,56 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
   // Users will be redirected back after payment completion
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-lg mx-auto">
       <div className="flex flex-col items-center">
-        {/* Header - centered */}
-        <div className="text-center mb-4">
-          <h1 className="text-xl font-bold text-white mb-1">Buy Crypto</h1>
-          <p className="text-sm text-accent/80">Convert your NGN to crypto instantly</p>
+        {/* Logo - responsive, compact on mobile */}
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          {/* White logo for light mode */}
+          <img 
+            src="/whitelogo.png" 
+            alt="FlipPay" 
+            className="h-10 sm:h-14 md:h-16 w-auto dark:hidden"
+          />
+          {/* Regular logo for dark mode */}
+          <img 
+            src="/logo.png" 
+            alt="FlipPay" 
+            className="h-10 sm:h-14 md:h-16 w-auto hidden dark:block"
+          />
         </div>
 
-        {/* Form Card - compact */}
-        <div className="bg-surface/60 backdrop-blur-[24px] p-4 sm:p-5 rounded-xl border border-secondary/10 w-full space-y-4">
+        {/* Form Card - mobile-first padding, touch-friendly */}
+        <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-lg w-full border border-slate-200/50 dark:border-slate-700/50">
           {/* ZainPay Virtual Account — shown after "Pay Now" is clicked */}
           {isWaitingForTransfer && zainpayAccount && (
             <div className="space-y-4">
               <div className="text-center">
-                <p className="text-base font-semibold text-white">
+                <p className="text-base sm:text-lg font-semibold text-slate-800 dark:text-slate-100">
                   Complete Your Transfer
                 </p>
-                <p className="text-sm text-accent/80 mt-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                   Transfer exactly{" "}
-                  <span className="font-bold text-secondary">
+                  <span className="font-bold text-slate-800 dark:text-slate-100">
                     ₦{zainpayAccount.amount.toLocaleString()}
                   </span>{" "}
                   to the account below
                 </p>
               </div>
 
-              <div className="bg-primary/40 border border-accent/10 rounded-xl p-4 space-y-3">
+              <div className="bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                {/* Bank */}
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-accent/80">Bank</span>
-                  <span className="text-sm font-semibold text-white">{zainpayAccount.bankName}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Bank</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    {zainpayAccount.bankName}
+                  </span>
                 </div>
+
+                {/* Account number with copy */}
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-accent/80">Account Number</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Account Number</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-base font-bold tracking-widest text-white">
+                    <span className="text-base font-bold tracking-widest text-slate-900 dark:text-white">
                       {zainpayAccount.accountNumber}
                     </span>
                     <button
@@ -869,36 +866,51 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                           setTimeout(() => setCopiedAccount(false), 2000);
                         });
                       }}
-                      className="text-secondary hover:opacity-80 transition-opacity p-1 rounded"
+                      className="text-primary hover:opacity-70 transition-opacity p-1 rounded"
                       title="Copy account number"
                     >
                       {copiedAccount ? (
-                        <span className="text-secondary text-xs font-medium">Copied!</span>
+                        <span className="text-green-500 text-xs font-medium">Copied!</span>
                       ) : (
-                        <span className="material-icons-outlined text-sm">content_copy</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
                       )}
                     </button>
                   </div>
                 </div>
+
+                {/* Account name */}
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-accent/80">Account Name</span>
-                  <span className="text-sm font-semibold text-white">{zainpayAccount.accountName}</span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Account Name</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    {zainpayAccount.accountName}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-accent/10">
-                  <span className="text-sm text-accent/80">Amount to transfer</span>
-                  <span className="text-base font-bold text-secondary">₦{zainpayAccount.amount.toLocaleString()}</span>
+
+                {/* Amount */}
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Amount to transfer</span>
+                  <span className="text-base font-bold text-green-600 dark:text-green-400">
+                    ₦{zainpayAccount.amount.toLocaleString()}
+                  </span>
                 </div>
               </div>
 
+              {/* I have made payment button */}
               <button
                 type="button"
                 onClick={handleCheckPaymentNow}
                 disabled={isCheckingNow}
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full bg-primary text-slate-900 font-bold py-3 px-4 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isCheckingNow ? (
                   <>
-                    <FSpinner size="sm" />
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
                     Checking payment…
                   </>
                 ) : (
@@ -906,11 +918,16 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-2 text-xs text-accent/60">
-                <FSpinner size="xs" className="shrink-0" />
+              {/* Auto-detection note */}
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                <svg className="animate-spin w-3 h-3 text-primary shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
                 <span>Also detecting automatically — tokens sent once confirmed.</span>
               </div>
 
+              {/* Cancel / start over */}
               <button
                 type="button"
                 onClick={() => {
@@ -919,100 +936,77 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                   setZainpayAccount(null);
                   setIsPollingPayment(false);
                 }}
-                className="w-full py-2 text-sm text-accent/60 hover:text-accent underline transition-colors"
+                className="w-full py-2 text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline transition-colors"
               >
                 Cancel — start over
               </button>
             </div>
           )}
 
-          <form className={`space-y-4${isWaitingForTransfer ? " hidden" : ""}`} onSubmit={handleSubmit}>
-            {/* You Pay */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Pay</label>
-              <div className={`flex items-center justify-between p-3 rounded-xl transition-all ${errors.ngnAmount ? "border-2 border-red-500/50 bg-primary/40" : "bg-primary/40 border border-accent/10 focus-within:border-secondary/30"}`}>
-                <div className="flex flex-col">
-                  <input
-                    id="ngn_amount"
-                    name="ngn_amount"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={ngnAmount}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/[^\d.]/g, "").replace(/(\.\d*)\./g, "$1");
-                      handleInputChange("ngnAmount", v);
-                    }}
-                    className="bg-transparent border-none p-0 text-xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
-                  />
-                  <span className="text-xs text-accent/60">Min: ₦{minimumPurchase.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5">
-                  <span className="font-bold text-white text-sm">🇳🇬 NGN</span>
-                </div>
-              </div>
-              {errors.ngnAmount && (
-                <p className="text-sm text-red-400 px-1">{errors.ngnAmount}</p>
-              )}
-            </div>
-
-            {/* Arrow */}
-            <div className="flex justify-center -my-1">
-              <div className="bg-primary border border-accent/10 rounded-full p-1.5 z-10">
-                <span className="material-icons-outlined text-secondary text-lg">arrow_downward</span>
-              </div>
-            </div>
-
-            {/* You Receive */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Receive</label>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10">
-                <div className="flex flex-col">
-                  <div className="text-xl font-bold text-white">{sendAmount}</div>
-                  {network === "send" ? (
-                    <span className="text-xs text-accent/60">
-                      Rate: 1 NGN = <span className="text-secondary font-semibold">{exchangeRate}</span> SEND
-                    </span>
-                  ) : effectiveExchangeRate > 0 ? (
-                    <span className="text-xs text-accent/60">
-                      Rate: 1 NGN = <span className="text-secondary font-semibold">{effectiveExchangeRate.toFixed(6)}</span> {selectedStablecoin}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-accent/60">Loading rate for {selectedStablecoin}…</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5">
-                  {network === "send" ? (
-                    getTokenLogo("SEND") ? (
-                      <img src={getTokenLogo("SEND")!} alt="SEND" className="w-5 h-5 rounded-full object-cover" />
-                    ) : null
-                  ) : getTokenLogo(selectedStablecoin) ? (
-                    <img src={getTokenLogo(selectedStablecoin)!} alt={selectedStablecoin} className="w-5 h-5 rounded-full object-cover" />
-                  ) : null}
-                  <span className="font-bold text-white text-sm">{network === "send" ? "SEND" : selectedStablecoin}</span>
-                </div>
+          <form className={`space-y-5 sm:space-y-6${isWaitingForTransfer ? " hidden" : ""}`} onSubmit={handleSubmit}>
+            {/* NGN Amount Input */}
+            <div>
+              <label
+                className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300"
+                htmlFor="ngn_amount"
+              >
+                Enter NGN amount
+              </label>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 mb-2">
+                Minimum purchase: ₦{minimumPurchase.toLocaleString()}
+              </p>
+              <div className="mt-2 relative">
+                <input
+                  className={`w-full rounded-md border ${
+                    errors.ngnAmount
+                      ? "border-red-300 dark:border-red-600"
+                      : "border-slate-300 dark:border-slate-600"
+                  } bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base`}
+                  id="ngn_amount"
+                  name="ngn_amount"
+                  placeholder={`e.g. ${minimumPurchase.toLocaleString()}`}
+                  type="number"
+                  min={minimumPurchase.toString()}
+                  step="0.01"
+                  value={ngnAmount}
+                  onChange={(e) => handleInputChange("ngnAmount", e.target.value)}
+                  required
+                />
+                {errors.ngnAmount && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.ngnAmount}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* USDC / USDT dropdown - only for Base and Solana */}
             {(network === "base" || network === "solana") && (
-              <div ref={stablecoinDropdownRef} className="relative space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">Select stablecoin</label>
+              <div ref={stablecoinDropdownRef} className="relative">
+                <label className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Select stablecoin
+                </label>
                 <button
                   type="button"
                   onClick={() => setIsStablecoinDropdownOpen((v) => !v)}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10 cursor-pointer hover:border-secondary/30 transition-all"
+                  className="w-full flex items-center gap-2 min-h-[42px] sm:min-h-[44px] rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 sm:px-3.5 sm:py-2.5 text-left"
                 >
-                  <div className="flex items-center gap-2">
-                    {getTokenLogo(selectedStablecoin) ? (
-                      <img src={getTokenLogo(selectedStablecoin)!} alt={selectedStablecoin} className="w-6 h-6 rounded-full object-cover" />
-                    ) : null}
-                    <span className="font-medium text-white">{selectedStablecoin}</span>
-                  </div>
-                  <span className="material-icons-outlined text-accent/60">{isStablecoinDropdownOpen ? "expand_less" : "expand_more"}</span>
+                  {getTokenLogo(selectedStablecoin) ? (
+                    <img
+                      src={getTokenLogo(selectedStablecoin)}
+                      alt={selectedStablecoin}
+                      className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500 text-sm font-medium shrink-0">{selectedStablecoin}</span>
+                  )}
+                  <span className="flex-1 font-medium">{selectedStablecoin}</span>
+                  <span className="material-icons-outlined text-slate-500">
+                    {isStablecoinDropdownOpen ? "expand_less" : "expand_more"}
+                  </span>
                 </button>
                 {isStablecoinDropdownOpen && (
-                  <div className="absolute z-10 mt-1 w-full rounded-2xl border border-secondary/20 bg-surface/95 backdrop-blur-xl shadow-xl max-h-48 overflow-y-auto custom-scrollbar">
+                  <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg py-1">
                     {(["USDC", "USDT"] as const).map((token) => (
                       <button
                         key={token}
@@ -1021,14 +1015,16 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                           setSelectedStablecoin(token);
                           setIsStablecoinDropdownOpen(false);
                         }}
-                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-primary/50 text-left text-white"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-left"
                       >
                         {getTokenLogo(token) ? (
                           <img src={getTokenLogo(token)!} alt={token} className="w-6 h-6 rounded-full object-cover" />
-                        ) : null}
+                        ) : (
+                          <span className="text-sm font-medium">{token}</span>
+                        )}
                         <span className="font-medium">{token}</span>
                         {selectedStablecoin === token && (
-                          <span className="material-icons-outlined text-secondary text-sm ml-auto">check</span>
+                          <span className="material-icons-outlined text-primary text-sm ml-auto">check</span>
                         )}
                       </button>
                     ))}
@@ -1037,34 +1033,103 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
               </div>
             )}
 
-            {/* Wallet Address */}
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">
-                {network === "solana" ? "Solana Wallet Address" : "Send App or Base Wallet Address"}
+            {/* Crypto amount display - SEND or USDC/USDT */}
+            <div>
+              <label className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300">
+                {network === "send" ? "Amount of $SEND" : `Amount of ${selectedStablecoin}`}
               </label>
-              <div className={`p-3 rounded-xl transition-all ${errors.walletAddress ? "border-2 border-red-500/50 bg-primary/40" : "bg-primary/40 border border-accent/10 focus-within:border-secondary/30"}`}>
-                <input
-                  id="wallet_address"
-                  name="wallet_address"
-                  type="text"
-                  placeholder={network === "solana" ? "Solana address..." : "0x..."}
-                  value={walletAddress}
-                  onChange={(e) => handleInputChange("walletAddress", e.target.value)}
-                  className="w-full bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                  required
-                />
+              <div className="mt-2 relative">
+                <div className="flex items-center gap-2 w-full min-h-[42px] sm:min-h-[44px] rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 sm:px-3.5 sm:py-2.5">
+                  {network === "send" ? (
+                    getTokenLogo("SEND") ? (
+                      <img
+                        src={getTokenLogo("SEND")}
+                        alt="SEND"
+                        className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-500 text-sm font-medium shrink-0">$SEND</span>
+                    )
+                  ) : (
+                    getTokenLogo(selectedStablecoin) ? (
+                      <img
+                        src={getTokenLogo(selectedStablecoin)}
+                        alt={selectedStablecoin}
+                        className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-500 text-sm font-medium shrink-0">{selectedStablecoin}</span>
+                    )
+                  )}
+                  <input
+                    className="flex-1 min-w-0 bg-transparent border-0 focus:ring-0 text-slate-900 dark:text-slate-100 text-base font-medium"
+                    id="send_amount"
+                    name="send_amount"
+                    placeholder="0.00"
+                    readOnly
+                    type="text"
+                    value={sendAmount}
+                  />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+                  {network === "send"
+                    ? `Rate: 1 NGN = ${exchangeRate} $SEND${!rateFromApi ? " (default rate – connect to backend for live rate)" : ""}`
+                    : effectiveExchangeRate > 0
+                      ? `Rate: 1 NGN = ${effectiveExchangeRate.toFixed(6)} ${selectedStablecoin}`
+                      : `Loading rate for ${selectedStablecoin}...`}
+                </p>
               </div>
-              {errors.walletAddress && (
-                <p className="text-sm text-red-400 px-1">{errors.walletAddress}</p>
-              )}
             </div>
 
-            {/* Submit */}
+            {/* Wallet Address Input - 16px font, touch target */}
+            <div>
+              <label
+                className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300"
+                htmlFor="wallet_address"
+              >
+                {network === "solana"
+                  ? "Enter Solana Wallet Address"
+                  : "Enter Send App or Base Wallet Address"}
+              </label>
+              <div className="mt-2">
+                <input
+                  className={`w-full min-h-[48px] sm:min-h-[52px] rounded-lg sm:rounded-md border ${
+                    errors.walletAddress
+                      ? "border-red-300 dark:border-red-600"
+                      : "border-slate-300 dark:border-slate-600"
+                  } bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-base focus:ring-2 focus:ring-primary focus:border-primary placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 sm:py-3.5`}
+                  id="wallet_address"
+                  name="wallet_address"
+                  placeholder={network === "solana" ? "Solana address..." : "0x..."}
+                  type="text"
+                  value={walletAddress}
+                  onChange={(e) => handleInputChange("walletAddress", e.target.value)}
+                  required
+                />
+                
+                {errors.walletAddress && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors.walletAddress}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Submit Button */}
             <div>
               {!transactionsEnabled && (
-                <div className="mb-3 p-3 rounded-xl bg-red-500/20 border border-red-500/30">
-                  <p className="text-sm font-semibold text-red-400 mb-1">Transactions Currently Disabled</p>
-                  <p className="text-xs text-red-400/80">Transactions are temporarily disabled. Please check back later.</p>
+                <div className="mb-4 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <span className="text-xl sm:text-2xl flex-shrink-0">⚠️</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-semibold text-red-700 dark:text-red-300 mb-1">
+                        Transactions Currently Disabled
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        Transactions are temporarily disabled. Please check back later or contact support if you have any questions.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
               <button
@@ -1076,21 +1141,10 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                   !walletAddress ||
                   ((network === "base" || network === "solana") && effectiveExchangeRate <= 0)
                 }
-                className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="w-full min-h-[48px] sm:min-h-[52px] bg-primary text-slate-900 font-bold py-3.5 px-4 rounded-lg sm:rounded-md hover:opacity-90 active:opacity-95 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed text-base touch-manipulation"
               >
                 {isLoading ? "Processing..." : (network === "base" || network === "solana") && effectiveExchangeRate <= 0 ? "Loading rate..." : transactionsEnabled ? "Pay now" : "Transactions Disabled"}
               </button>
-            </div>
-
-            <div className="flex items-center justify-center gap-4 pt-1">
-              <div className="flex items-center gap-1.5 text-accent/60">
-                <span className="material-icons-outlined text-sm text-secondary">bolt</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold">Instant Processing</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-accent/60">
-                <span className="material-icons-outlined text-sm text-secondary">lock</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold">End-to-End Secure</span>
-              </div>
             </div>
           </form>
         </div>
@@ -1120,20 +1174,18 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         onClose={() => setToast({ ...toast, isVisible: false })}
       />
       
-      <div className="w-full mt-5">
+      {/* Powered by SEND */}
+      <div className="w-full mt-6 sm:mt-8">
         <PoweredBySEND />
       </div>
-      <p className="text-center text-accent/40 text-xs mt-3">
-        Powered by Flippay Infrastructure • Licensed Financial Provider
-      </p>
       
-      {/* Create Send App Account Link */}
-      <div className="mt-3 text-center px-4 w-full">
+      {/* Create Send App Account Link - tap-friendly, responsive */}
+      <div className="mt-4 sm:mt-6 text-center px-2 sm:px-4 w-full">
         <a
           href="https://send.app/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-block py-3 px-4 text-xs sm:text-sm text-accent/60 hover:text-secondary transition-colors underline rounded"
+          className="inline-block py-3 px-4 text-xs sm:text-sm text-slate-500 dark:text-slate-400 hover:text-primary active:text-primary transition-colors underline rounded touch-manipulation"
         >
           Click to Create a Send App account
         </a>

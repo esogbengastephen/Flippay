@@ -26,22 +26,18 @@ interface AdminInvoice {
 }
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
+  { value: "", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "paid", label: "Paid" },
   { value: "expired", label: "Expired" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
 
-const PAGE_SIZE = 20;
-
 export default function AdminInvoicesPage() {
   const [invoices, setInvoices] = useState<AdminInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
@@ -94,96 +90,31 @@ export default function AdminInvoicesPage() {
   const customerLabel = (inv: AdminInvoice) =>
     inv.customerName || inv.customerEmail || inv.customerPhone || "—";
 
-  const filteredInvoices = invoices.filter((inv) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      inv.invoiceNumber.toLowerCase().includes(q) ||
-      inv.merchantEmail.toLowerCase().includes(q) ||
-      (customerLabel(inv) || "").toLowerCase().includes(q) ||
-      (inv.description || "").toLowerCase().includes(q)
-    );
-  });
-
-  const paginatedInvoices = filteredInvoices.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
-  );
-  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
-
-  const getStatusBadge = (status: string) => {
-    if (status === "paid") {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20">
-          Paid
-        </span>
-      );
-    }
-    if (status === "pending") {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse" />
-          Pending
-        </span>
-      );
-    }
-    if (status === "expired" || status === "cancelled") {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent/10 text-accent/70 border border-accent/20">
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
-        {status.toUpperCase()}
-      </span>
-    );
-  };
-
   return (
-    <div className="space-y-6 lg:space-y-8">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-4 p-0">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-accent/60 text-lg">
-              search
-            </span>
-            <input
-              type="text"
-              placeholder="Search invoice, merchant, customer..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="pl-10 pr-4 py-2 bg-primary border border-accent/10 rounded-lg text-sm text-white placeholder-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none w-64"
-            />
-          </div>
-          <Link
-            href="/invoice"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary font-bold rounded-lg hover:brightness-110 transition-all shadow-[0_0_10px_rgba(19,236,90,0.3)] text-sm whitespace-nowrap"
-          >
-            <span className="material-icons-outlined text-sm font-bold text-primary">add</span>
-            Generate invoice
-          </Link>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
+            Invoices
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
+            View and manage all generated invoices. Merchants create invoices at{" "}
+            <Link href="/invoice" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              /invoice
+            </Link>
+            .
+          </p>
         </div>
-      </header>
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <label htmlFor="status-filter" className="text-sm text-slate-600 dark:text-slate-400 shrink-0">
+              Status:
+            </label>
             <select
+              id="status-filter"
               value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="appearance-none bg-primary border border-accent/10 rounded-lg pl-4 pr-10 py-2.5 text-sm text-white focus:ring-1 focus:ring-secondary focus:outline-none cursor-pointer"
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value || "all"} value={opt.value}>
@@ -191,150 +122,139 @@ export default function AdminInvoicesPage() {
                 </option>
               ))}
             </select>
-            <span className="material-icons-outlined absolute right-3 top-1/2 -translate-y-1/2 text-accent/60 pointer-events-none text-sm">
-              expand_more
-            </span>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-accent/70">
-            Showing <span className="text-white font-bold">{filteredInvoices.length}</span> invoices
-          </span>
-          <button
-            type="button"
-            onClick={fetchInvoices}
-            className="p-2 rounded-lg bg-primary border border-accent/10 text-accent/70 hover:text-white hover:bg-accent/5 transition-colors"
-            aria-label="Refresh"
+          <Link
+            href="/invoice"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-primary text-slate-900 font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm whitespace-nowrap"
           >
-            <span className="material-icons-outlined text-lg">refresh</span>
-          </button>
+            Generate invoice
+          </Link>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl border border-accent/10 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-accent/5 text-[10px] uppercase tracking-widest text-accent/70 font-bold border-b border-accent/10">
-              <tr>
-                <th className="px-6 py-4">Invoice #</th>
-                <th className="px-6 py-4">Merchant</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Description</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Due / Created</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-accent/10">
-              {loading ? (
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+              <thead className="bg-slate-50 dark:bg-slate-800">
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-accent/60">
-                    Loading invoices...
-                  </td>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Invoice #
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Merchant
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Customer
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Description
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Amount
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Status
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Due / Created
+                  </th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
+                    Actions
+                  </th>
                 </tr>
-              ) : fetchError ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
-                    <p className="text-accent/70 mb-2">{fetchError}</p>
-                    <p className="text-xs text-accent/60 mb-4 max-w-md mx-auto">
-                      Ensure the invoices migration has been applied in Supabase and SUPABASE_SERVICE_ROLE_KEY is set for the admin API.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={fetchInvoices}
-                      className="px-4 py-2 bg-secondary text-primary font-bold rounded-lg hover:brightness-110 transition-all shadow-[0_0_10px_rgba(19,236,90,0.3)]"
-                    >
-                      Retry
-                    </button>
-                  </td>
-                </tr>
-              ) : paginatedInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-accent/60">
-                    No invoices found. Invoices created by users at /invoice will appear here.
-                  </td>
-                </tr>
-              ) : (
-                paginatedInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-accent/5 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-sm text-white">
-                        {inv.invoiceNumber}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-white">
-                      {inv.merchantEmail}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-accent/80 max-w-[140px] truncate" title={customerLabel(inv)}>
-                      {customerLabel(inv)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-accent/70 max-w-[140px] truncate" title={inv.description || "—"}>
-                      {inv.description || "—"}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-white whitespace-nowrap">
-                      {formatAmount(inv)}
-                    </td>
-                    <td className="px-6 py-4">
-                      {getStatusBadge(inv.status)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-accent/70">
-                      <span className="block" title={inv.dueDate ? `Due: ${new Date(inv.dueDate).toLocaleString()}` : undefined}>
-                        {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}
-                      </span>
-                      <span className="block text-xs text-accent/50 mt-0.5">
-                        {new Date(inv.createdAt).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <a
-                        href={`/invoice/${inv.invoiceNumber}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg border border-secondary/20 text-secondary text-xs font-bold hover:bg-secondary hover:text-primary transition-all"
-                      >
-                        View
-                      </a>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 sm:px-6 py-8 text-center text-slate-500">
+                      Loading invoices...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {filteredInvoices.length > PAGE_SIZE && (
-          <div className="px-6 py-4 border-t border-accent/10 flex items-center justify-between bg-accent/[0.02]">
-            <div className="text-xs text-accent/70">
-              Showing{" "}
-              <span className="text-white font-medium">
-                {(page - 1) * PAGE_SIZE + 1}–
-                {Math.min(page * PAGE_SIZE, filteredInvoices.length)}
-              </span>{" "}
-              of <span className="text-white font-medium">{filteredInvoices.length}</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-xs rounded bg-primary/60 border border-accent/10 text-accent/70 hover:text-white hover:bg-accent/5 transition-colors disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1 text-xs rounded bg-primary/60 border border-accent/10 text-white hover:bg-accent/5 transition-colors disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+                ) : fetchError ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 sm:px-6 py-8 text-center">
+                      <p className="text-slate-600 dark:text-slate-400 mb-2">{fetchError}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500 mb-3 max-w-md mx-auto">
+                        Ensure the invoices migration has been applied in Supabase and SUPABASE_SERVICE_ROLE_KEY is set for the admin API.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={fetchInvoices}
+                        className="bg-primary text-slate-900 font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm"
+                      >
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                ) : invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 sm:px-6 py-8 text-center text-slate-500">
+                      No invoices found. Invoices created by users at /invoice will appear here.
+                    </td>
+                  </tr>
+                ) : (
+                  invoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <td className="px-4 sm:px-6 py-4">
+                        <span className="text-sm font-mono text-slate-900 dark:text-slate-100">
+                          {inv.invoiceNumber}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-sm text-slate-700 dark:text-slate-300">
+                        {inv.merchantEmail}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-sm text-slate-600 dark:text-slate-400 max-w-[140px] truncate" title={customerLabel(inv)}>
+                        {customerLabel(inv)}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-sm text-slate-600 dark:text-slate-400 max-w-[140px] truncate" title={inv.description || "—"}>
+                        {inv.description || "—"}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                        {formatAmount(inv)}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            inv.status === "paid"
+                              ? "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
+                              : inv.status === "pending"
+                              ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
+                              : inv.status === "expired" || inv.status === "cancelled"
+                              ? "bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400"
+                              : "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
+                          }`}
+                        >
+                          {inv.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                        <span className="block" title={inv.dueDate ? `Due: ${new Date(inv.dueDate).toLocaleString()}` : undefined}>
+                          {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}
+                        </span>
+                        <span className="block text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                          {new Date(inv.createdAt).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-4">
+                        <a
+                          href={`/invoice/${inv.invoiceNumber}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm font-medium"
+                        >
+                          View
+                        </a>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

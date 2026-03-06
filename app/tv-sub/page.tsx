@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import UtilityForm from "@/components/UtilityForm";
 import { isUserLoggedIn } from "@/lib/session";
-import DashboardLayout from "@/components/DashboardLayout";
+import BottomNavigation from "@/components/BottomNavigation";
 
 export default function TVSubPage() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function TVSubPage() {
   }, [router]);
 
   return (
-    <DashboardLayout>
+    <>
       <UtilityForm
         serviceId="tv"
         serviceName="TV Subscription"
@@ -25,7 +25,8 @@ export default function TVSubPage() {
         placeholder="Enter smart card number"
         showPackageDropdown={true}
       />
-    </DashboardLayout>
+      <BottomNavigation />
+    </>
   );
 }
 

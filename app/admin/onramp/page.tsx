@@ -3,6 +3,7 @@
 import { getApiUrl } from "@/lib/apiBase";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAccount } from "wagmi";
 
 interface OnrampTransaction {
@@ -28,10 +29,19 @@ interface Pagination {
   totalPages: number;
 }
 
+const COLORS = {
+  primary: "#00BFFF",
+  backgroundDark: "#011931",
+  success: "#10B981",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  info: "#3B82F6",
+};
+
 const STATUS_COLORS: Record<string, string> = {
-  completed: "#10B981",
-  pending: "#F59E0B",
-  failed: "#EF4444",
+  completed: COLORS.success,
+  pending: COLORS.warning,
+  failed: COLORS.error,
 };
 
 interface SendRoutesResult {
@@ -73,47 +83,32 @@ function SendRoutesCheckCard() {
     }
   };
 
-  const routeStatus = result?.routes?.canSwapUsdcToSend ? "Stable" : result ? "Degraded" : null;
-
   return (
-    <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl p-6 border border-secondary/10">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <span className="material-icons-outlined text-secondary">hub</span>
-          SEND Routing Status (Base)
-        </h2>
-        <div className="flex items-center gap-4">
-          {routeStatus && (
-            <div className="flex items-center gap-2 bg-primary/40 px-4 py-2 rounded-full border border-accent/10">
-              <span className={`w-2 h-2 rounded-full ${routeStatus === "Stable" ? "bg-secondary animate-pulse" : "bg-amber-500"}`} />
-              <span className="text-xs text-accent/80">
-                Route Status: <span className="text-secondary font-bold">{routeStatus}</span>
-              </span>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={checkRoutes}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-2 bg-secondary text-primary rounded-full font-bold text-sm hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] uppercase tracking-wider disabled:opacity-50"
-          >
-            <span className="material-icons-outlined text-sm font-bold text-primary" aria-hidden>query_stats</span>
-            {loading ? "Checking…" : "Route Check"}
-          </button>
-        </div>
-      </div>
-      <p className="text-sm text-accent/70 mb-4">
-        USDC → SEND swap routes (Aerodrome, Base). Distribution uses Aerodrome first (direct or USDC→WETH→SEND).
+    <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+      <h2 className="text-lg font-semibold text-text-primary dark:text-text-primary-dark mb-2">
+        USDC → SEND swap routes (Aerodrome, Base)
+      </h2>
+      <p className="text-sm text-medium-grey dark:text-light-grey mb-4">
+        Confirm where USDC → SEND can be swapped on-chain. Distribution uses Aerodrome first (direct or USDC→WETH→SEND).
       </p>
+      <button
+        type="button"
+        onClick={checkRoutes}
+        disabled={loading}
+        className="px-4 py-2 rounded-lg font-medium text-white disabled:opacity-50"
+        style={{ backgroundColor: COLORS.primary }}
+      >
+        {loading ? "Checking…" : "Check routes"}
+      </button>
       {error && (
-        <p className="text-sm text-red-400 mb-3">{error}</p>
+        <p className="mt-3 text-sm text-error">{error}</p>
       )}
       {result && result.routes && (
-        <div className="space-y-2 text-sm">
-          <p className={result.routes.canSwapUsdcToSend ? "text-secondary font-medium" : "text-amber-500 font-medium"}>
+        <div className="mt-4 space-y-2 text-sm">
+          <p className={result.routes.canSwapUsdcToSend ? "text-success font-medium" : "text-warning font-medium"}>
             {result.message}
           </p>
-          <ul className="list-disc list-inside text-accent/70">
+          <ul className="list-disc list-inside text-medium-grey dark:text-light-grey">
             <li>Direct USDC–SEND pool: {result.routes.hasUsdcSendPool ? "Yes" : "No"}</li>
             <li>USDC–WETH pool: {result.routes.hasUsdcWethPool ? "Yes" : "No"}</li>
             <li>WETH–SEND pool: {result.routes.hasWethSendPool ? "Yes" : "No"}</li>
@@ -121,16 +116,16 @@ function SendRoutesCheckCard() {
           </ul>
           {result.links && (
             <div className="pt-2 flex flex-wrap gap-2">
-              <a href={result.links.dexscreener} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline text-xs">
+              <a href={result.links.dexscreener} target="_blank" rel="noopener noreferrer" className="text-primary underline">
                 DexScreener
               </a>
-              <a href={result.links.aerodromeSwap} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline text-xs">
+              <a href={result.links.aerodromeSwap} target="_blank" rel="noopener noreferrer" className="text-primary underline">
                 Aerodrome Swap
               </a>
-              <a href={result.links.aerodromeLiquidityUsdcSend} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline text-xs">
+              <a href={result.links.aerodromeLiquidityUsdcSend} target="_blank" rel="noopener noreferrer" className="text-primary underline">
                 Aerodrome USDC–SEND
               </a>
-              <a href={result.links.aerodromeLiquidityWethSend} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline text-xs">
+              <a href={result.links.aerodromeLiquidityWethSend} target="_blank" rel="noopener noreferrer" className="text-primary underline">
                 Aerodrome WETH–SEND
               </a>
             </div>
@@ -147,7 +142,9 @@ export default function OnrampTransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({ status: "" });
+  const [filters, setFilters] = useState({
+    status: "",
+  });
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 50,
@@ -166,7 +163,10 @@ export default function OnrampTransactionsPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
       });
-      if (filters.status) params.append("status", filters.status);
+
+      if (filters.status) {
+        params.append("status", filters.status);
+      }
 
       const response = await fetch(getApiUrl(`/api/admin/onramp?${params.toString()}`));
       const data = await response.json();
@@ -211,8 +211,13 @@ export default function OnrampTransactionsPage() {
     }
   };
 
-  const formatStatus = (status: string) =>
-    status.charAt(0).toUpperCase() + status.slice(1);
+  const getStatusBadgeColor = (status: string) => {
+    return STATUS_COLORS[status] || COLORS.info;
+  };
+
+  const formatStatus = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
 
   const stats = {
     total: pagination.total,
@@ -227,78 +232,74 @@ export default function OnrampTransactionsPage() {
       .reduce((sum, t) => sum + parseFloat(t.send_amount || "0"), 0),
   };
 
-  const successRate = stats.total > 0
-    ? ((stats.completed / stats.total) * 100).toFixed(1)
-    : "0";
-
   return (
-    <div className="space-y-6 lg:space-y-8">
-      {/* Stats Cards - Glass style */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl p-6 border border-secondary/10">
-          <p className="text-[10px] uppercase tracking-widest text-accent/60 font-bold mb-2">
-            Total Onramp Volume (NGN)
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <style jsx global>{`
+        :root {
+          --background-light: #FFFFFF;
+          --background-dark: #011931;
+        }
+        .dark {
+          --background-light: #011931;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-text-primary dark:text-text-primary-dark">
+          Onramp Transactions
+        </h1>
+        <p className="text-sm sm:text-base text-medium-grey dark:text-light-grey mt-1 sm:mt-2">
+          Monitor Naira-to-Crypto conversion transactions (Base Network)
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <p className="text-sm text-medium-grey dark:text-light-grey mb-2">Total Transactions</p>
+          <p className="text-2xl font-bold text-text-primary dark:text-text-primary-dark">
+            {loading ? "..." : stats.total.toLocaleString()}
           </p>
-          <div className="flex items-end justify-between">
-            <h3 className="text-2xl font-bold text-white">
-              {loading ? "..." : `₦${stats.totalRevenue.toLocaleString()}`}
-            </h3>
-          </div>
         </div>
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl p-6 border border-secondary/10">
-          <p className="text-[10px] uppercase tracking-widest text-accent/60 font-bold mb-2">
-            Route Success Rate
-          </p>
-          <div className="flex items-end justify-between gap-4">
-            <h3 className="text-2xl font-bold text-white">{successRate}%</h3>
-            <div className="w-24 h-2 bg-accent/10 rounded-full overflow-hidden flex-shrink-0">
-              <div
-                className="h-full bg-secondary rounded-full"
-                style={{ width: `${Math.min(parseFloat(successRate), 100)}%` }}
-              />
-            </div>
-          </div>
+
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <p className="text-sm text-medium-grey dark:text-light-grey mb-2">Completed</p>
+          <p className="text-2xl font-bold text-success">{loading ? "..." : stats.completed}</p>
         </div>
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl p-6 border border-secondary/10">
-          <p className="text-[10px] uppercase tracking-widest text-accent/60 font-bold mb-2">
-            Tokens Distributed
-          </p>
-          <div className="flex items-end justify-between">
-            <h3 className="text-2xl font-bold text-white">
-              {loading ? "..." : `${stats.totalTokensDistributed.toLocaleString()} $SEND`}
-            </h3>
-          </div>
+
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <p className="text-sm text-medium-grey dark:text-light-grey mb-2">Pending</p>
+          <p className="text-2xl font-bold text-warning">{loading ? "..." : stats.pending}</p>
+        </div>
+
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <p className="text-sm text-medium-grey dark:text-light-grey mb-2">Failed</p>
+          <p className="text-2xl font-bold text-error">{loading ? "..." : stats.failed}</p>
         </div>
       </div>
 
-      {/* Additional stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-xl p-4 border border-accent/10">
-          <p className="text-[10px] uppercase tracking-wider text-accent/60 font-bold mb-1">Total</p>
-          <p className="text-xl font-bold text-white">{loading ? "..." : stats.total}</p>
+      {/* Revenue Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <p className="text-sm text-medium-grey dark:text-light-grey mb-2">Total Revenue (NGN)</p>
+          <p className="text-2xl font-bold text-primary">₦{loading ? "..." : stats.totalRevenue.toLocaleString()}</p>
         </div>
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-xl p-4 border border-accent/10">
-          <p className="text-[10px] uppercase tracking-wider text-accent/60 font-bold mb-1">Completed</p>
-          <p className="text-xl font-bold text-secondary">{loading ? "..." : stats.completed}</p>
-        </div>
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-xl p-4 border border-accent/10">
-          <p className="text-[10px] uppercase tracking-wider text-accent/60 font-bold mb-1">Pending</p>
-          <p className="text-xl font-bold text-amber-500">{loading ? "..." : stats.pending}</p>
-        </div>
-        <div className="bg-surface/60 backdrop-blur-[16px] rounded-xl p-4 border border-accent/10">
-          <p className="text-[10px] uppercase tracking-wider text-accent/60 font-bold mb-1">Failed</p>
-          <p className="text-xl font-bold text-red-400">{loading ? "..." : stats.failed}</p>
+
+        <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+          <p className="text-sm text-medium-grey dark:text-light-grey mb-2">Tokens Distributed ($SEND)</p>
+          <p className="text-2xl font-bold text-primary">{loading ? "..." : stats.totalTokensDistributed.toLocaleString()} $SEND</p>
         </div>
       </div>
 
-      {/* SEND Routes Check */}
+      {/* USDC → SEND swap routes (Aerodrome) */}
       <SendRoutesCheckCard />
 
       {/* Filters */}
-      <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl p-6 border border-secondary/10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-card-light dark:bg-card-dark p-4 sm:p-6 rounded-xl shadow-lg border border-light-grey dark:border-medium-grey">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] uppercase tracking-wider text-accent/60 mb-2 font-bold">
+            <label className="block text-sm font-medium text-text-primary dark:text-text-primary-dark mb-2">
               Status
             </label>
             <select
@@ -307,8 +308,9 @@ export default function OnrampTransactionsPage() {
                 setFilters({ ...filters, status: e.target.value });
                 setPagination({ ...pagination, page: 1 });
               }}
-              className="w-full bg-primary border border-accent/10 rounded-lg px-4 py-2.5 text-sm text-white focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
-              aria-label="Filter by status"
+              className="w-full px-4 py-2 rounded-lg border border-light-grey dark:border-medium-grey bg-white dark:bg-background-dark text-text-primary dark:text-text-primary-dark focus:outline-none focus:ring-2 focus:ring-primary"
+              style={{ "--focus-ring-color": COLORS.primary } as React.CSSProperties}
+              aria-label="Filter by transaction status"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>
@@ -316,115 +318,125 @@ export default function OnrampTransactionsPage() {
               <option value="failed">Failed</option>
             </select>
           </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => fetchTransactions()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-surface-highlight text-white rounded-lg hover:bg-surface-highlight/80 transition-all border border-accent/10 text-sm font-medium"
-            >
-              <span className="material-icons-outlined text-sm text-white">filter_alt</span>
-              Apply Filters
-            </button>
-          </div>
         </div>
       </div>
 
       {resolveError && (
-        <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
+        <div className="bg-card-light dark:bg-card-dark p-3 rounded-xl border border-error text-error text-sm">
           {resolveError}
         </div>
       )}
 
       {/* Transactions Table */}
-      <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl border border-secondary/10 overflow-hidden">
+      <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-lg border border-light-grey dark:border-medium-grey overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-accent/5 text-[10px] uppercase tracking-widest text-accent/70 font-bold">
-                <th className="px-6 py-4">Transaction ID</th>
-                <th className="px-6 py-4">Wallet Address</th>
-                <th className="px-6 py-4">NGN Amount</th>
-                <th className="px-6 py-4">$SEND Amount</th>
-                <th className="px-6 py-4">Exchange Rate</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+          <table className="w-full">
+            <thead className="bg-light-blue dark:bg-background-dark">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  Transaction ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  Wallet Address
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  NGN Amount
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  $SEND Amount
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  Exchange Rate
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-primary dark:text-text-primary-dark uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-accent/10">
+            <tbody className="divide-y divide-light-grey dark:divide-medium-grey">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-accent/60">
+                  <td colSpan={8} className="px-4 py-8 text-center text-medium-grey dark:text-light-grey">
                     Loading...
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-accent/60">
+                  <td colSpan={8} className="px-4 py-8 text-center text-medium-grey dark:text-light-grey">
                     No transactions found
                   </td>
                 </tr>
               ) : (
                 transactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-accent/5 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-mono text-white">
+                  <tr key={tx.id} className="hover:bg-light-blue dark:hover:bg-background-dark transition-colors">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-mono text-text-primary dark:text-text-primary-dark">
                         {tx.transaction_id.slice(0, 12)}...
                       </p>
                       {tx.paystack_reference && (
-                        <p className="text-[10px] text-accent/60 mt-1">
+                        <p className="text-xs text-medium-grey dark:text-light-grey mt-1">
                           Paystack: {tx.paystack_reference.slice(0, 12)}...
                         </p>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-mono text-white">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-mono text-text-primary dark:text-text-primary-dark">
                         {tx.wallet_address.slice(0, 10)}...{tx.wallet_address.slice(-8)}
                       </p>
                       {tx.sendtag && (
-                        <p className="text-[10px] text-accent/60 mt-1">SendTag: {tx.sendtag}</p>
+                        <p className="text-xs text-medium-grey dark:text-light-grey mt-1">
+                          SendTag: {tx.sendtag}
+                        </p>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-white">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-semibold text-text-primary dark:text-text-primary-dark">
                         ₦{parseFloat(tx.ngn_amount?.toString() || "0").toLocaleString()}
                       </p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-white">
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-semibold text-text-primary dark:text-text-primary-dark">
                         {parseFloat(tx.send_amount || "0").toLocaleString()} $SEND
                       </p>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-accent/70">
+                    <td className="px-4 py-4">
+                      <p className="text-sm text-medium-grey dark:text-light-grey">
                         {tx.exchange_rate ? `₦${parseFloat(tx.exchange_rate.toString()).toLocaleString()}` : "N/A"}
                       </p>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-4">
                       <span
-                        className="px-2 py-1 rounded text-[10px] font-bold text-white capitalize"
-                        style={{ backgroundColor: STATUS_COLORS[tx.status] || "#3B82F6" }}
+                        className="px-2 py-1 rounded text-xs font-semibold text-white capitalize"
+                        style={{ backgroundColor: getStatusBadgeColor(tx.status) }}
                       >
                         {formatStatus(tx.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-white">
+                    <td className="px-4 py-4">
+                      <p className="text-xs text-medium-grey dark:text-light-grey">
                         {new Date(tx.created_at).toLocaleDateString()}
                       </p>
-                      <p className="text-[10px] text-accent/60">
+                      <p className="text-xs text-medium-grey dark:text-light-grey">
                         {new Date(tx.created_at).toLocaleTimeString()}
                       </p>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex flex-col gap-1 items-end">
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-1">
                         {(tx.status === "pending" || tx.status === "failed") && (
                           <button
                             type="button"
                             onClick={() => handleManualResolve(tx)}
                             disabled={!address || resolvingId === tx.transaction_id}
-                            className="px-4 py-1.5 rounded-lg border border-secondary/30 text-secondary text-xs font-bold hover:bg-secondary hover:text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-xs font-medium px-2 py-1 rounded border border-light-grey dark:border-medium-grey text-text-primary dark:text-text-primary-dark hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ borderColor: COLORS.primary, color: COLORS.primary }}
                           >
-                            {resolvingId === tx.transaction_id ? "Resolving…" : "Manual Resolve"}
+                            {resolvingId === tx.transaction_id ? "Resolving…" : "Manual resolved"}
                           </button>
                         )}
                         {tx.tx_hash && (
@@ -432,14 +444,20 @@ export default function OnrampTransactionsPage() {
                             href={`https://basescan.org/tx/${tx.tx_hash}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-secondary hover:underline"
+                            className="text-xs hover:underline"
+                            style={{ color: COLORS.primary }}
                           >
                             View on Basescan →
                           </a>
                         )}
                         {tx.error_message && (
-                          <p className="text-[10px] text-red-400" title={tx.error_message}>
-                            {tx.error_message.slice(0, 30)}...
+                          <p className="text-xs text-error" title={tx.error_message}>
+                            Error: {tx.error_message.slice(0, 30)}...
+                          </p>
+                        )}
+                        {tx.completed_at && (
+                          <p className="text-xs text-medium-grey dark:text-light-grey">
+                            Completed: {new Date(tx.completed_at).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -452,32 +470,25 @@ export default function OnrampTransactionsPage() {
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 0 && (
-          <div className="p-6 border-t border-accent/10 flex items-center justify-between">
-            <p className="text-xs text-accent/70">
-              Showing{" "}
-              <span className="text-white font-bold">
-                {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)}
-              </span>{" "}
-              of {pagination.total} transactions
-            </p>
-            <div className="flex items-center gap-2">
+        {pagination.totalPages > 1 && (
+          <div className="px-4 py-4 border-t border-light-grey dark:border-medium-grey flex items-center justify-between">
+            <div className="text-sm text-medium-grey dark:text-light-grey">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} transactions
+            </div>
+            <div className="flex gap-2">
               <button
                 onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
                 disabled={pagination.page === 1}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/40 border border-accent/10 hover:bg-surface-highlight text-accent/70 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="px-4 py-2 rounded-lg border border-light-grey dark:border-medium-grey text-text-primary dark:text-text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80 transition-opacity"
               >
-                <span className="material-icons-outlined text-sm text-white">chevron_left</span>
+                Previous
               </button>
-              <span className="px-3 py-1 text-xs text-accent/70">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
               <button
                 onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
                 disabled={pagination.page >= pagination.totalPages}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/40 border border-accent/10 hover:bg-surface-highlight text-accent/70 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="px-4 py-2 rounded-lg border border-light-grey dark:border-medium-grey text-text-primary dark:text-text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80 transition-opacity"
               >
-                <span className="material-icons-outlined text-sm text-white">chevron_right</span>
+                Next
               </button>
             </div>
           </div>

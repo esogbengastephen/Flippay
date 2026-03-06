@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import UtilityForm from "@/components/UtilityForm";
 import { isUserLoggedIn } from "@/lib/session";
-import DashboardLayout from "@/components/DashboardLayout";
+import BottomNavigation from "@/components/BottomNavigation";
 
 export default function BuyElectricityPage() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function BuyElectricityPage() {
   }, [router]);
 
   return (
-    <DashboardLayout>
+    <>
       <UtilityForm
         serviceId="electricity"
         serviceName="Buy Electricity"
@@ -24,6 +24,7 @@ export default function BuyElectricityPage() {
         networks={["EKEDC", "IKEDC", "AEDC", "PHED", "KEDCO", "EEDC", "IBEDC", "KAEDCO", "JED", "YEDC"]}
         placeholder="Enter meter number"
       />
-    </DashboardLayout>
+      <BottomNavigation />
+    </>
   );
 }
