@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import UtilityForm from "@/components/UtilityForm";
 import { isUserLoggedIn } from "@/lib/session";
-import BottomNavigation from "@/components/BottomNavigation";
+import DashboardLayout from "@/components/DashboardLayout";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 interface GiftCardProduct {
   id: number;
@@ -66,17 +67,14 @@ export default function GiftCardRedeemPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Loading gift card products...</p>
-        </div>
-      </div>
+      <DashboardLayout>
+        <PageLoadingSpinner message="Loading gift card products..." bgClass="bg-background-dark" />
+      </DashboardLayout>
     );
   }
 
   return (
-    <>
+    <DashboardLayout>
       <UtilityForm
         serviceId="gift-card-redeem"
         serviceName="Redeem Gift Card"
@@ -86,7 +84,6 @@ export default function GiftCardRedeemPage() {
         showPackageDropdown={false}
         productMap={productMap}
       />
-      <BottomNavigation />
-    </>
+    </DashboardLayout>
   );
 }

@@ -6,10 +6,13 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getUserFromStorage } from "@/lib/session";
+import DashboardLayout from "@/components/DashboardLayout";
 import Modal from "@/components/Modal";
 import Toast from "@/components/Toast";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo, getTokenLogo } from "@/lib/logos";
+import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 const FIAT_CURRENCIES = [
   { code: "NGN", label: "NGN (Nigerian Naira)" },
@@ -61,7 +64,7 @@ interface Invoice {
   customer_name: string | null;
   customer_email: string | null;
   customer_phone: string | null;
-  status: "pending" | "paid" | "expired" | "cancelled";
+  status: "pending" | "paid" | "expired" | "cancelled" | "draft";
   due_date: string | null;
   paid_at: string | null;
   created_at: string;
@@ -97,19 +100,25 @@ export default function InvoicePage() {
   // Dropdown state
   const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
   const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
+  const [isCurrencyDropdownOpen, setIsCurrencyDropdownOpen] = useState(false);
   const [isEditChainDropdownOpen, setIsEditChainDropdownOpen] = useState(false);
   const [isEditTokenDropdownOpen, setIsEditTokenDropdownOpen] = useState(false);
+  const [isEditCurrencyDropdownOpen, setIsEditCurrencyDropdownOpen] = useState(false);
   const chainDropdownRef = useRef<HTMLDivElement>(null);
   const tokenDropdownRef = useRef<HTMLDivElement>(null);
+  const currencyDropdownRef = useRef<HTMLDivElement>(null);
   const editChainDropdownRef = useRef<HTMLDivElement>(null);
   const editTokenDropdownRef = useRef<HTMLDivElement>(null);
+  const editCurrencyDropdownRef = useRef<HTMLDivElement>(null);
   
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "expired" | "cancelled">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "paid" | "expired" | "cancelled" | "draft">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [remindingInvoice, setRemindingInvoice] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"date" | "amount" | "status">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [statsSummaryExpanded, setStatsSummaryExpanded] = useState(false);
 
   // Edit state
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -140,6 +149,13 @@ export default function InvoicePage() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"NGN" | "Crypto">("NGN");
+
+  // Create form wizard step (1: What, 2: Payment, 3: Who & When)
+  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
+
+  // Collapsible sections
+  const [showCustomWallet, setShowCustomWallet] = useState(false);
+  const [showAdditionalNotes, setShowAdditionalNotes] = useState(false);
 
   // Line items state
   interface LineItem {
@@ -213,11 +229,17 @@ export default function InvoicePage() {
       if (tokenDropdownRef.current && !tokenDropdownRef.current.contains(event.target as Node)) {
         setIsTokenDropdownOpen(false);
       }
+      if (currencyDropdownRef.current && !currencyDropdownRef.current.contains(event.target as Node)) {
+        setIsCurrencyDropdownOpen(false);
+      }
       if (editChainDropdownRef.current && !editChainDropdownRef.current.contains(event.target as Node)) {
         setIsEditChainDropdownOpen(false);
       }
       if (editTokenDropdownRef.current && !editTokenDropdownRef.current.contains(event.target as Node)) {
         setIsEditTokenDropdownOpen(false);
+      }
+      if (editCurrencyDropdownRef.current && !editCurrencyDropdownRef.current.contains(event.target as Node)) {
+        setIsEditCurrencyDropdownOpen(false);
       }
     };
 
@@ -396,6 +418,9 @@ export default function InvoicePage() {
           isVisible: true,
         });
         setShowCreateForm(false);
+        setCreateStep(1);
+        setShowCustomWallet(false);
+        setShowAdditionalNotes(false);
         setFormData({
           amount: "",
           currency: "NGN",
@@ -787,7 +812,7 @@ export default function InvoicePage() {
     return (
       <span className="flex flex-col gap-0.5">
         {entries.map(([currency, amount]) => (
-          <span key={currency} className="font-bold text-gray-900 dark:text-white">
+          <span key={currency} className="font-bold text-white">
             {formatCurrencyAmount(currency, amount)}
           </span>
         ))}
@@ -798,16 +823,14 @@ export default function InvoicePage() {
   // Filter and sort invoices
   useEffect(() => {
     let filtered = [...invoices];
-    
-    // Apply status filter
+
     if (statusFilter !== "all") {
       filtered = filtered.filter(inv => inv.status === statusFilter);
     }
-    
-    // Apply search query
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(inv => 
+      filtered = filtered.filter(inv =>
         inv.invoice_number.toLowerCase().includes(query) ||
         inv.customer_name?.toLowerCase().includes(query) ||
         inv.customer_email?.toLowerCase().includes(query) ||
@@ -815,11 +838,9 @@ export default function InvoicePage() {
         inv.amount.toString().includes(query)
       );
     }
-    
-    // Apply sorting
+
     filtered.sort((a, b) => {
       let comparison = 0;
-      
       switch (sortBy) {
         case "date":
           comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -831,410 +852,518 @@ export default function InvoicePage() {
           comparison = a.status.localeCompare(b.status);
           break;
       }
-      
       return sortOrder === "asc" ? comparison : -comparison;
     });
-    
+
     setFilteredInvoices(filtered);
   }, [invoices, statusFilter, searchQuery, sortBy, sortOrder]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-      case "expired":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-      case "cancelled":
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
-      default:
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery, sortBy, sortOrder]);
+
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
+  const paginatedInvoices = filteredInvoices.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let y = 20;
+
+      pdf.setFontSize(18);
+      pdf.text("Invoice Summary Report", pageWidth / 2, y, { align: "center" });
+      y += 15;
+
+      pdf.setFontSize(10);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, y, { align: "center" });
+      y += 15;
+
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const monthInvoices = invoices.filter(
+        (inv) => new Date(inv.created_at) >= startOfMonth
+      );
+      const paidThisMonth = monthInvoices.filter((inv) => inv.status === "paid");
+      const pendingCount = invoices.filter((inv) => inv.status === "pending").length;
+      const overdueCount = invoices.filter((inv) => {
+        if (inv.status !== "pending" || !inv.due_date) return false;
+        return new Date(inv.due_date) < new Date();
+      }).length;
+
+      pdf.setFontSize(12);
+      pdf.text("Monthly Summary", 14, y);
+      y += 8;
+      pdf.setFontSize(10);
+      pdf.text(`Total invoices this month: ${monthInvoices.length}`, 14, y);
+      y += 6;
+      pdf.text(`Paid this month: ${paidThisMonth.length}`, 14, y);
+      y += 6;
+      pdf.text(`Pending: ${pendingCount}`, 14, y);
+      y += 6;
+      pdf.text(`Overdue: ${overdueCount}`, 14, y);
+      y += 15;
+
+      pdf.setFontSize(12);
+      pdf.text("Recent Invoices", 14, y);
+      y += 8;
+
+      const displayList = filteredInvoices.slice(0, 20);
+      pdf.setFontSize(9);
+      displayList.forEach((inv, i) => {
+        if (y > 270) {
+          pdf.addPage();
+          y = 20;
+        }
+        const amt = inv.currency === "NGN" ? `₦${parseFloat(inv.amount.toString()).toLocaleString()}` : `${inv.currency} ${parseFloat(inv.amount.toString()).toLocaleString()}`;
+        pdf.text(`${inv.invoice_number} | ${inv.customer_name || "—"} | ${amt} | ${inv.status}`, 14, y);
+        y += 6;
+      });
+
+      pdf.save(`Invoice-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      setToast({ message: "Report downloaded successfully", type: "success", isVisible: true });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      setToast({ message: "Failed to generate report", type: "error", isVisible: true });
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
+  const handleRemindInvoice = async (invoice: Invoice) => {
+    setRemindingInvoice(invoice.invoice_number);
+    try {
+      const invoiceUrl = `${window.location.origin}/invoice/${encodeURIComponent(invoice.invoice_number)}`;
+      await navigator.clipboard.writeText(invoiceUrl);
+      setToast({
+        message: "Invoice link copied! Share it with the customer to send a reminder.",
+        type: "success",
+        isVisible: true,
+      });
+    } catch {
+      setToast({
+        message: "Could not copy link. Please share the invoice manually.",
+        type: "info",
+        isVisible: true,
+      });
+    } finally {
+      setRemindingInvoice(null);
+    }
+  };
+
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-primary">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
-          <p className="text-secondary">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
   }
 
   const stats = calculateStats();
 
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "bg-secondary/20 text-secondary border border-secondary/30";
+      case "expired":
+        return "bg-rose-900/30 text-rose-300 border border-rose-800";
+      case "draft":
+        return "bg-slate-800 text-slate-400 border border-slate-700";
+      case "cancelled":
+        return "bg-slate-700/50 text-slate-300 border border-slate-600";
+      default:
+        return "bg-slate-700/50 text-slate-300 border border-slate-600";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark p-4 pb-24">
+    <DashboardLayout>
+      <div className="min-h-screen bg-background-dark p-4 pb-24 lg:pb-8">
+        {/* Background blur orbs */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-secondary rounded-full blur-[150px] opacity-[0.07]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary rounded-full blur-[150px] opacity-20" />
+      </div>
+
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <button
               onClick={() => router.push("/")}
-              className="mb-2 text-primary hover:opacity-80 transition-opacity"
+              className="hidden lg:flex items-center gap-2 text-accent/70 hover:text-white mb-4 transition-colors"
             >
-              <span className="material-icons-outlined">arrow_back</span>
+              <span className="material-icons-outlined text-lg">arrow_back</span>
+              <span className="text-sm font-medium">Back</span>
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Invoices</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Generate and manage your invoices</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Invoice Management</h1>
+            <p className="text-accent/70">Generate and manage your invoices</p>
           </div>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="bg-primary text-secondary font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+            className="flex items-center gap-2 bg-secondary text-background-dark font-bold px-5 py-2.5 rounded-lg shadow-lg shadow-secondary/20 hover:opacity-90 transition-all"
           >
-            <span className="material-icons-outlined">add</span>
+            <span className="material-icons-outlined text-sm">add</span>
             Create Invoice
           </button>
-        </div>
+        </header>
 
-        {/* Statistics Cards - collapse/expand */}
-        <div className="w-full mb-6 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-md hover:border-primary/30 dark:hover:border-primary/30 transition-all overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setStatsSummaryExpanded(!statsSummaryExpanded)}
-            className="w-full text-left p-3 sm:p-4 flex items-center justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
-          >
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Invoice summary</span>
-            <div className="flex items-center gap-3 sm:gap-4">
-              {!statsSummaryExpanded && (
-                <div className="flex items-center gap-2 sm:gap-3" aria-hidden="true">
-                  <span className="bg-green-100 dark:bg-green-900/30 p-1.5 rounded" title="Total Revenue">
-                    <span className="material-icons-outlined text-green-600 dark:text-green-400 text-lg">trending_up</span>
-                  </span>
-                  <span className="bg-yellow-100 dark:bg-yellow-900/30 p-1.5 rounded" title="Pending">
-                    <span className="material-icons-outlined text-yellow-600 dark:text-yellow-400 text-lg">schedule</span>
-                  </span>
-                  <span className="bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded" title="Paid This Month">
-                    <span className="material-icons-outlined text-blue-600 dark:text-blue-400 text-lg">calendar_today</span>
-                  </span>
-                  <span className="bg-red-100 dark:bg-red-900/30 p-1.5 rounded relative" title="Overdue">
-                    <span className="material-icons-outlined text-red-600 dark:text-red-400 text-lg">warning</span>
-                    {stats.overdueCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full px-1">
-                        {stats.overdueCount}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )}
-              <span className="text-xs text-primary font-semibold flex items-center gap-1">
-                {statsSummaryExpanded ? "Hide" : "View details"}
-                <span className="material-icons-outlined text-sm">{statsSummaryExpanded ? "expand_less" : "arrow_forward"}</span>
-              </span>
+        {/* Statistics Cards - 5-column grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-6xl text-white">trending_up</span>
             </div>
-          </button>
-          {statsSummaryExpanded && (
-            <div className="px-4 pb-4 pt-0 border-t border-gray-100 dark:border-gray-700">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Revenue</p>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                        {renderAmountsByCurrency(stats.totalRevenueByCurrency)}
-                      </div>
-                    </div>
-                    <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg flex-shrink-0 ml-2">
-                      <span className="material-icons-outlined text-green-600 dark:text-green-400">trending_up</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">Pending</p>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                        {renderAmountsByCurrency(stats.pendingByCurrency)}
-                      </div>
-                    </div>
-                    <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded-lg flex-shrink-0 ml-2">
-                      <span className="material-icons-outlined text-yellow-600 dark:text-yellow-400">schedule</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">Paid This Month</p>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                        {renderAmountsByCurrency(stats.paidThisMonthByCurrency)}
-                      </div>
-                    </div>
-                    <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg flex-shrink-0 ml-2">
-                      <span className="material-icons-outlined text-blue-600 dark:text-blue-400">calendar_today</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wide">Overdue</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                        {stats.overdueCount}
-                      </p>
-                    </div>
-                    <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-lg">
-                      <span className="material-icons-outlined text-red-600 dark:text-red-400">warning</span>
-                    </div>
-                  </div>
-                </div>
+            <p className="text-sm font-medium text-accent/70 mb-1">Total Revenue</p>
+            <div className="text-2xl font-bold text-white mt-1">
+              {renderAmountsByCurrency(stats.totalRevenueByCurrency)}
+            </div>
+          </div>
+          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-6xl text-white">schedule</span>
+            </div>
+            <p className="text-sm font-medium text-accent/70 mb-1">Pending</p>
+            <div className="text-2xl font-bold text-white mt-1">
+              {renderAmountsByCurrency(stats.pendingByCurrency)}
+            </div>
+          </div>
+          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-6xl text-white">calendar_today</span>
+            </div>
+            <p className="text-sm font-medium text-accent/70 mb-1">Paid This Month</p>
+            <div className="text-2xl font-bold text-white mt-1">
+              {renderAmountsByCurrency(stats.paidThisMonthByCurrency)}
+            </div>
+          </div>
+          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-6xl text-white">warning</span>
+            </div>
+            <p className="text-sm font-medium text-accent/70 mb-1">Overdue</p>
+            <p className="text-2xl font-bold text-white mt-1">{stats.overdueCount}</p>
+            {stats.overdueCount > 0 && (
+              <div className="mt-4 flex items-center text-xs font-medium text-rose-400">
+                <span className="material-icons-outlined text-xs mr-1">warning</span>
+                {stats.overdueCount} action {stats.overdueCount === 1 ? "item" : "items"}
               </div>
-              <button
-                type="button"
-                onClick={() => document.getElementById("invoices-list")?.scrollIntoView({ behavior: "smooth" })}
-                className="mt-3 text-xs text-primary font-semibold flex items-center gap-1 hover:underline"
-              >
-                Go to invoices
-                <span className="material-icons-outlined text-sm">arrow_forward</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="bg-gradient-to-br from-surface to-background-dark border border-secondary/30 rounded-xl p-6 shadow-lg relative overflow-hidden flex flex-col justify-between">
+            <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full border-[20px] border-secondary/10" />
+            <h3 className="text-lg font-bold relative z-10 text-secondary">Generate Report</h3>
+            <p className="text-sm text-white/70 relative z-10 mt-1 mb-4">Download PDF summary of monthly activity.</p>
+            <button
+              type="button"
+              onClick={handleGenerateReport}
+              disabled={isGeneratingReport}
+              className="w-full bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/50 py-2 rounded-lg text-sm font-bold transition-colors relative z-10 disabled:opacity-50"
+            >
+              {isGeneratingReport ? "Generating..." : "Download"}
+            </button>
+          </div>
         </div>
 
         {/* Filters and Search */}
-        <div id="invoices-list" className="scroll-mt-4 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <span className="material-icons-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                  search
-                </span>
+        <div id="invoices-list" className="mb-6 overflow-hidden">
+          <div className="flex flex-col gap-4">
+            {/* Row 1: Search + Sort - same baseline */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="relative flex-1 sm:max-w-[200px] min-w-0">
+                <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-accent/50 text-lg">search</span>
                 <input
                   type="text"
-                  placeholder="Search invoices, customers, amounts..."
+                  placeholder="Search invoices..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="w-full pl-10 pr-4 py-2 border border-white/10 rounded-lg bg-surface text-white placeholder-accent/50 text-sm focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:border-secondary"
                 />
               </div>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <span className="text-sm text-accent/70 whitespace-nowrap">Sort by:</span>
+                <div className="flex items-center gap-1 border border-white/10 rounded-lg bg-surface px-3 py-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as "date" | "amount" | "status")}
+                    className="bg-transparent border-none text-sm font-bold text-white focus:ring-0 cursor-pointer pr-6 focus:outline-none appearance-none"
+                  >
+                    <option value="date" className="bg-surface">Date Created</option>
+                    <option value="amount" className="bg-surface">Amount (High-Low)</option>
+                    <option value="status" className="bg-surface">Status</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                    className="p-1 rounded hover:bg-white/10 text-accent/70 hover:text-white transition-colors -ml-1"
+                    title={sortOrder === "asc" ? "Sort Descending" : "Sort Ascending"}
+                  >
+                    <span className="material-icons-outlined text-sm">{sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            {/* Status Filter */}
-            <div className="flex gap-2 overflow-x-auto">
-              {(["all", "pending", "paid", "expired", "cancelled"] as const).map((status) => (
+            {/* Row 2: Filter tabs - compact, no green bleed */}
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
+              {(["all", "pending", "paid", "expired", "cancelled", "draft"] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap flex-shrink-0 transition-colors ${
                     statusFilter === status
-                      ? "bg-primary text-secondary"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                      ? "bg-secondary/20 text-secondary border border-secondary/40"
+                      : "bg-surface border border-white/10 text-accent/80 hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status === "all" ? "All Invoices" : status.charAt(0).toUpperCase() + status.slice(1)}
                 </button>
               ))}
             </div>
-            
-            {/* Sort */}
-            <div className="flex gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "date" | "amount" | "status")}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="amount">Sort by Amount</option>
-                <option value="status">Sort by Status</option>
-              </select>
-              <button
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                title={sortOrder === "asc" ? "Sort Descending" : "Sort Ascending"}
-              >
-                <span className="material-icons-outlined text-sm">
-                  {sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
-                </span>
-              </button>
-            </div>
-          </div>
-          
-          {/* Results count */}
-          <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-            Showing {filteredInvoices.length} of {invoices.length} invoices
           </div>
         </div>
 
         {/* Invoices List */}
         {filteredInvoices.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-8 shadow-md text-center">
-            <span className="material-icons-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4">
-              receipt_long
-            </span>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {invoices.length === 0 
-                ? "No invoices yet" 
-                : searchQuery || statusFilter !== "all"
-                ? "No invoices match your filters"
-                : "No invoices yet"}
+          <div className="glass-panel rounded-2xl p-12 text-center border border-white/5">
+            <span className="material-icons-outlined text-6xl text-accent/40 mb-4 block">receipt_long</span>
+            <p className="text-lg font-semibold text-white mb-2">
+              {invoices.length === 0 ? "No invoices yet" : "No invoices match your filters"}
             </p>
             {invoices.length === 0 && (
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="bg-primary text-secondary font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+                className="mt-4 bg-secondary text-background-dark font-bold py-2 px-5 rounded-lg hover:opacity-90 transition-opacity"
               >
                 Create Your First Invoice
               </button>
             )}
             {(searchQuery || statusFilter !== "all") && (
               <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setStatusFilter("all");
-                }}
-                className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+                className="mt-4 bg-surface-highlight text-white font-semibold py-2 px-4 rounded-lg hover:bg-white/10 transition-colors"
               >
                 Clear Filters
               </button>
             )}
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredInvoices.map((invoice) => {
-              const isOverdue = invoice.status === "pending" && invoice.due_date && new Date(invoice.due_date) < new Date();
-              const amountStr = FIAT_CODES.includes(invoice.currency)
-                ? (invoice.currency === "NGN" ? "₦" : invoice.currency === "USD" ? "$" : invoice.currency === "EUR" ? "€" : invoice.currency === "GBP" ? "£" : "") + parseFloat(invoice.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (invoice.currency !== "NGN" ? ` ${invoice.currency}` : "")
-                : `${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`;
-              const subtitle = [invoice.customer_name, new Date(invoice.created_at).toLocaleDateString()].filter(Boolean).join(" · ");
-              return (
-                <div
-                  key={invoice.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors min-w-0"
+          <div className="bg-surface rounded-xl shadow-lg border border-white/5 overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-surface-highlight/50 text-accent/70 border-b border-white/10">
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white">Invoice ID</th>
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hidden md:table-cell">Client</th>
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hidden lg:table-cell">Date Issued</th>
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hidden lg:table-cell">Due Date</th>
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white">Amount</th>
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white">Status</th>
+                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-right text-white">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {paginatedInvoices.map((invoice, idx) => {
+                    const isOverdue = invoice.status === "pending" && invoice.due_date && new Date(invoice.due_date) < new Date();
+                    const amountStr = FIAT_CODES.includes(invoice.currency)
+                      ? (invoice.currency === "NGN" ? "₦" : invoice.currency === "USD" ? "$" : invoice.currency === "EUR" ? "€" : invoice.currency === "GBP" ? "£" : "") + parseFloat(invoice.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (invoice.currency !== "NGN" ? ` ${invoice.currency}` : "")
+                      : `${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`;
+                    const statusDisplay = isOverdue ? "Overdue" : invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1);
+                    const statusClass = isOverdue ? "bg-rose-900/30 text-rose-300 border border-rose-800" : getStatusBadgeClass(invoice.status);
+                    const initials = (invoice.customer_name || invoice.customer_email || "?")
+                      .split(/[\s@]/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((s) => s[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2);
+                    return (
+                      <tr
+                        key={invoice.id}
+                        className={`hover:bg-secondary/10 transition-colors group ${idx % 2 === 1 ? "bg-surface-highlight/20" : ""}`}
+                      >
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span className="font-bold text-white">{invoice.invoice_number}</span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 rounded bg-white/10 flex items-center justify-center text-xs font-bold text-white mr-3 flex-shrink-0">
+                              {initials}
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-white">{invoice.customer_name || "—"}</div>
+                              <div className="text-xs text-accent/60">{invoice.customer_email || ""}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-accent/70 hidden lg:table-cell">
+                          {new Date(invoice.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-accent/70 hidden lg:table-cell">
+                          {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : "—"}
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span className="font-bold text-white">{amountStr}</span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${statusClass}`}>
+                            {statusDisplay}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {isOverdue && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemindInvoice(invoice); }}
+                                disabled={remindingInvoice === invoice.invoice_number}
+                                className="text-xs bg-secondary text-background-dark font-bold px-2 py-1 rounded shadow hover:opacity-90 disabled:opacity-50"
+                              >
+                                {remindingInvoice === invoice.invoice_number ? "..." : "Remind"}
+                              </button>
+                            )}
+                            <Link href={`/invoice/${invoice.invoice_number}`} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="View">
+                              <span className="material-icons-outlined text-lg">visibility</span>
+                            </Link>
+                            {(invoice.status === "pending" || invoice.status === "draft") && (
+                              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditInvoice(invoice); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Edit">
+                                <span className="material-icons-outlined text-lg">edit</span>
+                              </button>
+                            )}
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShareInvoice(invoice.invoice_number); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Share">
+                              <span className="material-icons-outlined text-lg">share</span>
+                            </button>
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDownloadPDF(invoice.invoice_number); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="PDF">
+                              <span className="material-icons-outlined text-lg">download</span>
+                            </button>
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClick(invoice); }} className="p-2 rounded-lg text-accent/70 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                              <span className="material-icons-outlined text-lg">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 sm:px-6 py-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-accent/70">
+                Showing <span className="font-bold text-white">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
+                <span className="font-bold text-white">{Math.min(currentPage * PAGE_SIZE, filteredInvoices.length)}</span> of{" "}
+                <span className="font-bold text-white">{filteredInvoices.length}</span> invoices
+              </p>
+              <nav className="flex items-center gap-1" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 bg-surface text-accent/70 hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900 dark:text-white truncate">
-                        {invoice.invoice_number}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${getStatusColor(
-                          invoice.status
-                        )}`}
-                      >
-                        {invoice.status.toUpperCase()}
-                      </span>
-                      {isOverdue && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 flex-shrink-0">
-                          OVERDUE
-                        </span>
-                      )}
-                    </div>
-                    {subtitle && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                        {subtitle}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                    <span className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">
-                      {amountStr}
-                    </span>
-                    {invoice.crypto_chain_id && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">
-                        {invoice.crypto_chain_id.toUpperCase()}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-1">
-                      <Link
-                        href={`/invoice/${invoice.invoice_number}`}
-                        className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        title="View"
-                      >
-                        <span className="material-icons-outlined text-lg">visibility</span>
-                      </Link>
-                      {invoice.status === "pending" && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleEditInvoice(invoice);
-                          }}
-                          className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors"
-                          title="Edit"
-                        >
-                          <span className="material-icons-outlined text-lg">edit</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleShareInvoice(invoice.invoice_number);
-                        }}
-                        className="p-2 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
-                        title="Share"
-                      >
-                        <span className="material-icons-outlined text-lg">share</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDownloadPDF(invoice.invoice_number);
-                        }}
-                        className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-colors"
-                        title="PDF"
-                      >
-                        <span className="material-icons-outlined text-lg">download</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDeleteClick(invoice);
-                        }}
-                        className="p-2 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors"
-                        title="Delete"
-                      >
-                        <span className="material-icons-outlined text-lg">delete</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  <span className="material-icons-outlined text-sm">chevron_left</span>
+                </button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) pageNum = i + 1;
+                  else if (currentPage <= 3) pageNum = i + 1;
+                  else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                  else pageNum = currentPage - 2 + i;
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg text-sm font-medium ${
+                        currentPage === pageNum
+                          ? "bg-secondary text-background-dark border border-secondary"
+                          : "border border-white/10 bg-surface text-accent/70 hover:bg-white/5 hover:text-white"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 bg-surface text-accent/70 hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="material-icons-outlined text-sm">chevron_right</span>
+                </button>
+              </nav>
+            </div>
           </div>
         )}
+
+        {/* Floating Add Button - Mobile */}
+        <button
+          onClick={() => setShowCreateForm(true)}
+          className="sm:hidden fixed bottom-6 right-6 w-14 h-14 bg-secondary text-background-dark rounded-full shadow-xl flex items-center justify-center hover:opacity-90 z-40"
+          aria-label="Create invoice"
+        >
+          <span className="material-icons-outlined">add</span>
+        </button>
 
         {/* Create Invoice Modal */}
         {showCreateForm && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-md overflow-y-auto"
             onClick={() => {
               setShowCreateForm(false);
+              setCreateStep(1);
               setActiveTab("NGN");
             }}
           >
             <div
-              className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col border-2 border-primary/20 my-4"
+              className="bg-surface/95 backdrop-blur-[24px] rounded-xl shadow-2xl max-w-sm w-full max-h-[80vh] flex flex-col border border-secondary/10 my-2"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Create Invoice</h2>
+              <div className="flex items-center justify-between p-2.5 pb-0 flex-shrink-0">
+                <h2 className="text-sm font-bold text-white font-display">Create Invoice</h2>
                 <button
-                  onClick={() => setShowCreateForm(false)}
-                  className="text-gray-600 hover:text-gray-900 dark:text-white/60 dark:hover:text-white"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setCreateStep(1);
+                  }}
+                  className="text-accent/70 hover:text-white p-1 rounded-lg hover:bg-white/5"
                 >
                   <span className="material-icons-outlined">close</span>
                 </button>
               </div>
 
+              {/* Step progress */}
+              <div className="flex gap-1.5 px-2.5 pt-1.5 pb-0.5 flex-shrink-0">
+                {([1, 2, 3] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setCreateStep(s)}
+                    className={`flex-1 h-1.5 rounded-full transition-colors ${
+                      createStep === s ? "bg-secondary" : createStep > s ? "bg-secondary/40" : "bg-primary/60"
+                    }`}
+                    aria-label={`Step ${s}`}
+                  />
+                ))}
+              </div>
+              <p className="text-[11px] text-accent/60 px-2.5 pb-1.5 flex-shrink-0">
+                {createStep === 1 && "What — Line items & currency"}
+                {createStep === 2 && (activeTab === "NGN" ? "Payment — Bank details" : "Payment — Wallet")}
+                {createStep === 3 && "Who & when — Customer & due date"}
+              </p>
+
               <form onSubmit={handleCreateInvoice} className="flex flex-col flex-1 min-h-0">
-                <div className="overflow-y-auto flex-1 p-6 pt-4 space-y-4">
+                <div className="overflow-y-auto flex-1 p-2.5 pt-1.5 space-y-2">
+                {/* Step 1: What */}
+                {createStep === 1 && (
+                <>
                 {/* Invoice Type Display (read-only, managed in Settings) */}
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Invoice Type: <span className="capitalize">{formData.invoiceType}</span>
+                <div className="mb-1.5 p-2 bg-primary/40 border border-secondary/10 rounded-lg">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-accent/90">
+                        Invoice Type: <span className="capitalize text-white">{formData.invoiceType}</span>
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <p className="text-[11px] text-accent/60 mt-0.5">
                         {formData.invoiceType === "personal" 
                           ? "Invoice will show your personal name and email"
                           : "Invoice will show your business information and logo"}
@@ -1243,7 +1372,7 @@ export default function InvoicePage() {
                     <button
                       type="button"
                       onClick={() => router.push("/settings")}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      className="text-xs text-secondary hover:underline font-medium"
                     >
                       Change in Settings →
                     </button>
@@ -1251,7 +1380,7 @@ export default function InvoicePage() {
                 </div>
 
                 {/* Tab Selection */}
-                <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2 mb-3 border-b border-accent/10">
                   <button
                     type="button"
                     onClick={() => {
@@ -1265,10 +1394,10 @@ export default function InvoicePage() {
                         amount: "",
                       });
                     }}
-                    className={`flex-1 py-2 px-4 text-sm font-semibold transition-colors ${
+                    className={`flex-1 py-1.5 px-2.5 text-xs font-semibold transition-colors ${
                       activeTab === "NGN"
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        ? "border-b-2 border-secondary text-secondary"
+                        : "text-accent/70 hover:text-white"
                     }`}
                   >
                     Fiat
@@ -1286,10 +1415,10 @@ export default function InvoicePage() {
                         amount: "",
                       });
                     }}
-                    className={`flex-1 py-2 px-4 text-sm font-semibold transition-colors ${
+                    className={`flex-1 py-1.5 px-2.5 text-xs font-semibold transition-colors ${
                       activeTab === "Crypto"
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        ? "border-b-2 border-secondary text-secondary"
+                        : "text-accent/70 hover:text-white"
                     }`}
                   >
                     Crypto
@@ -1298,37 +1427,69 @@ export default function InvoicePage() {
 
                 {activeTab === "NGN" ? (
                   /* Fiat Tab Content */
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-xs font-medium text-accent/80 mb-0.5">
                         Select currency
                       </label>
-                      <select
-                        value={formData.fiatCurrency}
-                        onChange={(e) => setFormData({ ...formData, fiatCurrency: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
-                        title="Fiat currency"
-                      >
-                        {FIAT_CURRENCIES.map((c) => (
-                          <option key={c.code} value={c.code}>{c.label}</option>
-                        ))}
-                      </select>
+                      <div className="relative" ref={currencyDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsCurrencyDropdownOpen(!isCurrencyDropdownOpen)}
+                          className="w-full rounded-lg border border-secondary/10 bg-primary/40 text-white px-2.5 py-2 pl-3 pr-8 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between text-sm"
+                          title="Fiat currency"
+                        >
+                          <span className="text-sm truncate">
+                            {FIAT_CURRENCIES.find((c) => c.code === formData.fiatCurrency)?.label || formData.fiatCurrency}
+                          </span>
+                          <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
+                            {isCurrencyDropdownOpen ? "expand_less" : "expand_more"}
+                          </span>
+                        </button>
+                        {isCurrencyDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-surface border border-secondary/10 rounded-xl shadow-xl overflow-hidden">
+                            {FIAT_CURRENCIES.map((c) => {
+                              const isSelected = formData.fiatCurrency === c.code;
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({ ...formData, fiatCurrency: c.code });
+                                    setIsCurrencyDropdownOpen(false);
+                                  }}
+                                  className={`w-full p-3 flex items-center justify-between transition-colors text-left ${
+                                    isSelected
+                                      ? "bg-secondary/10 text-secondary"
+                                      : "bg-primary/40 text-white hover:bg-surface-highlight"
+                                  }`}
+                                >
+                                  <span className="text-sm font-medium">{c.label}</span>
+                                  {isSelected && (
+                                    <span className="material-icons-outlined text-secondary text-sm">check</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Amount will be calculated from line items */}
                   </div>
                 ) : (
                   /* Crypto Tab Content */
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {/* Step 1: Select Chain/Network */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-accent/80 mb-1">
                         Select Network/Chain *
                       </label>
                       <div className="relative" ref={chainDropdownRef}>
                         <button
                           type="button"
                           onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 pl-10 pr-10 focus:ring-2 focus:ring-primary focus:border-primary flex items-center justify-between"
+                          className="w-full rounded-xl border border-accent/10 bg-primary/40 text-white px-3 py-2.5 pl-10 pr-10 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between"
                         >
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             {formData.cryptoChainId && getChainLogo(formData.cryptoChainId) ? (
@@ -1341,7 +1502,7 @@ export default function InvoicePage() {
                                 }}
                               />
                             ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                              <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                             )}
                             <span className="text-sm truncate">
                               {formData.cryptoChainId 
@@ -1349,13 +1510,13 @@ export default function InvoicePage() {
                                 : "Select a network"}
                             </span>
                           </div>
-                          <span className="material-icons-outlined text-gray-400 text-sm flex-shrink-0">
+                          <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
                             {isChainDropdownOpen ? "expand_less" : "expand_more"}
                           </span>
                         </button>
 
                         {isChainDropdownOpen && (
-                          <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-lg max-h-64 overflow-y-auto">
+                          <div className="absolute z-50 w-full mt-2 bg-surface border border-accent/10 rounded-xl shadow-xl max-h-64 overflow-y-auto">
                             {Object.values(SUPPORTED_CHAINS).map((chain) => {
                               const logoUrl = getChainLogo(chain.id);
                               const isSelected = formData.cryptoChainId === chain.id;
@@ -1376,8 +1537,8 @@ export default function InvoicePage() {
                                   }}
                                   className={`w-full p-3 flex items-center gap-3 transition-colors ${
                                     isSelected
-                                      ? "bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30"
-                                      : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                      ? "bg-secondary/10 hover:bg-secondary/20"
+                                      : "hover:bg-primary/60"
                                   }`}
                                 >
                                   {logoUrl ? (
@@ -1390,17 +1551,17 @@ export default function InvoicePage() {
                                       }}
                                     />
                                   ) : (
-                                    <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                                    <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                                   )}
                                   <span className={`text-sm font-medium flex-1 text-left ${
                                     isSelected
-                                      ? "text-primary dark:text-primary"
-                                      : "text-gray-900 dark:text-white"
+                                      ? "text-secondary"
+                                      : "text-white"
                                   }`}>
                                     {chain.name}
                                   </span>
                                   {isSelected && (
-                                    <span className="material-icons-outlined text-primary text-sm">
+                                    <span className="material-icons-outlined text-secondary text-sm">
                                       check
                                     </span>
                                   )}
@@ -1437,15 +1598,15 @@ export default function InvoicePage() {
                       
                       return (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Select Token *
-                          </label>
-                          <div className="relative" ref={tokenDropdownRef}>
-                            <button
-                              type="button"
-                              onClick={() => setIsTokenDropdownOpen(!isTokenDropdownOpen)}
-                              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 pl-10 pr-10 focus:ring-2 focus:ring-primary focus:border-primary flex items-center justify-between"
-                            >
+                      <label className="block text-sm font-medium text-accent/80 mb-1">
+                        Select Token *
+                      </label>
+                      <div className="relative" ref={tokenDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsTokenDropdownOpen(!isTokenDropdownOpen)}
+                          className="w-full rounded-xl border border-accent/10 bg-primary/40 text-white px-3 py-2.5 pl-10 pr-10 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between"
+                        >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 {formData.cryptoToken && getTokenLogo(formData.cryptoToken) ? (
                                   <img
@@ -1457,7 +1618,7 @@ export default function InvoicePage() {
                                     }}
                                   />
                                 ) : (
-                                  <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                                  <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                                 )}
                                 <span className="text-sm truncate">
                                   {formData.cryptoToken 
@@ -1465,13 +1626,13 @@ export default function InvoicePage() {
                                     : "Select a token"}
                                 </span>
                               </div>
-                              <span className="material-icons-outlined text-gray-400 text-sm flex-shrink-0">
+                              <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
                                 {isTokenDropdownOpen ? "expand_less" : "expand_more"}
                               </span>
                             </button>
 
                             {isTokenDropdownOpen && (
-                              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-lg max-h-64 overflow-y-auto">
+                              <div className="absolute z-50 w-full mt-2 bg-surface border border-accent/10 rounded-xl shadow-xl max-h-64 overflow-y-auto">
                                 {availableTokens.map((token) => {
                                   const logoUrl = getTokenLogo(token.symbol);
                                   const isSelected = formData.cryptoToken === token.symbol;
@@ -1490,7 +1651,7 @@ export default function InvoicePage() {
                                       className={`w-full p-3 flex items-center gap-3 transition-colors ${
                                         isSelected
                                           ? "bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30"
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                          : "hover:bg-white/5"
                                       }`}
                                     >
                                       {logoUrl ? (
@@ -1503,12 +1664,12 @@ export default function InvoicePage() {
                                           }}
                                         />
                                       ) : (
-                                        <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                                        <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                                       )}
                                       <span className={`text-sm font-medium flex-1 text-left ${
                                         isSelected
                                           ? "text-primary dark:text-primary"
-                                          : "text-gray-900 dark:text-white"
+                                          : "text-white"
                                       }`}>
                                         {token.label}
                                       </span>
@@ -1528,67 +1689,19 @@ export default function InvoicePage() {
                     })()}
 
                     {/* Amount will be calculated from line items */}
-
-                    {/* Wallet Address Input */}
-                    {formData.cryptoChainId && (
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Wallet Address (Optional)
-                          </label>
-                          {(() => {
-                            const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
-                            const defaultAddress = walletAddresses[formData.cryptoChainId] || "";
-                            const isUsingDefault = formData.cryptoAddress === defaultAddress;
-                            
-                            if (defaultAddress && !isUsingDefault) {
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFormData({ ...formData, cryptoAddress: defaultAddress });
-                                  }}
-                                  className="text-xs text-primary hover:underline font-semibold"
-                                >
-                                  Use my wallet address
-                                </button>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.cryptoAddress}
-                          onChange={(e) => setFormData({ ...formData, cryptoAddress: e.target.value })}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary font-mono text-sm"
-                          placeholder="Enter custom wallet address (optional)"
-                        />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {(() => {
-                            const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
-                            const defaultAddress = walletAddresses[formData.cryptoChainId] || "";
-                            if (defaultAddress) {
-                              return `If left empty, will use your ${formData.cryptoChainId} wallet: ${defaultAddress.slice(0, 6)}...${defaultAddress.slice(-4)}`;
-                            }
-                            return "Enter a custom wallet address (optional). If empty, you'll need to add a wallet address in your crypto dashboard first.";
-                          })()}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
 
                 {/* Line Items Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60">
                       Items
                     </label>
                     <button
                       type="button"
                       onClick={addLineItem}
-                      className="text-sm text-primary hover:text-primary/80 font-semibold flex items-center gap-1"
+                      className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1 transition-colors"
                     >
                       <span className="material-icons-outlined text-sm">add</span>
                       Add Item
@@ -1603,7 +1716,7 @@ export default function InvoicePage() {
                             type="text"
                             value={item.description}
                             onChange={(e) => updateLineItem(item.id, "description", e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                            className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                             placeholder="Item description"
                           />
                           <input
@@ -1612,7 +1725,7 @@ export default function InvoicePage() {
                             min="0"
                             value={item.amount}
                             onChange={(e) => updateLineItem(item.id, "amount", e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                            className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                             placeholder="Amount"
                           />
                         </div>
@@ -1631,12 +1744,12 @@ export default function InvoicePage() {
                   </div>
                   
                   {/* Total Display */}
-                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="mt-3 p-3 bg-primary/40 rounded-lg border border-secondary/10">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <span className="text-sm font-semibold text-accent/80">
                         Total:
                       </span>
-                      <span className="text-lg font-bold text-primary">
+                      <span className="text-lg font-bold text-secondary font-display">
                         {activeTab === "NGN" 
                           ? (formData.fiatCurrency === "NGN" 
                               ? `₦${calculateTotal(lineItems).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -1647,99 +1760,121 @@ export default function InvoicePage() {
                     </div>
                   </div>
                 </div>
+                </>
+                )}
 
-                {/* Bank Details - NGN only */}
-                {activeTab === "NGN" && (
-                  <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Bank Details (for Fiat payment)</p>
+                {/* Step 2: Payment */}
+                {createStep === 2 && (
+                <>
+                {activeTab === "NGN" ? (
+                  <div className="space-y-3 p-3 bg-primary/40 border border-secondary/10 rounded-xl">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent/60">Bank Details (for Fiat payment)</p>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Account Name
-                      </label>
+                      <label className="block text-sm font-medium text-accent/80 mb-1">Account Name</label>
                       <input
                         type="text"
                         value={formData.accountName}
                         onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                        className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                         placeholder="Account name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Account Number
-                      </label>
+                      <label className="block text-sm font-medium text-accent/80 mb-1">Account Number</label>
                       <input
                         type="text"
                         value={formData.accountNumber}
                         onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                        className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                         placeholder="Account number"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Bank
-                      </label>
+                      <label className="block text-sm font-medium text-accent/80 mb-1">Bank</label>
                       <input
                         type="text"
                         value={formData.bank}
                         onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                        className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                         placeholder="Bank name"
                       />
                     </div>
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent/60">Wallet address</p>
+                    <p className="text-sm text-accent/80">
+                      {(() => {
+                        const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
+                        const defaultAddress = walletAddresses[formData.cryptoChainId] || "";
+                        if (defaultAddress) {
+                          return `Default: ${defaultAddress.slice(0, 10)}...${defaultAddress.slice(-8)}`;
+                        }
+                        return "Add a wallet in your dashboard, or enter a custom address below.";
+                      })()}
+                    </p>
+                    {!showCustomWallet ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomWallet(true)}
+                        className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1"
+                      >
+                        <span className="material-icons-outlined text-sm">add</span>
+                        Use custom wallet address
+                      </button>
+                    ) : (
+                      <div>
+                        <input
+                          type="text"
+                          value={formData.cryptoAddress}
+                          onChange={(e) => setFormData({ ...formData, cryptoAddress: e.target.value })}
+                          className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40 font-mono text-sm"
+                          placeholder="Enter custom wallet address"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setShowCustomWallet(false); setFormData({ ...formData, cryptoAddress: "" }); }}
+                          className="text-xs text-accent/60 hover:text-white mt-1"
+                        >
+                          Use default instead
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                </>
                 )}
 
-                {/* Optional Description Field */}
+                {/* Step 3: Who & When */}
+                {createStep === 3 && (
+                <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Additional Notes (Optional)
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
-                    rows={2}
-                    placeholder="Additional notes or terms..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Customer Name
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Customer Name</label>
                   <input
                     type="text"
                     value={formData.customerName}
                     onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                     placeholder="Customer name"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Customer Email
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Customer Email</label>
                   <input
                     type="email"
                     value={formData.customerEmail}
                     onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                     placeholder="customer@example.com"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Customer Phone
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Customer Phone (optional)</label>
                   <div className="flex gap-2">
                     <select
                       value={formData.customerPhoneCountryCode}
                       onChange={(e) => setFormData({ ...formData, customerPhoneCountryCode: e.target.value })}
-                      className="w-[130px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary flex-shrink-0"
+                      className="w-[130px] rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary flex-shrink-0"
                       title="Country code"
                     >
                       {PHONE_COUNTRY_CODES.map((c) => (
@@ -1750,43 +1885,112 @@ export default function InvoicePage() {
                       type="tel"
                       value={formData.customerPhone}
                       onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                      className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="flex-1 min-w-0 rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                       placeholder="801 234 5678"
                     />
                   </div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Due Date
-                  </label>
+                  <label className="block text-sm font-medium text-accent/80 mb-1">Due Date</label>
                   <input
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary"
                   />
                 </div>
-                </div>
-
-                <div className="flex gap-3 pt-4 p-6 flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
+                {!showAdditionalNotes ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowCreateForm(false);
-                      setActiveTab("NGN");
-                    }}
-                    className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    onClick={() => setShowAdditionalNotes(true)}
+                    className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1"
                   >
-                    Cancel
+                    <span className="material-icons-outlined text-sm">add</span>
+                    Add notes (optional)
                   </button>
-                  <button
-                    type="submit"
-                    disabled={isCreating}
-                    className="flex-1 bg-primary text-secondary font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    {isCreating ? "Creating..." : "Create Invoice"}
-                  </button>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-accent/80 mb-1">Additional Notes</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
+                      rows={2}
+                      placeholder="Additional notes or terms..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setShowAdditionalNotes(false); setFormData({ ...formData, description: "" }); }}
+                      className="text-xs text-accent/60 hover:text-white mt-1"
+                    >
+                      Remove notes
+                    </button>
+                  </div>
+                )}
+                </>
+                )}
+
+                <div className="flex gap-2 pt-3 p-4 flex-shrink-0 border-t border-accent/10">
+                  {createStep === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateForm(false);
+                        setCreateStep(1);
+                        setActiveTab("NGN");
+                      }}
+                      className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2 px-3 rounded-lg hover:bg-primary/60 transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCreateStep((s) => (s - 1) as 1 | 2 | 3)}
+                      className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2 px-3 rounded-lg hover:bg-primary/60 transition-colors text-sm"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {createStep < 3 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const validItems = lineItems.filter(item =>
+                          item.description.trim() && item.amount && parseFloat(item.amount) > 0
+                        );
+                        if (createStep === 1) {
+                          if (validItems.length === 0) {
+                            setToast({ message: "Add at least one item with description and amount", type: "error", isVisible: true });
+                            return;
+                          }
+                          if (activeTab === "Crypto" && (!formData.cryptoChainId || !formData.cryptoToken)) {
+                            setToast({ message: "Select network and token", type: "error", isVisible: true });
+                            return;
+                          }
+                        }
+                        if (createStep === 2 && activeTab === "NGN") {
+                          if (!formData.accountName?.trim() || !formData.accountNumber?.trim() || !formData.bank?.trim()) {
+                            setToast({ message: "Fill in bank details", type: "error", isVisible: true });
+                            return;
+                          }
+                        }
+                        setCreateStep((s) => (s + 1) as 1 | 2 | 3);
+                      }}
+                      className="flex-1 bg-secondary text-primary font-bold py-2 px-3 rounded-lg hover:bg-secondary/90 transition-colors shadow-[0_0_15px_rgba(19,236,90,0.2)] text-sm"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={isCreating}
+                      className="flex-1 bg-secondary text-primary font-bold py-2 px-3 rounded-lg hover:bg-secondary/90 transition-colors disabled:opacity-50 shadow-[0_0_15px_rgba(19,236,90,0.2)] text-sm"
+                    >
+                      {isCreating ? "Creating..." : "Create Invoice"}
+                    </button>
+                  )}
+                </div>
                 </div>
               </form>
             </div>
@@ -1796,39 +2000,39 @@ export default function InvoicePage() {
         {/* Edit Invoice Modal */}
         {editingInvoice && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto"
             onClick={() => {
               setEditingInvoice(null);
               setEditActiveTab("NGN");
             }}
           >
             <div
-              className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col border-2 border-primary/20 my-4"
+              className="bg-surface/95 backdrop-blur-[24px] rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col border border-secondary/10 my-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Invoice</h2>
+              <div className="flex items-center justify-between p-4 pb-0 flex-shrink-0">
+                <h2 className="text-lg font-bold text-white font-display">Edit Invoice</h2>
                 <button
                   onClick={() => {
                     setEditingInvoice(null);
                     setEditActiveTab("NGN");
                   }}
-                  className="text-gray-600 hover:text-gray-900 dark:text-white/60 dark:hover:text-white"
+                  className="text-accent/70 hover:text-white p-1 rounded-lg hover:bg-white/5"
                 >
                   <span className="material-icons-outlined">close</span>
                 </button>
               </div>
 
               <form onSubmit={handleUpdateInvoice} className="flex flex-col flex-1 min-h-0">
-                <div className="overflow-y-auto flex-1 p-6 pt-4 space-y-4">
+                <div className="overflow-y-auto flex-1 p-4 pt-3 space-y-4">
                 {/* Invoice Type Display (read-only, managed in Settings) */}
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                <div className="mb-3 p-3 bg-primary/40 border border-secondary/10 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Invoice Type: <span className="capitalize">{editFormData.invoiceType}</span>
+                      <p className="text-sm font-medium text-accent/90">
+                        Invoice Type: <span className="capitalize text-white">{editFormData.invoiceType}</span>
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      <p className="text-xs text-accent/60 mt-1">
                         {editFormData.invoiceType === "personal" 
                           ? "Invoice will show your personal name and email"
                           : "Invoice will show your business information and logo"}
@@ -1837,7 +2041,7 @@ export default function InvoicePage() {
                     <button
                       type="button"
                       onClick={() => router.push("/settings")}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      className="text-xs text-secondary hover:underline font-medium"
                     >
                       Change in Settings →
                     </button>
@@ -1845,7 +2049,7 @@ export default function InvoicePage() {
                 </div>
 
                 {/* Tab Selection */}
-                <div className="flex gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2 mb-3 border-b border-accent/10">
                   <button
                     type="button"
                     onClick={() => {
@@ -1861,8 +2065,8 @@ export default function InvoicePage() {
                     }}
                     className={`flex-1 py-2 px-4 text-sm font-semibold transition-colors ${
                       editActiveTab === "NGN"
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        ? "border-b-2 border-secondary text-secondary"
+                        : "text-accent/70 hover:text-white"
                     }`}
                   >
                     Fiat
@@ -1882,8 +2086,8 @@ export default function InvoicePage() {
                     }}
                     className={`flex-1 py-2 px-4 text-sm font-semibold transition-colors ${
                       editActiveTab === "Crypto"
-                        ? "border-b-2 border-primary text-primary"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                        ? "border-b-2 border-secondary text-secondary"
+                        : "text-accent/70 hover:text-white"
                     }`}
                   >
                     Crypto
@@ -1891,35 +2095,67 @@ export default function InvoicePage() {
                 </div>
 
                 {editActiveTab === "NGN" ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-xs font-medium text-accent/80 mb-0.5">
                         Select currency
                       </label>
-                      <select
-                        value={editFormData.fiatCurrency}
-                        onChange={(e) => setEditFormData({ ...editFormData, fiatCurrency: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
-                        title="Fiat currency"
-                      >
-                        {FIAT_CURRENCIES.map((c) => (
-                          <option key={c.code} value={c.code}>{c.label}</option>
-                        ))}
-                      </select>
+                      <div className="relative" ref={editCurrencyDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditCurrencyDropdownOpen(!isEditCurrencyDropdownOpen)}
+                          className="w-full rounded-xl border border-secondary/10 bg-primary/40 text-white px-3 py-2.5 pl-4 pr-10 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between"
+                          title="Fiat currency"
+                        >
+                          <span className="text-sm truncate">
+                            {FIAT_CURRENCIES.find((c) => c.code === editFormData.fiatCurrency)?.label || editFormData.fiatCurrency}
+                          </span>
+                          <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
+                            {isEditCurrencyDropdownOpen ? "expand_less" : "expand_more"}
+                          </span>
+                        </button>
+                        {isEditCurrencyDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-surface border border-secondary/10 rounded-xl shadow-xl overflow-hidden">
+                            {FIAT_CURRENCIES.map((c) => {
+                              const isSelected = editFormData.fiatCurrency === c.code;
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditFormData({ ...editFormData, fiatCurrency: c.code });
+                                    setIsEditCurrencyDropdownOpen(false);
+                                  }}
+                                  className={`w-full p-3 flex items-center justify-between transition-colors text-left ${
+                                    isSelected
+                                      ? "bg-secondary/10 text-secondary"
+                                      : "bg-primary/40 text-white hover:bg-surface-highlight"
+                                  }`}
+                                >
+                                  <span className="text-sm font-medium">{c.label}</span>
+                                  {isSelected && (
+                                    <span className="material-icons-outlined text-secondary text-sm">check</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* Amount will be calculated from line items */}
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-accent/80 mb-1">
                         Select Network/Chain *
                       </label>
                       <div className="relative" ref={editChainDropdownRef}>
                         <button
                           type="button"
                           onClick={() => setIsEditChainDropdownOpen(!isEditChainDropdownOpen)}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 pl-10 pr-10 focus:ring-2 focus:ring-primary focus:border-primary flex items-center justify-between"
+                          className="w-full rounded-xl border border-accent/10 bg-primary/40 text-white px-3 py-2.5 pl-10 pr-10 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between"
                         >
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             {editFormData.cryptoChainId && getChainLogo(editFormData.cryptoChainId) ? (
@@ -1932,7 +2168,7 @@ export default function InvoicePage() {
                                 }}
                               />
                             ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                              <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                             )}
                             <span className="text-sm truncate">
                               {editFormData.cryptoChainId 
@@ -1940,13 +2176,13 @@ export default function InvoicePage() {
                                 : "Select a network"}
                             </span>
                           </div>
-                          <span className="material-icons-outlined text-gray-400 text-sm flex-shrink-0">
+                          <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
                             {isEditChainDropdownOpen ? "expand_less" : "expand_more"}
                           </span>
                         </button>
 
                         {isEditChainDropdownOpen && (
-                          <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-lg max-h-64 overflow-y-auto">
+                          <div className="absolute z-50 w-full mt-2 bg-surface border border-accent/10 rounded-xl shadow-xl max-h-64 overflow-y-auto">
                             {Object.values(SUPPORTED_CHAINS).map((chain) => {
                               const logoUrl = getChainLogo(chain.id);
                               const isSelected = editFormData.cryptoChainId === chain.id;
@@ -1967,8 +2203,8 @@ export default function InvoicePage() {
                                   }}
                                   className={`w-full p-3 flex items-center gap-3 transition-colors ${
                                     isSelected
-                                      ? "bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30"
-                                      : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                      ? "bg-secondary/10 hover:bg-secondary/20"
+                                      : "hover:bg-primary/60"
                                   }`}
                                 >
                                   {logoUrl ? (
@@ -1981,17 +2217,17 @@ export default function InvoicePage() {
                                       }}
                                     />
                                   ) : (
-                                    <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                                    <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                                   )}
                                   <span className={`text-sm font-medium flex-1 text-left ${
                                     isSelected
-                                      ? "text-primary dark:text-primary"
-                                      : "text-gray-900 dark:text-white"
+                                      ? "text-secondary"
+                                      : "text-white"
                                   }`}>
                                     {chain.name}
                                   </span>
                                   {isSelected && (
-                                    <span className="material-icons-outlined text-primary text-sm">
+                                    <span className="material-icons-outlined text-secondary text-sm">
                                       check
                                     </span>
                                   )}
@@ -2027,14 +2263,14 @@ export default function InvoicePage() {
                       
                       return (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-accent/80 mb-1">
                             Select Token *
                           </label>
                           <div className="relative" ref={editTokenDropdownRef}>
                             <button
                               type="button"
                               onClick={() => setIsEditTokenDropdownOpen(!isEditTokenDropdownOpen)}
-                              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 pl-10 pr-10 focus:ring-2 focus:ring-primary focus:border-primary flex items-center justify-between"
+                              className="w-full rounded-xl border border-accent/10 bg-primary/40 text-white px-3 py-2.5 pl-10 pr-10 focus:ring-2 focus:ring-secondary focus:border-secondary flex items-center justify-between"
                             >
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 {editFormData.cryptoToken && getTokenLogo(editFormData.cryptoToken) ? (
@@ -2047,7 +2283,7 @@ export default function InvoicePage() {
                                     }}
                                   />
                                 ) : (
-                                  <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                                  <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                                 )}
                                 <span className="text-sm truncate">
                                   {editFormData.cryptoToken 
@@ -2055,13 +2291,13 @@ export default function InvoicePage() {
                                     : "Select a token"}
                                 </span>
                               </div>
-                              <span className="material-icons-outlined text-gray-400 text-sm flex-shrink-0">
+                              <span className="material-icons-outlined text-accent/60 text-sm flex-shrink-0">
                                 {isEditTokenDropdownOpen ? "expand_less" : "expand_more"}
                               </span>
                             </button>
 
                             {isEditTokenDropdownOpen && (
-                              <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-gray-600 shadow-lg max-h-64 overflow-y-auto">
+                              <div className="absolute z-50 w-full mt-2 bg-surface border border-accent/10 rounded-xl shadow-xl max-h-64 overflow-y-auto">
                                 {availableTokens.map((token) => {
                                   const logoUrl = getTokenLogo(token.symbol);
                                   const isSelected = editFormData.cryptoToken === token.symbol;
@@ -2080,7 +2316,7 @@ export default function InvoicePage() {
                                       className={`w-full p-3 flex items-center gap-3 transition-colors ${
                                         isSelected
                                           ? "bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30"
-                                          : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                          : "hover:bg-white/5"
                                       }`}
                                     >
                                       {logoUrl ? (
@@ -2093,12 +2329,12 @@ export default function InvoicePage() {
                                           }}
                                         />
                                       ) : (
-                                        <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex-shrink-0"></div>
+                                        <div className="w-5 h-5 rounded-full bg-primary/60 flex-shrink-0"></div>
                                       )}
                                       <span className={`text-sm font-medium flex-1 text-left ${
                                         isSelected
                                           ? "text-primary dark:text-primary"
-                                          : "text-gray-900 dark:text-white"
+                                          : "text-white"
                                       }`}>
                                         {token.label}
                                       </span>
@@ -2123,7 +2359,7 @@ export default function InvoicePage() {
                     {editFormData.cryptoChainId && (
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                          <label className="block text-sm font-medium text-accent/80">
                             Wallet Address (Optional)
                           </label>
                           {(() => {
@@ -2151,10 +2387,10 @@ export default function InvoicePage() {
                           type="text"
                           value={editFormData.cryptoAddress}
                           onChange={(e) => setEditFormData({ ...editFormData, cryptoAddress: e.target.value })}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary font-mono text-sm"
+                          className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40 font-mono text-sm"
                           placeholder="Enter custom wallet address (optional)"
                         />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-accent/60 mt-1">
                           {(() => {
                             const walletAddresses = user?.wallet_addresses as Record<string, string> || {};
                             const defaultAddress = walletAddresses[editFormData.cryptoChainId] || "";
@@ -2172,13 +2408,13 @@ export default function InvoicePage() {
                 {/* Line Items Section */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60">
                       Items
                     </label>
                     <button
                       type="button"
                       onClick={addEditLineItem}
-                      className="text-sm text-primary hover:text-primary/80 font-semibold flex items-center gap-1"
+                      className="text-sm text-secondary hover:text-secondary/80 font-semibold flex items-center gap-1 transition-colors"
                     >
                       <span className="material-icons-outlined text-sm">add</span>
                       Add Item
@@ -2193,7 +2429,7 @@ export default function InvoicePage() {
                             type="text"
                             value={item.description}
                             onChange={(e) => updateEditLineItem(item.id, "description", e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                            className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                             placeholder="Item description"
                           />
                           <input
@@ -2202,7 +2438,7 @@ export default function InvoicePage() {
                             min="0"
                             value={item.amount}
                             onChange={(e) => updateEditLineItem(item.id, "amount", e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                            className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 text-sm focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                             placeholder="Amount"
                           />
                         </div>
@@ -2221,12 +2457,12 @@ export default function InvoicePage() {
                   </div>
                   
                   {/* Total Display */}
-                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="mt-3 p-3 bg-primary/40 rounded-lg border border-secondary/10">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      <span className="text-sm font-semibold text-accent/80">
                         Total:
                       </span>
-                      <span className="text-lg font-bold text-primary">
+                      <span className="text-lg font-bold text-secondary font-display">
                         {editActiveTab === "NGN" 
                           ? (editFormData.fiatCurrency === "NGN" 
                               ? `₦${calculateTotal(editLineItems).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -2240,41 +2476,41 @@ export default function InvoicePage() {
 
                 {/* Bank Details - NGN only */}
                 {editActiveTab === "NGN" && (
-                  <div className="space-y-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">Bank Details (for Fiat payment)</p>
+                  <div className="space-y-3 p-3 bg-primary/40 border border-secondary/10 rounded-xl">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-accent/60">Bank Details (for Fiat payment)</p>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-accent/80 mb-1">
                         Account Name
                       </label>
                       <input
                         type="text"
                         value={editFormData.accountName}
                         onChange={(e) => setEditFormData({ ...editFormData, accountName: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                        className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                         placeholder="Account name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-accent/80 mb-1">
                         Account Number
                       </label>
                       <input
                         type="text"
                         value={editFormData.accountNumber}
                         onChange={(e) => setEditFormData({ ...editFormData, accountNumber: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                        className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                         placeholder="Account number"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label className="block text-sm font-medium text-accent/80 mb-1">
                         Bank
                       </label>
                       <input
                         type="text"
                         value={editFormData.bank}
                         onChange={(e) => setEditFormData({ ...editFormData, bank: e.target.value })}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                        className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                         placeholder="Bank name"
                       />
                     </div>
@@ -2283,53 +2519,53 @@ export default function InvoicePage() {
 
                 {/* Optional Description Field */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-accent/80 mb-1">
                     Additional Notes (Optional)
                   </label>
                   <textarea
                     value={editFormData.description}
                     onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                     rows={2}
                     placeholder="Additional notes or terms..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-accent/80 mb-1">
                     Customer Name
                   </label>
                   <input
                     type="text"
                     value={editFormData.customerName}
                     onChange={(e) => setEditFormData({ ...editFormData, customerName: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                     placeholder="Customer name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-accent/80 mb-1">
                     Customer Email
                   </label>
                   <input
                     type="email"
                     value={editFormData.customerEmail}
                     onChange={(e) => setEditFormData({ ...editFormData, customerEmail: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                     placeholder="customer@example.com"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-accent/80 mb-1">
                     Customer Phone
                   </label>
                   <div className="flex gap-2">
                     <select
                       value={editFormData.customerPhoneCountryCode}
                       onChange={(e) => setEditFormData({ ...editFormData, customerPhoneCountryCode: e.target.value })}
-                      className="w-[130px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary flex-shrink-0"
+                      className="w-[130px] rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40 flex-shrink-0"
                       title="Country code"
                     >
                       {PHONE_COUNTRY_CODES.map((c) => (
@@ -2340,33 +2576,33 @@ export default function InvoicePage() {
                       type="tel"
                       value={editFormData.customerPhone}
                       onChange={(e) => setEditFormData({ ...editFormData, customerPhone: e.target.value })}
-                      className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                      className="flex-1 min-w-0 rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                       placeholder="801 234 5678"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-accent/80 mb-1">
                     Due Date
                   </label>
                   <input
                     type="date"
                     value={editFormData.dueDate}
                     onChange={(e) => setEditFormData({ ...editFormData, dueDate: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
                   />
                 </div>
                 </div>
 
-                <div className="flex gap-3 pt-4 p-6 flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-3 pt-4 p-6 flex-shrink-0 border-t border-accent/10">
                   <button
                     type="button"
                     onClick={() => {
                       setEditingInvoice(null);
                       setEditActiveTab("NGN");
                     }}
-                    className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary/60 transition-colors"
                   >
                     Cancel
                   </button>
@@ -2391,7 +2627,7 @@ export default function InvoicePage() {
           onClick={handleCancelDelete}
         >
           <div
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-6 border-2 border-red-200 dark:border-red-800"
+            className="bg-surface/95 backdrop-blur-[24px] rounded-xl shadow-xl max-w-md w-full p-4 border border-accent/10"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -2401,16 +2637,16 @@ export default function InvoicePage() {
                 </span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Delete Invoice</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">This action cannot be undone</p>
+                <h2 className="text-xl font-bold text-white">Delete Invoice</h2>
+                <p className="text-sm text-accent/70">This action cannot be undone</p>
               </div>
             </div>
             
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-              <p className="text-sm text-gray-900 dark:text-white mb-2">
+            <div className="mb-6 p-4 bg-red-500/10 rounded-lg border border-red-500/30">
+              <p className="text-sm text-white mb-2">
                 Are you sure you want to delete invoice <span className="font-semibold">{invoiceToDelete.invoice_number}</span>?
               </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
+              <p className="text-xs text-accent/70">
                 Amount: {FIAT_CODES.includes(invoiceToDelete.currency)
                   ? (invoiceToDelete.currency === "NGN" ? "₦" : invoiceToDelete.currency === "USD" ? "$" : invoiceToDelete.currency === "EUR" ? "€" : invoiceToDelete.currency === "GBP" ? "£" : "") + parseFloat(invoiceToDelete.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (invoiceToDelete.currency !== "NGN" ? ` ${invoiceToDelete.currency}` : "")
                   : `${parseFloat(invoiceToDelete.amount.toString()).toLocaleString()} ${invoiceToDelete.currency}`
@@ -2422,7 +2658,7 @@ export default function InvoicePage() {
               <button
                 onClick={handleCancelDelete}
                 disabled={deletingInvoice !== null}
-                className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                className="flex-1 bg-primary/40 border border-accent/10 text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary/60 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -2433,7 +2669,7 @@ export default function InvoicePage() {
               >
                 {deletingInvoice === invoiceToDelete.invoice_number ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <FSpinner size="xs" className="border-white" />
                     Deleting...
                   </>
                 ) : (
@@ -2456,5 +2692,6 @@ export default function InvoicePage() {
         onClose={() => setToast({ ...toast, isVisible: false })}
       />
     </div>
+    </DashboardLayout>
   );
 }

@@ -10,8 +10,10 @@ import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { decryptSeedPhrase } from "@/lib/wallet";
 import { getChainLogo } from "@/lib/logos";
+import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import dynamic from "next/dynamic";
-import BottomNavigation from "@/components/BottomNavigation";
+import DashboardLayout from "@/components/DashboardLayout";
 
 // Lazy load QRCode component to reduce initial bundle
 const QRCodeSVG = dynamic(() => import("qrcode.react").then(mod => ({ default: mod.QRCodeSVG })), {
@@ -287,230 +289,206 @@ export default function ReceivePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark relative">
-      {/* Header Background */}
-      <div className="absolute top-0 left-0 w-full h-[200px] bg-primary rounded-b-[3rem] z-0 overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
-        <div className="absolute top-20 -left-10 w-48 h-48 bg-white opacity-10 rounded-full blur-2xl"></div>
+    <DashboardLayout>
+    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-4 pb-24 lg:pb-8">
+      {/* Background blur orbs */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
       </div>
 
-      <div className="relative z-10 p-4">
-        <div className="max-w-md mx-auto">
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6 text-secondary">
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-secondary/10 rounded-lg transition"
-            >
-              <span className="material-icons-outlined text-secondary">arrow_back</span>
-            </button>
-            <h1 className="text-2xl font-bold text-secondary">Receive</h1>
-          </div>
-          
-          {/* Main Card */}
-          <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-            {/* Type Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                Receive Type
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setReceiveType("ngn")}
-                  className={`p-3 rounded-xl border-2 transition-all ${
-                    receiveType === "ngn"
-                      ? "bg-primary border-primary text-secondary dark:text-white shadow-md"
-                      : "bg-light-blue/50 dark:bg-secondary/40 border-primary/30 dark:border-white/30 text-gray-900 dark:text-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="material-icons-outlined">account_balance</span>
-                    <span className="font-semibold">NGN</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setReceiveType("crypto")}
-                  className={`p-3 rounded-xl border-2 transition-all ${
-                    receiveType === "crypto"
-                      ? "bg-primary border-primary text-secondary dark:text-white shadow-md"
-                      : "bg-light-blue/50 dark:bg-secondary/40 border-primary/30 dark:border-white/30 text-gray-900 dark:text-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 justify-center">
-                    <span className="material-icons-outlined">currency_bitcoin</span>
-                    <span className="font-semibold">Crypto</span>
-                  </div>
-                </button>
-              </div>
-            </div>
+      <div className="w-full max-w-lg mt-8 lg:mt-16 relative">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <button
+            onClick={() => router.back()}
+            className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
+          >
+            <span className="material-icons-outlined">arrow_back</span>
+          </button>
+          <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">Receive</h1>
+          <p className="text-accent/70">
+            {receiveType === "crypto" ? "Get your wallet address to receive crypto" : "Share your virtual account to receive NGN"}
+          </p>
+        </div>
 
-            {receiveType === "crypto" ? (
-              <>
-                {/* Chain selector */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                      Select Chain
-                    </label>
-                    <button
-                      onClick={() => {
-                        console.log("[Receive] Manual refresh triggered");
-                        fetchWalletAddresses();
-                      }}
-                      className="text-xs text-background-dark dark:text-white hover:text-background-dark dark:hover:text-white/90 flex items-center gap-1 font-semibold"
-                      title="Refresh addresses"
-                    >
-                      <span className="material-icons-outlined text-sm">refresh</span>
-                      <span>Refresh</span>
-                    </button>
-                  </div>
-                  {/* Custom Dropdown with Logos */}
-                  <div className="relative" ref={dropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="w-full p-3 border border-primary/30 dark:border-white/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-background-dark dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-primary/50 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        {getChainLogo(selectedChain) ? (
-                          <Image
-                            src={getChainLogo(selectedChain)}
-                            alt={chainConfig?.name || selectedChain}
-                            width={24}
-                            height={24}
-                            className="rounded-full"
-                            unoptimized
-                            onError={(e) => {
-                              // Fallback if image fails to load
-                              console.error(`Failed to load logo for ${selectedChain}`);
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
-                                <span className="text-xs text-background-dark dark:text-white font-bold">{(chainConfig?.name || selectedChain).charAt(0)}</span>
+        {/* Main Card - glass style */}
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] p-6 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl -z-10" />
+
+          {/* Type Selector */}
+          <div className="mb-6">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+              Receive Type
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setReceiveType("ngn")}
+                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                  receiveType === "ngn"
+                    ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
+                    : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
+                }`}
+              >
+                <span className="material-icons-outlined">account_balance</span>
+                <span className="font-semibold">NGN</span>
+              </button>
+              <button
+                onClick={() => setReceiveType("crypto")}
+                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                  receiveType === "crypto"
+                    ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
+                    : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
+                }`}
+              >
+                <span className="material-icons-outlined">currency_bitcoin</span>
+                <span className="font-semibold">Crypto</span>
+              </button>
+            </div>
+          </div>
+
+          {receiveType === "crypto" ? (
+            <>
+              {/* Chain selector */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60">
+                    Select Chain
+                  </label>
+                  <button
+                    onClick={() => fetchWalletAddresses()}
+                    className="text-xs text-accent/80 hover:text-secondary flex items-center gap-1 font-semibold transition-colors"
+                    title="Refresh addresses"
+                  >
+                    <span className="material-icons-outlined text-sm">refresh</span>
+                    <span>Refresh</span>
+                  </button>
+                </div>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="w-full p-5 rounded-3xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-secondary/30"
+                  >
+                    <div className="flex items-center gap-4">
+                      {getChainLogo(selectedChain) ? (
+                        <Image
+                          src={getChainLogo(selectedChain)}
+                          alt={chainConfig?.name || selectedChain}
+                          width={32}
+                          height={32}
+                          className="rounded-full"
+                          unoptimized
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-accent/10">
+                          <span className="material-icons-outlined text-sm text-secondary">hub</span>
+                        </div>
+                      )}
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-white">{chainConfig?.name || selectedChain}</div>
+                        {Object.keys(walletAddresses).length > 0 && (
+                          <div className="text-[10px] text-secondary font-medium uppercase tracking-widest">
+                            {Object.keys(walletAddresses).length} chain{Object.keys(walletAddresses).length !== 1 ? "s" : ""} available
                           </div>
                         )}
-                        <span className="text-background-dark dark:text-white font-bold">{chainConfig?.name || selectedChain}</span>
                       </div>
-                      <span className="material-icons-outlined text-sm text-background-dark dark:text-white">
-                        {isDropdownOpen ? "expand_less" : "expand_more"}
-                      </span>
-                    </button>
+                    </div>
+                    <span className="material-icons-outlined text-accent/40">{isDropdownOpen ? "expand_less" : "expand_more"}</span>
+                  </button>
 
-                    {isDropdownOpen && (
-                      <div className="absolute z-50 w-full mt-2 bg-light-blue dark:bg-background-dark/95 backdrop-blur-md rounded-xl border border-primary/30 dark:border-primary/50 shadow-lg max-h-64 overflow-y-auto">
-                        {Object.entries(SUPPORTED_CHAINS).map(([chainId, chain]) => (
-                          <button
-                            key={chainId}
-                            type="button"
-                            onClick={() => {
-                              setSelectedChain(chainId);
-                              setIsDropdownOpen(false);
-                              console.log("[Receive] Chain changed to:", chainId);
-                            }}
-                            className={`w-full p-3 flex items-center gap-3 transition-colors ${
-                              selectedChain === chainId 
-                                ? "bg-primary/20 dark:bg-primary/30 hover:bg-primary/30 dark:hover:bg-primary/40" 
-                                : "hover:bg-gray-100 dark:hover:bg-gray-700/50"
-                            }`}
-                          >
-                            {getChainLogo(chainId) ? (
-                              <Image
-                                src={getChainLogo(chainId)}
-                                alt={chain.name}
-                                width={24}
-                                height={24}
-                                className="rounded-full"
-                                unoptimized
-                                onError={(e) => {
-                                  // Fallback if image fails to load
-                                  console.error(`Failed to load logo for ${chainId}`);
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
-                                <span className="text-xs text-background-dark dark:text-white font-bold">{chain.name.charAt(0)}</span>
-                              </div>
-                            )}
-                            <span className={`font-bold ${
-                              selectedChain === chainId 
-                                ? "text-background-dark dark:text-white" 
-                                : "text-background-dark dark:text-white"
-                            }`}>{chain.name}</span>
-                            {selectedChain === chainId && (
-                              <span className="material-icons-outlined text-primary dark:text-primary ml-auto text-sm">
-                                check
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {Object.keys(walletAddresses).length > 0 && (
-                    <p className="text-xs text-background-dark dark:text-white mt-1 font-bold">
-                      Available: {Object.keys(walletAddresses).map(c => SUPPORTED_CHAINS[c]?.name || c).join(", ")}
-                    </p>
+                  {isDropdownOpen && (
+                    <div className="absolute z-50 w-full mt-2 bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/20 shadow-xl max-h-64 overflow-y-auto">
+                      {Object.entries(SUPPORTED_CHAINS).map(([chainId, chain]) => (
+                        <button
+                          key={chainId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedChain(chainId);
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full p-4 flex items-center gap-3 transition-colors rounded-xl ${
+                            selectedChain === chainId 
+                              ? "bg-secondary/10 hover:bg-secondary/15" 
+                              : "hover:bg-white/5"
+                          }`}
+                        >
+                          {getChainLogo(chainId) ? (
+                            <Image
+                              src={getChainLogo(chainId)}
+                              alt={chain.name}
+                              width={24}
+                              height={24}
+                              className="rounded-full"
+                              unoptimized
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center">
+                              <span className="text-xs text-white font-bold">{chain.name.charAt(0)}</span>
+                            </div>
+                          )}
+                          <span className="font-bold text-white">{chain.name}</span>
+                          {selectedChain === chainId && (
+                            <span className="material-icons-outlined text-secondary ml-auto text-sm">check</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
+              </div>
 
-                {/* Address display */}
-                {loadingAddresses ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-background-dark/70 dark:text-white/70">Loading wallet addresses...</p>
-                  </div>
-                ) : !hasPasskey ? (
-                  <div className="text-center py-8">
-                    <span className="material-icons-outlined text-6xl text-background-dark/30 dark:text-white/30 mb-4">fingerprint</span>
-                    <p className="text-gray-900 dark:text-white font-medium mb-2">
-                      Passkey Not Set Up
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white/80 mb-4">
-                      You need to set up a passkey to generate wallet addresses
-                    </p>
-                    <button
-                      onClick={() => router.push("/passkey-setup")}
-                      className="bg-secondary hover:bg-secondary/90 text-gray-900 dark:text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 mx-auto"
-                    >
-                      <span className="material-icons-outlined">fingerprint</span>
-                      <span>Set Up Passkey</span>
-                    </button>
-                  </div>
-                ) : currentAddress ? (
+              {/* Address display */}
+              {loadingAddresses ? (
+                <PageLoadingSpinner message="Loading wallet addresses..." bgClass="bg-background-dark" />
+              ) : !hasPasskey ? (
+                <div className="text-center py-12">
+                  <span className="material-icons-outlined text-6xl text-accent/30 mb-4">fingerprint</span>
+                  <p className="text-white font-medium mb-2">Passkey Not Set Up</p>
+                  <p className="text-sm text-accent/80 mb-6">
+                    You need to set up a passkey to generate wallet addresses
+                  </p>
+                  <button
+                    onClick={() => router.push("/passkey-setup")}
+                    className="bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-4 px-6 rounded-[1.5rem] transition-all flex items-center justify-center gap-2 mx-auto shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                  >
+                    <span className="material-icons-outlined">fingerprint</span>
+                    <span>Set Up Passkey</span>
+                  </button>
+                </div>
+              ) : currentAddress ? (
               <>
                 <div className="mb-6">
-                  <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
                     Your {chainConfig?.name} Address
                   </label>
-                  <div className="p-4 bg-white/60 dark:bg-secondary/30 backdrop-blur-sm rounded-xl break-all border border-primary/20 dark:border-white/10">
-                    <p className="text-sm font-mono text-gray-900 dark:text-white" key={`addr-${selectedChain}-${currentAddress}`}>
+                  <div className="p-5 rounded-3xl bg-primary/40 border border-accent/10 break-all">
+                    <p className="text-sm font-mono text-white" key={`addr-${selectedChain}-${currentAddress}`}>
                       {currentAddress}
                     </p>
-                    {process.env.NODE_ENV === "development" && (
-                      <p className="text-xs text-background-dark/50 dark:text-white/40 mt-2">
-                        Debug: Chain={selectedChain}, Has={!!walletAddresses[selectedChain]}
-                      </p>
-                    )}
                   </div>
                   <button
                     onClick={copyAddress}
-                    className={`w-full mt-3 ${
+                    className={`w-full mt-4 py-5 rounded-[1.5rem] font-extrabold flex items-center justify-center gap-3 transition-all shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] ${
                       copied 
-                        ? "bg-accent-green hover:bg-accent-green/90" 
-                        : "bg-secondary hover:bg-secondary/90"
-                    } text-gray-900 dark:text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg`}
+                        ? "bg-secondary/80 text-primary" 
+                        : "bg-secondary hover:bg-secondary/90 text-primary"
+                    }`}
                   >
                     {copied ? (
                       <>
-                        <span className="material-icons-outlined">check</span>
+                        <span className="material-icons-outlined font-bold">check</span>
                         <span>Copied!</span>
                       </>
                     ) : (
                       <>
-                        <span className="material-icons-outlined">content_copy</span>
+                        <span className="material-icons-outlined font-bold">content_copy</span>
                         <span>Copy Address</span>
                       </>
                     )}
@@ -518,191 +496,204 @@ export default function ReceivePage() {
                 </div>
 
                 {/* QR Code */}
-                <div className="mt-6 p-8 bg-white/60 dark:bg-secondary/30 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center border border-primary/20 dark:border-white/10">
-                  <div className="w-48 h-48 bg-white dark:bg-white rounded-xl flex items-center justify-center mb-4 border border-primary/20 dark:border-white/10 p-4">
-                    {currentAddress ? (
-                      <QRCodeSVG
-                        value={currentAddress}
-                        size={192}
-                        level="H"
-                        includeMargin={true}
-                        fgColor="#1a1a1a"
-                        bgColor="#ffffff"
-                      />
-                    ) : (
-                      <span className="material-icons-outlined text-6xl text-background-dark/50 dark:text-white/40">qr_code</span>
-                    )}
+                <div className="mt-6 p-8 rounded-2xl bg-primary/40 border border-accent/10 flex flex-col items-center justify-center">
+                  <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center mb-4 p-4">
+                    <QRCodeSVG
+                      value={currentAddress}
+                      size={192}
+                      level="H"
+                      includeMargin={true}
+                      fgColor="#1a1a1a"
+                      bgColor="#ffffff"
+                    />
                   </div>
-                  <p className="text-sm text-background-dark/70 dark:text-white/70 text-center font-medium">
+                  <p className="text-sm text-accent/80 text-center font-medium">
                     QR Code for {chainConfig?.name} address
                   </p>
-                  <p className="text-xs text-background-dark/60 dark:text-white/50 text-center mt-2 font-mono">
+                  <p className="text-xs text-accent/60 text-center mt-2 font-mono">
                     {formatAddress(currentAddress)}
                   </p>
                 </div>
 
                 {/* Network info */}
-                <div className="mt-6 p-4 bg-primary/30 backdrop-blur-sm border border-primary/50 rounded-xl">
-                  <p className="text-xs text-gray-900 dark:text-white font-medium">
+                <div className="mt-6 p-4 rounded-2xl bg-primary/40 border border-accent/5">
+                  <p className="text-xs text-white font-medium">
                     <strong>Network:</strong> {chainConfig?.name}
                   </p>
-                  <p className="text-xs text-gray-900 dark:text-white mt-1">
+                  <p className="text-xs text-accent/80 mt-1">
                     <strong>Symbol:</strong> {chainConfig?.nativeCurrency?.symbol || "N/A"}
                   </p>
-                  <p className="text-xs text-background-dark dark:text-white mt-2">
+                  <p className="text-xs text-accent/60 mt-2">
                     Make sure you're sending to the correct network. Sending to the wrong network may result in loss of funds.
                   </p>
                 </div>
               </>
-                ) : missingSelectedChain ? (
-                  <div className="text-center py-8">
-                    <span className="material-icons-outlined text-6xl text-background-dark/30 dark:text-white/30 mb-4">account_balance_wallet</span>
-                    <p className="text-gray-900 dark:text-white font-medium mb-2">
-                      No wallet address found for {chainConfig?.name || "this chain"}
+              ) : missingSelectedChain ? (
+                <div className="text-center py-12">
+                  <span className="material-icons-outlined text-6xl text-accent/30 mb-4">account_balance_wallet</span>
+                  <p className="text-white font-medium mb-2">
+                    No wallet address found for {chainConfig?.name || "this chain"}
+                  </p>
+                  {availableChains.length > 0 && (
+                    <p className="text-sm text-accent/80 mb-2 font-medium">
+                      Available chains: {availableChains.map(c => SUPPORTED_CHAINS[c]?.name || c).join(", ")}
                     </p>
-                    {availableChains.length > 0 && (
-                      <p className="text-sm text-gray-900 dark:text-white/80 mb-2 font-medium">
-                        Available chains: {availableChains.map(c => SUPPORTED_CHAINS[c]?.name || c).join(", ")}
+                  )}
+                  <p className="text-xs text-accent/70 mt-4 mb-6">
+                    This chain address wasn't generated during wallet setup.
+                  </p>
+                  
+                  {regenerateError && (
+                    <div className="mb-6 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+                      <p className="text-sm text-red-400 font-medium whitespace-pre-line">
+                        {regenerateError}
                       </p>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleFixMissingAddresses}
+                    disabled={regenerating}
+                    className="bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-4 px-6 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                  >
+                    {regenerating ? (
+                      <>
+                        <FSpinner size="sm" />
+                        <span>Fixing addresses...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-icons-outlined">refresh</span>
+                        <span>Fix Missing Addresses</span>
+                      </>
                     )}
-                    <p className="text-xs text-background-dark/80 dark:text-white/70 mt-4 mb-4">
-                      This chain address wasn't generated during wallet setup.
-                    </p>
-                    
-                    {regenerateError && (
-                      <div className="mb-4 p-3 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl backdrop-blur-sm">
-                        <p className="text-sm text-red-700 dark:text-red-300 font-medium whitespace-pre-line">
-                          {regenerateError}
-                        </p>
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={handleFixMissingAddresses}
-                      disabled={regenerating}
-                      className="bg-secondary hover:bg-secondary/90 text-gray-900 dark:text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
-                    >
-                      {regenerating ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                          <span>Fixing addresses...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-icons-outlined">refresh</span>
-                          <span>Fix Missing Addresses</span>
-                        </>
-                      )}
-                    </button>
-                    <p className="text-xs text-gray-900 dark:text-white/80 mt-2">
-                      Or try selecting: {availableChains.map(c => SUPPORTED_CHAINS[c]?.name || c).join(", ") || "another chain"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <span className="material-icons-outlined text-6xl text-background-dark/30 dark:text-white/30 mb-4">account_balance_wallet</span>
-                    <p className="text-gray-900 dark:text-white font-medium">
-                      No wallet address found for {chainConfig?.name || "this chain"}
-                    </p>
-                    <p className="text-sm text-gray-900 dark:text-white/80 mt-2">
-                      Please set up your passkey to generate wallet addresses
-                    </p>
-                  </div>
-                )}
+                  </button>
+                  <p className="text-xs text-accent/60 mt-4">
+                    Or try selecting: {availableChains.map(c => SUPPORTED_CHAINS[c]?.name || c).join(", ") || "another chain"}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <span className="material-icons-outlined text-6xl text-accent/30 mb-4">account_balance_wallet</span>
+                  <p className="text-white font-medium">No wallet address found for {chainConfig?.name || "this chain"}</p>
+                  <p className="text-sm text-accent/80 mt-2">
+                    Please set up your passkey to generate wallet addresses
+                  </p>
+                </div>
+              )}
               </>
-            ) : (
-              <>
-                {/* NGN Virtual Account Display */}
-                {virtualAccount ? (
-                  <>
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                        Your Virtual Account
-                      </label>
-                      <div className="p-4 bg-white/60 dark:bg-secondary/30 backdrop-blur-sm rounded-xl border border-primary/20 dark:border-white/10">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="text-xs text-gray-900 dark:text-white/80 mb-1 font-medium">Account Number</p>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white font-mono">
-                              {virtualAccount.accountNumber}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(virtualAccount.accountNumber);
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 2000);
-                            }}
-                            className={`p-2 rounded-lg transition-colors ${
-                              copied ? "bg-accent-green" : "bg-primary/40 hover:bg-primary/60 border border-primary/50"
-                            }`}
-                          >
-                            <span className="material-icons-outlined text-secondary">
-                              {copied ? "check" : "content_copy"}
-                            </span>
-                          </button>
-                        </div>
-                        <div className="pt-3 border-t border-primary/20 dark:border-white/10">
-                          <p className="text-xs text-gray-900 dark:text-white/80 mb-1 font-medium">Bank Name</p>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {virtualAccount.bankName || "Wema Bank"}
+          ) : (
+            <>
+              {/* NGN Virtual Account Display */}
+              {virtualAccount ? (
+                <>
+                  <div className="mb-6">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                      Your Virtual Account
+                    </label>
+                    <div className="p-5 rounded-3xl bg-primary/40 border border-accent/10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <p className="text-xs text-accent/60 mb-1 font-medium">Account Number</p>
+                          <p className="text-2xl font-bold text-white font-mono">
+                            {virtualAccount.accountNumber}
                           </p>
                         </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(virtualAccount.accountNumber);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          className={`p-3 rounded-2xl transition-colors ${
+                            copied ? "bg-secondary/80" : "bg-primary hover:bg-primary/80 border border-accent/10"
+                          }`}
+                        >
+                          <span className="material-icons-outlined text-secondary">
+                            {copied ? "check" : "content_copy"}
+                          </span>
+                        </button>
                       </div>
-                    </div>
-
-                    {/* QR Code for NGN */}
-                    {virtualAccount?.accountNumber && (
-                      <div className="mt-6 p-8 bg-white/60 dark:bg-secondary/30 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center border border-primary/20 dark:border-white/10">
-                        <div className="w-48 h-48 bg-white dark:bg-white rounded-xl flex items-center justify-center mb-4 border border-primary/20 dark:border-white/10 p-4">
-                          <QRCodeSVG
-                            value={`${virtualAccount.accountNumber}|${virtualAccount.bankName || "Wema Bank"}`}
-                            size={192}
-                            level="H"
-                            includeMargin={true}
-                            fgColor="#1a1a1a"
-                            bgColor="#ffffff"
-                          />
-                        </div>
-                        <p className="text-sm text-gray-900 dark:text-white/80 text-center font-medium">
-                          QR Code for NGN payments
-                        </p>
-                        <p className="text-xs text-gray-900 dark:text-white/80 text-center mt-2 font-mono">
-                          {virtualAccount.accountNumber}
-                        </p>
-                        <p className="text-xs text-gray-900 dark:text-white/80 text-center mt-1">
+                      <div className="pt-4 border-t border-accent/10">
+                        <p className="text-xs text-accent/60 mb-1 font-medium">Bank Name</p>
+                        <p className="text-sm font-semibold text-white">
                           {virtualAccount.bankName || "Wema Bank"}
                         </p>
                       </div>
-                    )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(virtualAccount.accountNumber);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className={`w-full mt-4 py-5 rounded-[1.5rem] font-extrabold flex items-center justify-center gap-3 transition-all shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] ${
+                        copied ? "bg-secondary/80 text-primary" : "bg-secondary hover:bg-secondary/90 text-primary"
+                      }`}
+                    >
+                      {copied ? (
+                        <>
+                          <span className="material-icons-outlined font-bold">check</span>
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-icons-outlined font-bold">content_copy</span>
+                          <span>Copy Account Number</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-                    {/* Info */}
-                    <div className="mt-6 p-4 bg-primary/30 backdrop-blur-sm border border-primary/50 rounded-xl">
-                      <p className="text-xs text-background-dark dark:text-white font-medium mb-2">
-                        💡 How to receive NGN payments
+                  {/* QR Code for NGN */}
+                  {virtualAccount?.accountNumber && (
+                    <div className="mt-6 p-8 rounded-2xl bg-primary/40 border border-accent/10 flex flex-col items-center justify-center">
+                      <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center mb-4 p-4">
+                        <QRCodeSVG
+                          value={`${virtualAccount.accountNumber}|${virtualAccount.bankName || "Wema Bank"}`}
+                          size={192}
+                          level="H"
+                          includeMargin={true}
+                          fgColor="#1a1a1a"
+                          bgColor="#ffffff"
+                        />
+                      </div>
+                      <p className="text-sm text-accent/80 text-center font-medium">
+                        QR Code for NGN payments
                       </p>
-                      <p className="text-xs text-background-dark/80 dark:text-white/70">
-                        Share your account number above with anyone who wants to send you money. Payments will be automatically credited to your account.
+                      <p className="text-xs text-accent/60 text-center mt-2 font-mono">
+                        {virtualAccount.accountNumber}
+                      </p>
+                      <p className="text-xs text-accent/60 text-center mt-1">
+                        {virtualAccount.bankName || "Wema Bank"}
                       </p>
                     </div>
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <span className="material-icons-outlined text-6xl text-background-dark/30 dark:text-white/30 mb-4">account_balance</span>
-                    <p className="text-gray-900 dark:text-white font-medium">
-                      No virtual account found
+                  )}
+
+                  {/* Info */}
+                  <div className="mt-6 p-4 rounded-2xl bg-primary/40 border border-accent/5">
+                    <p className="text-xs text-white font-medium mb-2">
+                      💡 How to receive NGN payments
                     </p>
-                    <p className="text-sm text-gray-900 dark:text-white/80 mt-2">
-                      Please contact support to set up your virtual account
+                    <p className="text-xs text-accent/70">
+                      Share your account number above with anyone who wants to send you money. Payments will be automatically credited to your account.
                     </p>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <span className="material-icons-outlined text-6xl text-accent/30 mb-4">account_balance</span>
+                  <p className="text-white font-medium">No virtual account found</p>
+                  <p className="text-sm text-accent/80 mt-2">
+                    Please contact support to set up your virtual account
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
-      <BottomNavigation />
     </div>
+    </DashboardLayout>
   );
 }

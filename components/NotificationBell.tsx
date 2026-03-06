@@ -329,66 +329,66 @@ export default function NotificationBell() {
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 max-h-[500px] flex flex-col">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 dark:text-white">
+          <div className="absolute right-0 top-12 w-80 sm:w-96 bg-surface/95 backdrop-blur-[24px] rounded-xl shadow-2xl border border-secondary/10 z-50 max-h-[500px] flex flex-col">
+            <div className="p-4 border-b border-accent/10 flex items-center justify-between">
+              <h3 className="font-bold text-white">
                 Notifications
               </h3>
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-secondary hover:text-secondary/80 transition-colors"
                 >
                   Mark all read
                 </button>
               )}
             </div>
 
-            <div className="overflow-y-auto flex-1">
+            <div className="overflow-y-auto flex-1 custom-scrollbar">
               {loading ? (
-                <div className="p-4 text-center text-slate-500">
+                <div className="p-4 text-center text-accent/80">
                   Loading...
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                  <span className="material-icons-outlined text-4xl mb-2 opacity-50">
+                <div className="p-8 text-center text-accent/70">
+                  <span className="material-icons-outlined text-4xl mb-2 opacity-50 text-accent/60">
                     notifications_none
                   </span>
                   <p>No notifications</p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                <div className="divide-y divide-accent/10">
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => {
                         if (!notification.read) markAsRead(notification.id);
                       }}
-                      className={`p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition ${
-                        !notification.read ? "bg-blue-50/50 dark:bg-blue-900/10" : ""
+                      className={`p-4 hover:bg-primary/50 cursor-pointer transition ${
+                        !notification.read ? "bg-secondary/10" : ""
                       }`}
                     >
                       <div className="flex gap-3">
                         <div className="flex-shrink-0">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="material-icons-outlined text-primary">
+                          <div className="w-10 h-10 rounded-full bg-primary/40 border border-accent/10 flex items-center justify-center">
+                            <span className="material-icons-outlined text-secondary">
                               {getNotificationIcon(notification.type)}
                             </span>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white">
+                            <h4 className="font-semibold text-sm text-white">
                               {notification.title}
                             </h4>
                             {!notification.read && (
-                              <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1"></span>
+                              <span className="w-2 h-2 bg-secondary rounded-full flex-shrink-0 mt-1"></span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                          <p className="text-xs text-accent/80 mt-1 line-clamp-2">
                             {notification.message}
                           </p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                          <p className="text-xs text-accent/60 mt-1">
                             {formatTime(notification.created_at)}
                           </p>
                         </div>

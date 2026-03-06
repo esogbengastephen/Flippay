@@ -1,9 +1,9 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import DangerZone from "./DangerZone";
+import FSpinner from "@/components/FSpinner";
 
 interface User {
   id: string;
@@ -49,13 +49,12 @@ export default function UsersPage() {
     totalPages: 0,
   });
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-  
-  // Transaction filters
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     minTransactions: "",
@@ -64,15 +63,11 @@ export default function UsersPage() {
     maxSpent: "",
     transactionDateFrom: "",
     transactionDateTo: "",
-    hasTransactions: "all", // 'all', 'yes', 'no'
+    hasTransactions: "all",
   });
-  
-  // User selection for export
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [exporting, setExporting] = useState(false);
-  
-  // Reset user search
   const [resetEmail, setResetEmail] = useState("");
   const [searchedUser, setSearchedUser] = useState<any>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -83,17 +78,20 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
+      const params: Record<string, string> = {
         page: pagination.page.toString(),
         pageSize: pagination.pageSize.toString(),
         search,
         sortBy,
         sortOrder,
-        ...filters, // Add filters to query params
-      });
+        ...filters,
+      };
+      if (statusFilter !== "all") {
+        params.status = statusFilter;
+      }
 
       const [usersResponse, statsResponse] = await Promise.all([
-        fetch(getApiUrl(`/api/admin/users?${params}`)),
+        fetch(getApiUrl(`/api/admin/users?${new URLSearchParams(params)}`)),
         fetch(getApiUrl("/api/admin/users?stats=true")),
       ]);
 
@@ -103,11 +101,9 @@ export default function UsersPage() {
       if (usersData.success) {
         setUsers(usersData.users);
         setPagination(usersData.pagination);
-        // Reset selection when users change
         setSelectedUsers(new Set());
         setSelectAll(false);
       }
-
       if (statsData.success) {
         setStats(statsData.stats);
       }
@@ -120,38 +116,13 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [pagination.page, pagination.pageSize, search, sortBy, sortOrder, filters]);
-
-  const handlePageSizeChange = (newSize: number) => {
-    setPagination({ ...pagination, pageSize: newSize, page: 1 });
-  };
-
-  const handlePreviousPage = () => {
-    if (pagination.page > 1) {
-      setPagination({ ...pagination, page: pagination.page - 1 });
-    }
-  };
-
-  const handleNextPage = () => {
-    if (pagination.page < pagination.totalPages) {
-      setPagination({ ...pagination, page: pagination.page + 1 });
-    }
-  };
+  }, [pagination.page, pagination.pageSize, search, statusFilter, sortBy, sortOrder, filters]);
 
   const handleUserAction = async (userId: string, action: "block" | "unblock", userEmail: string) => {
-    const actionMessages = {
-      block: `block ${userEmail}`,
-      unblock: `unblock ${userEmail}`,
-    };
-
-    if (!confirm(`Are you sure you want to ${actionMessages[action]}?`)) {
-      return;
-    }
-
+    if (!confirm(`Are you sure you want to ${action} ${userEmail}?`)) return;
     setActionLoading(userId);
     setActionError(null);
     setActionSuccess(null);
-
     try {
       const response = await fetch(getApiUrl("/api/admin/users/manage"), {
         method: "POST",
@@ -162,19 +133,15 @@ export default function UsersPage() {
           reason: action === "block" ? "Blocked by administrator" : undefined,
         }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setActionSuccess(data.message);
         setTimeout(() => setActionSuccess(null), 5000);
-        // Refresh users list
         fetchUsers();
       } else {
         setActionError(data.error || "Failed to perform action");
       }
     } catch (err: any) {
-      console.error("Failed to perform user action:", err);
       setActionError(err.message || "Failed to perform action");
     } finally {
       setActionLoading(null);
@@ -186,23 +153,16 @@ export default function UsersPage() {
       setSearchError("Please enter an email address");
       return;
     }
-
     setSearchLoading(true);
     setSearchError(null);
     setSearchedUser(null);
     setDeleteConfirmation("");
-
     try {
       const response = await fetch(getApiUrl(`/api/admin/users/search?email=${encodeURIComponent(resetEmail)}`));
       const data = await response.json();
-
-      if (data.success) {
-        setSearchedUser(data.user);
-      } else {
-        setSearchError(data.error || "User not found");
-      }
+      if (data.success) setSearchedUser(data.user);
+      else setSearchError(data.error || "User not found");
     } catch (err: any) {
-      console.error("Failed to search user:", err);
       setSearchError("Failed to search user");
     } finally {
       setSearchLoading(false);
@@ -214,89 +174,60 @@ export default function UsersPage() {
       setSearchError("Please type DELETE to confirm");
       return;
     }
-
-    if (!confirm(`⚠️ FINAL CONFIRMATION\n\nThis will PERMANENTLY delete all data for ${searchedUser.email}.\n\nThis action CANNOT be undone!\n\nClick OK to proceed.`)) {
-      return;
-    }
-
+    if (!confirm(`⚠️ FINAL CONFIRMATION\n\nThis will PERMANENTLY delete all data for ${searchedUser.email}.\n\nThis action CANNOT be undone!`)) return;
     setResetting(true);
     setSearchError(null);
-
     try {
       const response = await fetch(getApiUrl("/api/admin/users/manage"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: searchedUser.id,
-          action: "permanent_reset",
-        }),
+        body: JSON.stringify({ userId: searchedUser.id, action: "permanent_reset" }),
       });
-
       const data = await response.json();
-
       if (data.success) {
         setActionSuccess(data.message);
         setSearchedUser(null);
         setResetEmail("");
         setDeleteConfirmation("");
         setTimeout(() => setActionSuccess(null), 10000);
-        // Refresh users list
         fetchUsers();
       } else {
         setSearchError(data.error || "Failed to reset account");
       }
     } catch (err: any) {
-      console.error("Failed to reset account:", err);
       setSearchError(err.message || "Failed to reset account");
     } finally {
       setResetting(false);
     }
   };
 
-  // Handle select all checkbox
   const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedUsers(new Set());
-    } else {
-      setSelectedUsers(new Set(users.map(u => u.id)));
-    }
+    if (selectAll) setSelectedUsers(new Set());
+    else setSelectedUsers(new Set(users.map((u) => u.id)));
     setSelectAll(!selectAll);
   };
 
-  // Handle individual user checkbox
   const handleSelectUser = (userId: string) => {
     const newSelected = new Set(selectedUsers);
-    if (newSelected.has(userId)) {
-      newSelected.delete(userId);
-    } else {
-      newSelected.add(userId);
-    }
+    if (newSelected.has(userId)) newSelected.delete(userId);
+    else newSelected.add(userId);
     setSelectedUsers(newSelected);
     setSelectAll(newSelected.size === users.length && users.length > 0);
   };
 
-  // Handle export
   const handleExport = async () => {
     if (selectedUsers.size === 0) {
       alert("Please select at least one user to export");
       return;
     }
-
     setExporting(true);
     try {
       const response = await fetch(getApiUrl("/api/admin/users/export"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userIds: Array.from(selectedUsers),
-          includeTransactions: true,
-        }),
+        body: JSON.stringify({ userIds: Array.from(selectedUsers), includeTransactions: true }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to export users");
-      }
-
+      if (!response.ok) throw new Error("Failed to export users");
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -306,11 +237,9 @@ export default function UsersPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-
-      setActionSuccess(`Successfully exported ${selectedUsers.size} user(s)`);
+      setActionSuccess(`Exported ${selectedUsers.size} user(s)`);
       setTimeout(() => setActionSuccess(null), 5000);
     } catch (error: any) {
-      console.error("Failed to export users:", error);
       setActionError(error.message || "Failed to export users");
       setTimeout(() => setActionError(null), 5000);
     } finally {
@@ -318,13 +247,11 @@ export default function UsersPage() {
     }
   };
 
-  // Handle filter change
   const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 when filters change
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
-  // Clear all filters
   const clearFilters = () => {
     setFilters({
       minTransactions: "",
@@ -337,397 +264,278 @@ export default function UsersPage() {
     });
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = Object.entries(filters).some(([key, value]) => 
-    key !== "hasTransactions" ? value !== "" : value !== "all"
-  );
+  const hasActiveFilters = Object.entries(filters).some(([k, v]) => (k !== "hasTransactions" ? v !== "" : v !== "all"));
+
+  const getUserInitials = (u: User) => {
+    if (u.email) return u.email.slice(0, 2).toUpperCase();
+    if (u.walletAddress) return u.walletAddress.slice(2, 4).toUpperCase();
+    return "U";
+  };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-          Users
-        </h1>
-        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1 sm:mt-2">
-          All registered users
-        </p>
-      </div>
-
-      {/* Success Message */}
+    <div className="space-y-6 lg:space-y-8">
       {actionSuccess && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-lg">
-          <p className="text-sm text-green-600 dark:text-green-400">
-            ✓ {actionSuccess}
-          </p>
+        <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-4">
+          <p className="text-sm text-secondary font-medium">✓ {actionSuccess}</p>
         </div>
       )}
-
-      {/* Error Message */}
       {actionError && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg">
-          <p className="text-sm text-red-600 dark:text-red-400">{actionError}</p>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+          <p className="text-sm text-red-400">{actionError}</p>
         </div>
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Total Users</div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1 sm:mt-2">
-            {stats.totalUsers.toLocaleString()}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Total Users", value: stats.totalUsers, icon: "group", color: "secondary" },
+          { label: "New Today", value: stats.newUsersToday, icon: "trending_up", color: "secondary" },
+          { label: "Total Transactions", value: stats.totalTransactions, icon: "receipt_long", color: "secondary" },
+          { label: "Total Revenue", value: `₦${stats.totalRevenue.toLocaleString()}`, icon: "payments", color: "secondary" },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="relative overflow-hidden rounded-xl bg-surface/60 backdrop-blur-[16px] px-4 py-5 border border-accent/10 hover:border-secondary/30 transition-all"
+          >
+            <div className="absolute rounded-lg bg-secondary/10 p-3 border border-secondary/20">
+              <span className={`material-icons-outlined text-secondary text-xl`}>{s.icon}</span>
+            </div>
+            <p className="ml-16 text-[10px] uppercase tracking-wider text-accent/60 font-bold">{s.label}</p>
+            <p className="ml-16 text-2xl font-bold text-white mt-1">{s.value}</p>
           </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">New Today</div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1 sm:mt-2">
-            {stats.newUsersToday.toLocaleString()}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Total Transactions</div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1 sm:mt-2">
-            {stats.totalTransactions.toLocaleString()}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Total Revenue</div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1 sm:mt-2">
-            ₦{stats.totalRevenue.toLocaleString()}
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Filters and Controls */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1 min-w-0">
+      {/* Search & Filters */}
+      <div className="bg-surface/60 backdrop-blur-[16px] p-4 rounded-xl border border-accent/10">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 relative">
+            <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary/70 text-lg">search</span>
             <input
               type="text"
-              placeholder="Search by email or referral code..."
+              placeholder="Search by name, email or ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full pl-10 pr-4 py-2.5 bg-primary/50 border border-accent/10 rounded-lg text-sm text-white placeholder-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
             />
           </div>
-
-          {/* Sort By and Page Size Container */}
-          <div className="flex flex-col sm:flex-row gap-4 lg:flex-shrink-0">
-            {/* Sort By */}
-            <div className="flex gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
+                className="appearance-none bg-primary/50 border border-accent/10 rounded-lg py-2.5 pl-4 pr-10 text-sm text-white focus:ring-1 focus:ring-secondary focus:outline-none cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="blocked">Blocked</option>
+              </select>
+              <span className="material-icons-outlined absolute right-3 top-1/2 -translate-y-1/2 text-accent/60 pointer-events-none text-sm">expand_more</span>
+            </div>
+            <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="flex-1 sm:flex-initial px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary min-w-[140px]"
+                className="appearance-none bg-primary/50 border border-accent/10 rounded-lg py-2.5 pl-4 pr-10 text-sm text-white focus:ring-1 focus:ring-secondary focus:outline-none cursor-pointer"
               >
                 <option value="created_at">Date Joined</option>
                 <option value="email">Email</option>
                 <option value="referral_count">Referrals</option>
               </select>
-
-              <button
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex-shrink-0"
-                title={sortOrder === "asc" ? "Ascending" : "Descending"}
-              >
-                {sortOrder === "asc" ? "↑" : "↓"}
-              </button>
+              <span className="material-icons-outlined absolute right-3 top-1/2 -translate-y-1/2 text-accent/60 pointer-events-none text-sm">expand_more</span>
             </div>
-
-            {/* Page Size */}
-            <select
-              value={pagination.pageSize}
-              onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary min-w-[140px]"
+            <div className="relative">
+              <select
+                value={pagination.pageSize}
+                onChange={(e) => setPagination((p) => ({ ...p, pageSize: parseInt(e.target.value), page: 1 }))}
+                className="appearance-none bg-primary/50 border border-accent/10 rounded-lg py-2.5 pl-4 pr-10 text-sm text-white focus:ring-1 focus:ring-secondary focus:outline-none cursor-pointer"
+              >
+                <option value={10}>10 per page</option>
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+              <span className="material-icons-outlined absolute right-3 top-1/2 -translate-y-1/2 text-accent/60 pointer-events-none text-sm">expand_more</span>
+            </div>
+            <button
+              onClick={() => setSortOrder((o) => (o === "asc" ? "desc" : "asc"))}
+              className="p-2.5 rounded-lg border border-accent/10 text-accent/70 hover:text-white hover:bg-accent/5 transition-colors"
+              title={sortOrder === "asc" ? "Ascending" : "Descending"}
             >
-              <option value="10">10 per page</option>
-              <option value="25">25 per page</option>
-              <option value="50">50 per page</option>
-              <option value="100">100 per page</option>
-            </select>
+              {sortOrder === "asc" ? "↑" : "↓"}
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={selectedUsers.size === 0}
+              className="inline-flex items-center gap-2 px-4 py-2.5 border border-accent/10 rounded-lg text-sm font-medium text-accent/80 hover:text-secondary hover:border-secondary hover:bg-secondary/5 transition-all disabled:opacity-50"
+            >
+              <span className="material-icons-outlined text-lg">download</span>
+              Export
+            </button>
           </div>
         </div>
-        
-        {/* Advanced Filters Toggle */}
+
         <div className="mt-4 flex items-center justify-between">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-accent/10 text-accent/70 hover:text-white hover:bg-accent/5 transition-colors text-sm"
           >
-            <span>🔍</span>
-            <span>Advanced Filters</span>
-            {hasActiveFilters && (
-              <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">Active</span>
-            )}
+            <span className="material-icons-outlined text-lg">filter_alt</span>
+            Advanced Filters
+            {hasActiveFilters && <span className="bg-secondary/20 text-secondary text-xs px-2 py-0.5 rounded-full">Active</span>}
             <span>{showFilters ? "▲" : "▼"}</span>
           </button>
-          
           {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-            >
+            <button onClick={clearFilters} className="text-sm text-accent/70 hover:text-white transition-colors">
               Clear Filters
             </button>
           )}
         </div>
-        
-        {/* Advanced Filters Panel */}
+
         {showFilters && (
-          <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-              Transaction Filters
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Transaction Count */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Transaction Count
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minTransactions}
-                    onChange={(e) => handleFilterChange("minTransactions", e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxTransactions}
-                    onChange={(e) => handleFilterChange("maxTransactions", e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                </div>
+          <div className="mt-4 p-4 bg-primary/40 rounded-xl border border-accent/10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] uppercase text-accent/60 mb-2 font-bold">Transaction Count</label>
+              <div className="flex gap-2">
+                <input type="number" placeholder="Min" value={filters.minTransactions} onChange={(e) => handleFilterChange("minTransactions", e.target.value)} className="flex-1 bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white" />
+                <input type="number" placeholder="Max" value={filters.maxTransactions} onChange={(e) => handleFilterChange("maxTransactions", e.target.value)} className="flex-1 bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white" />
               </div>
-
-              {/* Amount Spent */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Amount Spent (₦)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minSpent}
-                    onChange={(e) => handleFilterChange("minSpent", e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxSpent}
-                    onChange={(e) => handleFilterChange("maxSpent", e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                </div>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase text-accent/60 mb-2 font-bold">Amount Spent (₦)</label>
+              <div className="flex gap-2">
+                <input type="number" placeholder="Min" value={filters.minSpent} onChange={(e) => handleFilterChange("minSpent", e.target.value)} className="flex-1 bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white" />
+                <input type="number" placeholder="Max" value={filters.maxSpent} onChange={(e) => handleFilterChange("maxSpent", e.target.value)} className="flex-1 bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white" />
               </div>
-
-              {/* Has Transactions */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Transaction Status
-                </label>
-                <select
-                  value={filters.hasTransactions}
-                  onChange={(e) => handleFilterChange("hasTransactions", e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                >
-                  <option value="all">All Users</option>
-                  <option value="yes">With Transactions</option>
-                  <option value="no">No Transactions</option>
-                </select>
-              </div>
-
-              {/* Date From */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Transaction Date From
-                </label>
-                <input
-                  type="date"
-                  value={filters.transactionDateFrom}
-                  onChange={(e) => handleFilterChange("transactionDateFrom", e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-
-              {/* Date To */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Transaction Date To
-                </label>
-                <input
-                  type="date"
-                  value={filters.transactionDateTo}
-                  onChange={(e) => handleFilterChange("transactionDateTo", e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase text-accent/60 mb-2 font-bold">Transaction Status</label>
+              <select value={filters.hasTransactions} onChange={(e) => handleFilterChange("hasTransactions", e.target.value)} className="w-full bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white">
+                <option value="all">All Users</option>
+                <option value="yes">With Transactions</option>
+                <option value="no">No Transactions</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase text-accent/60 mb-2 font-bold">Date From</label>
+              <input type="date" value={filters.transactionDateFrom} onChange={(e) => handleFilterChange("transactionDateFrom", e.target.value)} className="w-full bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white" />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase text-accent/60 mb-2 font-bold">Date To</label>
+              <input type="date" value={filters.transactionDateTo} onChange={(e) => handleFilterChange("transactionDateTo", e.target.value)} className="w-full bg-primary border border-accent/10 rounded-lg px-3 py-2 text-sm text-white" />
             </div>
           </div>
         )}
       </div>
 
-      {/* Export Section */}
+      {/* Export selected banner */}
       {selectedUsers.size > 0 && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-xl flex items-center justify-between">
-          <div className="text-sm text-green-700 dark:text-green-300">
-            <span className="font-semibold">{selectedUsers.size}</span> user(s) selected
-          </div>
+        <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-4 flex items-center justify-between">
+          <span className="text-sm text-secondary font-medium">{selectedUsers.size} user(s) selected</span>
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary font-bold rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
           >
-            {exporting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Exporting...
-              </>
-            ) : (
-              <>
-                <span>📥</span>
-                <span>Export Selected</span>
-              </>
-            )}
+            {exporting ? <FSpinner size="xs" /> : <span className="material-icons-outlined text-primary">file_download</span>}
+            Export Selected
           </button>
         </div>
       )}
 
-      {/* Users Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+      {/* Table */}
+      <div className="bg-surface/60 backdrop-blur-[16px] rounded-2xl border border-accent/10 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50 dark:bg-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-accent/5 text-[10px] uppercase tracking-widest text-accent/70 font-bold border-b border-accent/10">
               <tr>
-                <th className="px-4 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    onChange={handleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
-                    title="Select all users"
-                  />
+                <th className="px-6 py-4 w-10">
+                  <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="w-4 h-4 rounded border-accent/30 bg-primary text-secondary focus:ring-secondary cursor-pointer" title="Select all" />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Email
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Wallet
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Referrals
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Transactions
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Total Spent
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Total Received
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">
-                  Actions
-                </th>
+                <th className="px-6 py-4">User</th>
+                <th className="px-6 py-4">Referrals</th>
+                <th className="px-6 py-4">Transactions</th>
+                <th className="px-6 py-4">Spent / Received</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+            <tbody className="divide-y divide-accent/10">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
-                    Loading users...
-                  </td>
+                  <td colSpan={7} className="px-6 py-12 text-center text-accent/60">Loading users...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-slate-500">
-                    No users found
-                  </td>
+                  <td colSpan={7} className="px-6 py-12 text-center text-accent/60">No users found</td>
                 </tr>
               ) : (
                 users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <td className="px-4 py-4">
+                  <tr key={user.id} className="hover:bg-accent/5 transition-colors group">
+                    <td className="px-6 py-4">
                       <input
                         type="checkbox"
                         checked={selectedUsers.has(user.id)}
                         onChange={() => handleSelectUser(user.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                        className="w-4 h-4 rounded border-accent/30 bg-primary text-secondary focus:ring-secondary cursor-pointer"
                       />
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm text-slate-900 dark:text-slate-100">
-                        {user.email || <span className="text-slate-400">—</span>}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-surface-highlight flex items-center justify-center text-white font-bold border border-accent/10 group-hover:border-secondary/50 transition-colors">
+                          {getUserInitials(user)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white group-hover:text-secondary transition-colors">{user.email || "—"}</div>
+                          <div className="text-xs text-accent/50">
+                            {user.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : user.referralCode || "—"}
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-6 py-4 text-white font-medium">{user.referralCount || 0}</td>
+                    <td className="px-6 py-4 text-white font-bold">{user.totalTransactions}</td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        <span className="text-secondary font-medium">₦{user.totalSpentNGN.toLocaleString()}</span>
+                        <span className="block text-xs text-accent/60">{parseFloat(user.totalReceivedSEND).toLocaleString()} $SEND</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
                       {user.isBlocked ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300" title={user.blockedReason || "Blocked"}>
-                          🔴 Blocked
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5" />
+                          Blocked
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
-                          🟢 Active
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary mr-1.5 animate-pulse" />
+                          Active
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="text-xs font-mono text-slate-900 dark:text-slate-100">
-                        {user.walletAddress ? (
-                          <span>{user.walletAddress.slice(0, 6)}...{user.walletAddress.slice(-4)}</span>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {user.isBlocked ? (
+                          <button
+                            onClick={() => handleUserAction(user.id, "unblock", user.email || "")}
+                            disabled={actionLoading === user.id}
+                            className="p-1.5 rounded text-accent/60 hover:text-secondary hover:bg-secondary/10 transition-colors disabled:opacity-50"
+                            title="Unblock User"
+                          >
+                            <span className="material-icons-outlined text-lg">check_circle</span>
+                          </button>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <button
+                            onClick={() => handleUserAction(user.id, "block", user.email || "")}
+                            disabled={actionLoading === user.id}
+                            className="p-1.5 rounded text-accent/60 hover:text-amber-400 hover:bg-amber-400/10 transition-colors disabled:opacity-50"
+                            title="Block User"
+                          >
+                            <span className="material-icons-outlined text-lg">block</span>
+                          </button>
                         )}
                       </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {user.referralCount || 0}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                        {user.totalTransactions}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm font-bold text-green-600 dark:text-green-400">
-                        ₦{user.totalSpentNGN.toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm font-bold text-primary">
-                        {parseFloat(user.totalReceivedSEND).toLocaleString()} $SEND
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      {user.isBlocked ? (
-                        <button
-                          onClick={() => handleUserAction(user.id, "unblock", user.email || "")}
-                          disabled={actionLoading === user.id}
-                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {actionLoading === user.id ? "..." : "Unblock"}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleUserAction(user.id, "block", user.email || "")}
-                          disabled={actionLoading === user.id}
-                          className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {actionLoading === user.id ? "..." : "Block"}
-                        </button>
-                      )}
                     </td>
                   </tr>
                 ))
@@ -737,182 +545,52 @@ export default function UsersPage() {
         </div>
 
         {/* Pagination */}
-        <div className="bg-slate-50 dark:bg-slate-800 px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-slate-600 dark:text-slate-400">
-            Showing {Math.min((pagination.page - 1) * pagination.pageSize + 1, pagination.totalCount)} to{" "}
-            {Math.min(pagination.page * pagination.pageSize, pagination.totalCount)} of{" "}
-            {pagination.totalCount} users
-          </div>
-          
+        <div className="px-6 py-4 border-t border-accent/10 flex items-center justify-between bg-accent/[0.02]">
+          <p className="text-sm text-accent/70">
+            Showing <span className="font-medium text-white">{Math.min((pagination.page - 1) * pagination.pageSize + 1, pagination.totalCount)}</span> to{" "}
+            <span className="font-medium text-white">{Math.min(pagination.page * pagination.pageSize, pagination.totalCount)}</span> of{" "}
+            <span className="font-medium text-white">{pagination.totalCount}</span> results
+          </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePreviousPage}
+              onClick={() => setPagination((p) => ({ ...p, page: Math.max(1, p.page - 1) }))}
               disabled={pagination.page === 1}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-accent/10 bg-primary/60 text-accent/70 hover:bg-accent/5 disabled:opacity-50 transition-colors"
             >
-              Previous
+              <span className="material-icons-outlined text-sm">chevron_left</span>
             </button>
-            
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Page {pagination.page} of {pagination.totalPages}
-            </div>
-            
+            <span className="px-3 text-sm text-accent/70">Page {pagination.page} of {pagination.totalPages}</span>
             <button
-              onClick={handleNextPage}
+              onClick={() => setPagination((p) => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))}
               disabled={pagination.page >= pagination.totalPages}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-accent/10 bg-primary/60 text-accent/70 hover:bg-accent/5 disabled:opacity-50 transition-colors"
             >
-              Next
+              <span className="material-icons-outlined text-sm">chevron_right</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Danger Zone - Reset User Account */}
-      <div className="bg-red-50 dark:bg-red-900/10 border-2 border-red-300 dark:border-red-800 p-4 sm:p-6 rounded-xl">
-        <h2 className="text-lg sm:text-xl font-bold text-red-900 dark:text-red-100 mb-2 flex items-center gap-2">
-          <span className="text-2xl">🚨</span>
-          DANGER ZONE - Reset User Account
-        </h2>
-        <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-          Search for a user by email to permanently reset their account. This action is IRREVERSIBLE.
-        </p>
-
-        {/* Search Section */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg mb-4">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            Search User by Email
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              placeholder="user@example.com"
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSearchUser()}
-              className="flex-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
-            />
-            <button
-              onClick={handleSearchUser}
-              disabled={searchLoading || !resetEmail.trim()}
-              className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {searchLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Searching...
-                </>
-              ) : (
-                <>🔍 Search</>
-              )}
-            </button>
-          </div>
-          {searchError && (
-            <p className="text-sm text-red-600 dark:text-red-400 mt-2">{searchError}</p>
-          )}
-        </div>
-
-        {/* User Found - Preview and Reset */}
-        {searchedUser && (
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-lg border-2 border-yellow-300 dark:border-yellow-700">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              ✅ User Found
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Email</p>
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{searchedUser.email}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Created</p>
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {new Date(searchedUser.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Status</p>
-                <p className="text-sm font-medium">
-                  {searchedUser.isBlocked ? (
-                    <span className="text-red-600">🔴 Blocked</span>
-                  ) : (
-                    <span className="text-green-600">🟢 Active</span>
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Linked Wallets</p>
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{searchedUser.linkedWallets}</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg mb-4">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Current Data:</p>
-              <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
-                <li>• Total Transactions: <span className="font-bold">{searchedUser.totalTransactions}</span></li>
-                <li>• Total Spent: <span className="font-bold">₦{searchedUser.totalSpentNGN.toLocaleString()}</span></li>
-                <li>• Total Received: <span className="font-bold">{searchedUser.totalReceivedSEND.toFixed(2)} SEND</span></li>
-                <li>• Referrals: <span className="font-bold">{searchedUser.referralCount}</span></li>
-                {searchedUser.sendtag && <li>• SendTag: <span className="font-bold">/{searchedUser.sendtag}</span></li>}
-              </ul>
-            </div>
-
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg mb-4">
-              <p className="text-sm font-bold text-red-900 dark:text-red-100 mb-2">⚠️ WARNING: This action will:</p>
-              <ul className="text-sm text-red-700 dark:text-red-300 space-y-1 mb-4">
-                <li>• Delete {searchedUser.linkedWallets} wallet address(es)</li>
-                <li>• Dissociate {searchedUser.totalTransactions} transaction(s) (kept for audit)</li>
-                <li>• Clear all statistics and referral data</li>
-                <li>• Clear virtual account assignment</li>
-                <li>• Keep only the email for re-registration</li>
-              </ul>
-              <p className="text-sm font-bold text-red-900 dark:text-red-100">
-                The user will be able to sign up again as a completely new user.
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Type <span className="font-bold text-red-600">DELETE</span> to confirm:
-              </label>
-              <input
-                type="text"
-                placeholder="Type DELETE to confirm"
-                value={deleteConfirmation}
-                onChange={(e) => setDeleteConfirmation(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              />
-            </div>
-
-            <button
-              onClick={handlePermanentReset}
-              disabled={deleteConfirmation !== "DELETE" || resetting}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {resetting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Resetting Account...
-                </>
-              ) : (
-                <>⚠️ PERMANENTLY RESET THIS ACCOUNT</>
-              )}
-            </button>
-
-            <button
-              onClick={() => {
-                setSearchedUser(null);
-                setResetEmail("");
-                setDeleteConfirmation("");
-                setSearchError(null);
-              }}
-              className="w-full mt-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 px-6 py-2 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Danger Zone */}
+      <DangerZone
+        resetEmail={resetEmail}
+        setResetEmail={setResetEmail}
+        searchedUser={searchedUser}
+        setSearchedUser={setSearchedUser}
+        deleteConfirmation={deleteConfirmation}
+        setDeleteConfirmation={setDeleteConfirmation}
+        searchError={searchError}
+        searchLoading={searchLoading}
+        resetting={resetting}
+        onSearch={handleSearchUser}
+        onReset={handlePermanentReset}
+        onCancel={() => {
+          setSearchedUser(null);
+          setResetEmail("");
+          setDeleteConfirmation("");
+          setSearchError(null);
+        }}
+      />
     </div>
   );
 }

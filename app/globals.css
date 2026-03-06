@@ -4,62 +4,337 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ========== DESIGN SYSTEM TOKENS ========== */
-/* Fintech-grade: calm hierarchy, same palette, less noise */
+/* ========== ENHANCED DESIGN SYSTEM TOKENS v2.0 ========== */
+/* Modern fintech design system with improved hierarchy and consistency */
 
 :root {
-  /* Brand & primary (actions only) */
-  --color-primary: #00B8FF;
-  --color-surface-strong: #BFEFFF;
-  --color-surface-soft: #E6F7FF;
-  --color-bg-light: #F8FCFF;
-  --color-border: #D9EEF9;
+  /* ========== FLIPPAY BRAND COLOR PALETTE ========== */
+  
+  /* Primary Brand Colors (Dark Forest Green theme) */
+  --color-primary: #11281A;        /* Dark Forest Green - Main brand color */
+  --color-primary-hover: #0E2316;  /* Darker for hover states */
+  --color-primary-active: #05110B; /* Deepest for active states */
+  --color-secondary: #13EC5A;      /* Neon Green - Accents, highlights */
+  --color-accent: #E2E8F0;         /* Light Gray/White - Text on dark */
+  --color-surface: #0E2316;        /* Darker Forest Green - Card backgrounds */
+  --color-surface-highlight: #23423E; /* Lighter Green - Hover/highlight */
+  --color-background-dark: #05110B; /* Deepest Green/Black - Main background */
+  
+  /* Background Colors */
+  --color-bg-primary: #05110B;     /* Main background */
+  --color-bg-secondary: #0E2316;   /* Subtle background */
+  --color-bg-tertiary: #11281A;    /* Card backgrounds */
+  --color-bg-overlay: rgba(5, 17, 11, 0.9); /* Dark overlay */
+  
+  /* Surface Colors */
+  --color-surface-card: #0E2316;   /* Card surfaces */
+  --color-surface-elevated: #11281A; /* Elevated surfaces */
+  --color-surface-muted: #23423E;   /* Muted surfaces */
+  
+  /* Border Colors */
+  --color-border-primary: rgba(19, 236, 90, 0.3); /* Neon green tint */
+  --color-border-secondary: rgba(255, 255, 255, 0.05); /* Subtle borders */
+  --color-border-focus: #13EC5A;   /* Focus states */
+  
+  /* Text Colors */
+  --color-text-primary: #E2E8F0;   /* Main text */
+  --color-text-secondary: rgba(226, 232, 240, 0.8); /* Secondary text */
+  --color-text-tertiary: rgba(226, 232, 240, 0.6);  /* Muted text */
+  --color-text-inverse: #FFFFFF;   /* Text on dark backgrounds */
+  
+  /* Status Colors */
+  --color-success: #10B981;        /* Success states */
+  --color-warning: #F59E0B;        /* Warning states */
+  --color-error: #EF4444;          /* Error states */
+  --color-info: #3B82F6;           /* Information states */
+  
+  /* Legacy Colors (for backward compatibility) */
+  --color-surface-strong: #23423E;
+  --color-surface-soft: #0E2316;
+  --color-bg-light: #05110B;
+  --color-border: rgba(19, 236, 90, 0.2);
+  --text-primary: #E2E8F0;
+  --text-secondary: rgba(226, 232, 240, 0.8);
+  --text-muted: rgba(226, 232, 240, 0.6);
 
-  /* Text */
-  --text-primary: #0A2540;
-  --text-secondary: #5E7A8A;
-  --text-muted: #9FB7C5;
+  /* ========== TYPOGRAPHY ========== */
+  
+  /* Font Families */
+  --font-family-sans: var(--font-montserrat), 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', monospace;
+  
+  /* Font Sizes */
+  --text-xs: 0.75rem;    /* 12px - Captions, fine print */
+  --text-sm: 0.875rem;   /* 14px - Secondary text, labels */
+  --text-base: 1rem;     /* 16px - Body text */
+  --text-lg: 1.125rem;   /* 18px - Lead text */
+  --text-xl: 1.25rem;    /* 20px - Subheadings */
+  --text-2xl: 1.5rem;    /* 24px - Headings */
+  --text-3xl: 1.875rem;  /* 30px - Large headings */
+  --text-4xl: 2.25rem;   /* 36px - Display headings */
+  
+  /* Font Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+  --line-height-loose: 2;
 
-  /* Motion (no bounce / spring for money app) */
+  /* ========== SPACING SYSTEM (8pt GRID) ========== */
+  --space-0: 0;
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.5rem;   /* 24px */
+  --space-6: 2rem;     /* 32px */
+  --space-7: 2.5rem;   /* 40px */
+  --space-8: 3rem;     /* 48px */
+  --space-9: 4rem;     /* 64px */
+  --space-10: 5rem;    /* 80px */
+  --space-12: 6rem;    /* 96px */
+  --space-16: 8rem;    /* 128px */
+  
+  /* Legacy spacing (for backward compatibility) */
+  --space-old-2: 4px;
+  --space-old-3: 8px;
+  --space-old-4: 12px;
+  --space-old-5: 16px;
+  --space-old-6: 24px;
+  --space-old-7: 32px;
+  --space-old-8: 40px;
+
+  /* ========== BORDER RADIUS ========== */
+  --radius-none: 0;
+  --radius-sm: 0.5rem;   /* 8px */
+  --radius-md: 0.75rem;  /* 12px */
+  --radius-lg: 1rem;     /* 16px */
+  --radius-xl: 1.5rem;   /* 24px */
+  --radius-2xl: 2rem;    /* 32px */
+  --radius-3xl: 2.5rem;  /* 40px */
+  --radius-full: 9999px; /* Circular */
+  
+  /* Legacy radius (for backward compatibility) */
+  --radius-old-sm: 8px;
+  --radius-old-md: 12px;
+  --radius-old-lg: 16px;
+  --radius-old-xl: 24px;
+
+  /* ========== SHADOWS ========== */
+  --shadow-none: 0 0 #0000;
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* Legacy shadows (for backward compatibility) */
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-base: 0 8px 20px rgba(0, 0, 0, 0.08);
+
+  /* ========== ANIMATION & MOTION ========== */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 260ms;
+  --duration-slower: 400ms;
+  
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  
+  /* Legacy motion (for backward compatibility) */
   --motion-fast: 120ms;
   --motion-base: 180ms;
   --motion-slow: 260ms;
-  --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
-  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
-  /* Spacing (8pt) */
-  --space-2: 4px;
-  --space-3: 8px;
-  --space-4: 12px;
-  --space-5: 16px;
-  --space-6: 24px;
-  --space-7: 32px;
-  --space-8: 40px;
-
-  /* Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-
-  /* Shadows (no colored shadows) */
-  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-base: 0 8px 20px rgba(0, 0, 0, 0.08);
+  /* ========== COMPONENT SPECIFIC TOKENS ========== */
+  
+  /* Buttons */
+  --button-height-sm: 2rem;      /* 32px */
+  --button-height-md: 2.5rem;    /* 40px */
+  --button-height-lg: 3rem;      /* 48px */
+  --button-padding-x-sm: 0.75rem;
+  --button-padding-x-md: 1rem;
+  --button-padding-x-lg: 1.25rem;
+  
+  /* Forms */
+  --input-height-sm: 2rem;       /* 32px */
+  --input-height-md: 2.5rem;     /* 40px */
+  --input-height-lg: 3rem;       /* 48px */
+  --input-padding-x: 1rem;
+  --input-padding-y: 0.5rem;
+  
+  /* Cards */
+  --card-padding-sm: 1rem;
+  --card-padding-md: 1.5rem;
+  --card-padding-lg: 2rem;
+  
+  /* Z-Index Scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  
+  /* Breakpoints */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
 }
 
 .dark {
-  --color-primary: #4CCBFF;
-  --dark-bg: #071826;
-  --dark-surface: #0E2A3A;
-  --dark-surface-soft: #123B52;
-  --text-primary: #EAF6FF;
-  --text-secondary: #9CC3D8;
-  --text-muted: #6E97AD;
+  /* ========== DARK MODE (same as default - forest green theme) ========== */
+  --color-primary: #11281A;
+  --color-primary-hover: #0E2316;
+  --color-primary-active: #05110B;
+  
+  /* Dark Background Colors */
+  --color-dark-bg: #05110B;
+  --color-dark-surface: #0E2316;
+  --color-dark-card: #11281A;
+  
+  /* Dark Text Colors */
+  --color-dark-text: #E2E8F0;
+  --color-dark-text-secondary: rgba(226, 232, 240, 0.8);
+  
+  /* Legacy dark mode colors */
+  --dark-bg: #05110B;
+  --dark-surface: #0E2316;
+  --dark-surface-soft: #23423E;
+  --text-primary: #E2E8F0;
+  --text-secondary: rgba(226, 232, 240, 0.8);
+  --text-muted: rgba(226, 232, 240, 0.6);
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-family-sans), sans-serif;
   min-height: 100dvh;
+}
+
+/* ========== BRAND UTILITY CLASSES (from reference design) ========== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #05110B;
+}
+::-webkit-scrollbar-thumb {
+  background: #11281A;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #13EC5A;
+}
+
+.header-pattern {
+  background-image: linear-gradient(#13EC5A 1px, transparent 1px),
+    linear-gradient(to right, #13EC5A 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-color: #11281A;
+  opacity: 0.1;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0));
+}
+
+.neon-glow:focus-within {
+  box-shadow: 0 0 15px rgba(19, 236, 90, 0.3);
+}
+
+.card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(19, 236, 90, 0.15);
+}
+
+/* Liquid glass effect - FlipPay branding */
+.liquid-glass {
+  background: rgba(14, 35, 22, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(19, 236, 90, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(5, 17, 11, 0.3);
+}
+.dark .liquid-glass {
+  background: rgba(14, 35, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Glass card - offramp/form style */
+.glass-card {
+  background: rgba(14, 35, 22, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(19, 236, 90, 0.1);
+}
+
+/* Compact selector card - network/crypto selection (Crypto to Naira, Naira to Crypto) */
+.selector-card-compact {
+  max-width: 24rem; /* max-w-sm */
+  background: rgba(14, 35, 22, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(19, 236, 90, 0.1);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+.input-box {
+  background: rgba(17, 40, 26, 0.6);
+  border: 1px solid rgba(226, 232, 240, 0.1);
+}
+.input-box:focus-within {
+  border-color: rgba(19, 236, 90, 0.4);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-secondary);
+  border-radius: 10px;
+}
+
+/* Payment hub - glass panel & service card */
+.glass-panel {
+  background: rgba(14, 35, 22, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(19, 236, 90, 0.1);
+}
+.service-card {
+  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+.service-card:hover {
+  border-color: rgba(19, 236, 90, 0.3);
+  background: var(--color-surface-highlight);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(19, 236, 90, 0.1);
+}
+.service-card:active:not(.service-card-disabled) {
+  transform: translateY(-2px);
+}
+.service-card.service-card-disabled:hover {
+  transform: none;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
 @keyframes slide-up {
@@ -162,10 +437,28 @@ body {
 
 @keyframes splashGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(0, 191, 255, 0.4));
+    filter: drop-shadow(0 0 8px rgba(19, 236, 90, 0.4));
   }
   50% {
-    filter: drop-shadow(0 0 16px rgba(0, 191, 255, 0.6));
+    filter: drop-shadow(0 0 16px rgba(19, 236, 90, 0.6));
+  }
+}
+
+@keyframes splashLogoAssembleLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes splashLogoAssembleRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }
 
@@ -191,6 +484,14 @@ body {
 
 .animate-splash-glow {
   animation: splashGlow 2s ease-in-out infinite;
+}
+
+.animate-splash-logo-assemble-left {
+  animation: splashLogoAssembleLeft 0.6s cubic-bezier(0.2, 0, 0, 1) 0.15s both;
+}
+
+.animate-splash-logo-assemble-right {
+  animation: splashLogoAssembleRight 0.6s cubic-bezier(0.2, 0, 0, 1) 0.15s both;
 }
 
 /* Material Icons font configuration - ensures proper rendering */

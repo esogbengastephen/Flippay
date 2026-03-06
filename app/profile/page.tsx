@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Cropper from "react-easy-crop";
 import { getUserFromStorage } from "@/lib/session";
+import DashboardLayout from "@/components/DashboardLayout";
+import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import imageCompression from "browser-image-compression";
 
 interface Area {
@@ -387,26 +390,23 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary"></div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />;
   }
 
   return (
-    <div className="min-h-screen bg-primary">
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={() => router.back()}
-            className="bg-secondary/10 p-2 rounded-xl hover:bg-secondary/20 transition backdrop-blur-sm"
-          >
-            <span className="material-icons-outlined text-secondary">arrow_back</span>
-          </button>
-          <h1 className="text-2xl font-bold text-secondary">Edit Profile</h1>
-        </div>
+    <DashboardLayout>
+      <div className="min-h-screen bg-primary">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => router.back()}
+              className="hidden lg:flex bg-secondary/10 p-2 rounded-xl hover:bg-secondary/20 transition backdrop-blur-sm"
+            >
+              <span className="material-icons-outlined text-secondary">arrow_back</span>
+            </button>
+            <h1 className="text-2xl font-bold text-secondary">Edit Profile</h1>
+          </div>
 
         {/* Main Card */}
         <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
@@ -445,7 +445,7 @@ export default function ProfilePage() {
                 )}
                 {uploading && (
                   <div className="absolute inset-0 bg-secondary/50 rounded-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <FSpinner size="md" />
                   </div>
                 )}
               </div>
@@ -581,7 +581,7 @@ export default function ProfilePage() {
                     )}
                     {uploadingBusinessLogo && (
                       <div className="absolute inset-0 bg-secondary/50 rounded-lg flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <FSpinner size="md" />
                       </div>
                     )}
                   </div>
@@ -713,7 +713,7 @@ export default function ProfilePage() {
             >
               {saving ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  <FSpinner size="sm" />
                   <span>Saving...</span>
                 </>
               ) : (
@@ -790,7 +790,7 @@ export default function ProfilePage() {
               >
                 {uploadingBusinessLogo ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    <FSpinner size="sm" />
                     <span>Uploading...</span>
                   </>
                 ) : (
@@ -862,7 +862,7 @@ export default function ProfilePage() {
               >
                 {uploading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    <FSpinner size="sm" />
                     <span>Processing...</span>
                   </>
                 ) : (
@@ -877,5 +877,6 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+    </DashboardLayout>
   );
 }

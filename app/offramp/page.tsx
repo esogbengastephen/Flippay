@@ -1,11 +1,14 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+import { getTokenLogo, getChainLogo } from "@/lib/logos";
+import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isUserLoggedIn, getUserFromStorage } from "@/lib/session";
-import BottomNavigation from "@/components/BottomNavigation";
+import DashboardLayout from "@/components/DashboardLayout";
 import { QRCodeSVG } from "qrcode.react";
 import { NIGERIAN_BANKS } from "@/lib/nigerian-banks";
 
@@ -23,8 +26,10 @@ function OffRampPageContent() {
   const [walletAddress, setWalletAddress] = useState("");
   const [verifiedAccountName, setVerifiedAccountName] = useState("");
   const [transactionId, setTransactionId] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState<"send" | "base" | "solana">("send");
   const [network, setNetwork] = useState<"base" | "solana">("base");
-  const [networkType, setNetworkType] = useState<"send" | "base" | "solana">("base");
+  const [networkType, setNetworkType] = useState<"send" | "base" | "solana">("send");
+  const [showNetworkSelectionCard, setShowNetworkSelectionCard] = useState(true);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
@@ -41,14 +46,19 @@ function OffRampPageContent() {
   const [refreshingAddress, setRefreshingAddress] = useState(false);
   const [sendAmount, setSendAmount] = useState("");
   const [sellRate, setSellRate] = useState<number | null>(null);
+  const [pricesNGNSell, setPricesNGNSell] = useState<Record<string, number>>({});
   const [minimumOfframpSEND, setMinimumOfframpSEND] = useState<number>(1);
+  const [selectedCrypto, setSelectedCrypto] = useState<"SEND" | "USDC" | "USDT">("SEND");
+  const [cryptoDropdownOpen, setCryptoDropdownOpen] = useState(false);
+  const cryptoDropdownRef = useRef<HTMLDivElement>(null);
   const [banksList, setBanksList] = useState<BankOption[]>(NIGERIAN_BANKS);
   const [loadingBanks, setLoadingBanks] = useState(false);
 
-  const isSendFlow = networkType === "send";
+  const isSendFlow = selectedNetwork === "send";
+  const minimumAmount = isSendFlow ? minimumOfframpSEND : 1;
   const sendAmountNum = parseFloat(sendAmount) || 0;
   const ngnAmount = sellRate != null && sellRate > 0 ? sendAmountNum * sellRate : 0;
-  const meetsMinimumSell = sendAmountNum >= minimumOfframpSEND;
+  const meetsMinimumSell = sendAmountNum >= minimumAmount;
   const filteredBanks = bankSearchQuery.trim()
     ? banksList.filter(
         (b) =>
@@ -82,21 +92,22 @@ function OffRampPageContent() {
         .catch(() => {});
     }
 
-    // Read network and type from URL parameter
-    const networkParam = searchParams.get("network");
-    const typeParam = searchParams.get("type");
+    // Read network and type from URL. Network first: ?network=send|base|solana, ?type=send|usdc|usdt
+    const networkParam = (searchParams.get("network") || "").toLowerCase();
+    const typeParam = (searchParams.get("type") || "").toLowerCase();
     
     if (networkParam === "base" || networkParam === "solana") {
-      setNetwork(networkParam);
+      setSelectedNetwork(networkParam);
+      setShowNetworkSelectionCard(false);
+    } else if (networkParam === "send" || typeParam === "send") {
+      setSelectedNetwork("send");
+      setShowNetworkSelectionCard(false);
     }
     
-    // Set display type (send, base, or solana). Default to SEND for Crypto to Naira.
-    if (typeParam === "send" || typeParam === "base" || typeParam === "solana") {
-      setNetworkType(typeParam);
-    } else if (networkParam === "solana") {
-      setNetworkType("solana");
-    } else {
-      setNetworkType("send");
+    if (typeParam === "usdc") setSelectedCrypto("USDC");
+    else if (typeParam === "usdt") setSelectedCrypto("USDT");
+    else if (networkParam !== "base" && networkParam !== "solana" && typeParam !== "usdc" && typeParam !== "usdt") {
+      setSelectedCrypto("SEND");
     }
 
     // Check dark mode
@@ -115,7 +126,7 @@ function OffRampPageContent() {
     return () => observer.disconnect();
   }, [router, searchParams]);
 
-  // Fetch sell rate (1 SEND = X NGN) and minimum offramp
+  // Fetch sell rates (1 token = X NGN) and minimum offramp
   useEffect(() => {
     let cancelled = false;
     Promise.all([
@@ -124,8 +135,12 @@ function OffRampPageContent() {
     ])
       .then(([priceData, rateData]) => {
         if (cancelled) return;
-        if (priceData?.success && typeof priceData.pricesNGNSell?.SEND === "number" && priceData.pricesNGNSell.SEND > 0) {
-          setSellRate(priceData.pricesNGNSell.SEND);
+        if (priceData?.success && priceData.pricesNGNSell) {
+          const prices: Record<string, number> = {};
+          for (const [k, v] of Object.entries(priceData.pricesNGNSell)) {
+            if (typeof v === "number" && v > 0) prices[k] = v;
+          }
+          setPricesNGNSell(prices);
         }
         if (rateData?.success && rateData.minimumOfframpSEND != null) {
           setMinimumOfframpSEND(Number(rateData.minimumOfframpSEND) || 1);
@@ -149,11 +164,45 @@ function OffRampPageContent() {
       .finally(() => setLoadingBanks(false));
   }, []);
 
+  // Sync network, networkType, and crypto from selectedNetwork (network first, then crypto)
+  useEffect(() => {
+    if (selectedNetwork === "send") {
+      setNetworkType("send");
+      setNetwork("base");
+      setSelectedCrypto("SEND");
+    } else if (selectedNetwork === "base") {
+      setNetworkType("base");
+      setNetwork("base");
+      setSelectedCrypto((prev) => (prev === "SEND" ? "USDC" : prev));
+    } else {
+      setNetworkType("solana");
+      setNetwork("solana");
+      setSelectedCrypto((prev) => (prev === "SEND" ? "USDC" : prev));
+    }
+  }, [selectedNetwork]);
+
+  // Update sell rate when selectedCrypto changes
+  useEffect(() => {
+    const rate = pricesNGNSell[selectedCrypto];
+    setSellRate(rate != null ? rate : null);
+  }, [selectedCrypto, pricesNGNSell]);
+
   // Close bank dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (bankDropdownRef.current && !bankDropdownRef.current.contains(e.target as Node)) {
         setBankDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close crypto dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cryptoDropdownRef.current && !cryptoDropdownRef.current.contains(e.target as Node)) {
+        setCryptoDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -239,7 +288,7 @@ function OffRampPageContent() {
       setError("Please enter a valid 10-digit account number");
       return;
     }
-    if (isSendFlow && !selectedBankCode) {
+    if (!selectedBankCode) {
       setError("Please select your bank");
       return;
     }
@@ -259,6 +308,7 @@ function OffRampPageContent() {
             accountName: verifiedAccountName || undefined,
             userEmail: user?.email,
             network: "base",
+            token: selectedCrypto,
           }),
         });
         const data = await response.json();
@@ -285,6 +335,7 @@ function OffRampPageContent() {
           bankName: selectedBankName || undefined,
           userEmail: user?.email,
           network: networkForApi,
+          token: selectedCrypto,
         }),
       });
       const data = await response.json();
@@ -382,31 +433,98 @@ function OffRampPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark p-4 pb-20">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-4 pb-24 lg:pb-8">
+      {/* Background blur orbs */}
+      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
+      </div>
+
+      <div className="w-full max-w-lg mt-4 lg:mt-6 relative flex-1 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="text-center mb-4 flex-shrink-0">
           <button
-            onClick={() => router.push("/")}
-            className="text-gray-900 dark:text-white text-lg font-bold hover:opacity-80 transition-opacity"
+            onClick={() => router.back()}
+            className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
           >
-            ← Back
+            <span className="material-icons-outlined">arrow_back</span>
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Crypto to Naira</h1>
-          <div className="w-10"></div>
+          <h1 className="text-2xl font-bold mb-1 tracking-tight text-white font-display">Crypto to Naira</h1>
+          <p className="text-accent/70">Withdraw to your bank account instantly</p>
         </div>
 
-        {/* Form Card - onramp-style layout */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-lg border border-slate-200/50 dark:border-slate-700/50 mb-4">
+        {/* Network Selection Card - centered overlay (same position as Naira to Crypto modal) */}
+        {!walletAddress && showNetworkSelectionCard && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background-dark/80 backdrop-blur-sm"
+            onClick={() => router.back()}
+          >
+            <div
+              className="w-full max-w-sm bg-surface/95 backdrop-blur-[24px] rounded-xl border border-secondary/10 shadow-xl p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-bold text-white font-display">Select Crypto Network</h2>
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="p-1.5 rounded-lg hover:bg-primary/40 text-accent/70 hover:text-white transition-colors"
+                  aria-label="Close"
+                >
+                  <span className="material-icons-outlined text-lg">close</span>
+                </button>
+              </div>
+              <p className="text-xs text-accent/70 mb-3">Choose the network you want to withdraw from</p>
+              <div className="space-y-2">
+                {(["send", "base", "solana"] as const).map((net) => (
+                  <button
+                    key={net}
+                    type="button"
+                    onClick={() => {
+                      setSelectedNetwork(net);
+                      setShowNetworkSelectionCard(false);
+                      if (net === "send") setCryptoDropdownOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
+                        {net === "send" ? (
+                          getTokenLogo("SEND") ? (
+                            <img src={getTokenLogo("SEND")!} alt="SEND" className="w-5 h-5 object-contain" />
+                          ) : (
+                            <span className="text-secondary font-bold text-sm">S</span>
+                          )
+                        ) : getChainLogo(net) ? (
+                          <img src={getChainLogo(net)} alt={net} className="w-5 h-5 object-contain" />
+                        ) : (
+                          <span className="text-secondary font-bold text-xs">{net === "base" ? "B" : "S"}</span>
+                        )}
+                      </div>
+                      <span className="font-semibold text-sm text-white uppercase tracking-wide">
+                        {net === "send" ? "SEND" : net === "base" ? "Base" : "Solana"}
+                      </span>
+                    </div>
+                    <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Card - shown when network selected or when deposit address exists (centered like selector) */}
+        {(walletAddress || !showNetworkSelectionCard) && (
+        <div className="flex-1 flex items-center justify-center min-h-0">
+          <div className="w-full bg-surface/60 backdrop-blur-[24px] rounded-xl p-3 sm:p-4 border border-secondary/10 shadow-2xl relative">
+          <div className="absolute inset-0 overflow-hidden rounded-xl -z-10 pointer-events-none">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl" />
+          </div>
           {!walletAddress ? (
             <>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-5">
-                Sell $SEND for Naira
-              </h2>
-
               {error && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm">
+                  <p>{error}</p>
                   {error.includes("pending off-ramp") && user?.email && (
                     <button
                       type="button"
@@ -433,7 +551,7 @@ function OffRampPageContent() {
                         }
                       }}
                       disabled={cancellingPending || loading}
-                      className="mt-3 w-full py-2 rounded-lg bg-slate-700 text-white text-sm font-medium hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mt-2 w-full py-2.5 rounded-lg bg-primary/40 border border-accent/10 text-accent text-sm font-medium hover:bg-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {cancellingPending ? "Cancelling…" : "Cancel pending and start new"}
                     </button>
@@ -441,155 +559,195 @@ function OffRampPageContent() {
                 </div>
               )}
 
-              <div className="space-y-5 sm:space-y-6">
-                {/* 1. Enter amount of $SEND to sell */}
-                <div>
-                  <label className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300" htmlFor="send_amount">
-                    Enter amount of $SEND to sell
-                  </label>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 mb-2">
-                    Minimum: {minimumOfframpSEND} $SEND
-                  </p>
-                  <input
-                    id="send_amount"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="e.g. 100"
-                    value={sendAmount}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/[^\d.]/g, "").replace(/(\.\d*)\./g, "$1");
-                      setSendAmount(v);
-                    }}
-                    className="w-full rounded-md border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base min-h-[48px] focus:ring-2 focus:ring-primary focus:border-primary"
-                  />
-                </div>
-
-                {/* 2. Amount in NGN you will get (read-only) */}
-                <div>
-                  <label className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300">
-                    Amount in NGN you will get
-                  </label>
-                  <div className="mt-2 flex items-center gap-2 w-full min-h-[48px] rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 sm:px-4 py-2.5 sm:py-3">
-                    <span className="text-base font-semibold">₦</span>
-                    <span className="flex-1 text-base font-medium">
-                      {sendAmountNum > 0 && sellRate != null && sellRate > 0
-                        ? ngnAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : "0.00"}
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5">
-                    {sellRate != null && sellRate > 0
-                      ? `Rate: 1 $SEND = ₦${sellRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN`
-                      : "Loading sell rate…"}
-                  </p>
-                </div>
-
-                {/* 3. Selected Network */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Selected Network
-                  </label>
-                  <div className="p-3 rounded-lg border-2 border-primary dark:border-primary/50 bg-primary/10 dark:bg-primary/20">
-                    <div className="font-semibold text-slate-900 dark:text-white">
-                      {networkType === "send" ? "SEND" : networkType === "base" ? "BASE" : "SOLANA"}
+              <div className="space-y-3">
+                {/* You Send */}
+                <div className="space-y-1.5 mb-3">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Send</label>
+                  <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all flex-wrap">
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <input
+                        id="send_amount"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={sendAmount}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^\d.]/g, "").replace(/(\.\d*)\./g, "$1");
+                          setSendAmount(v);
+                        }}
+                        className="bg-transparent border-none p-0 text-xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
+                      />
+                      <span className="text-xs text-accent/60">Min: {minimumAmount} {selectedCrypto}</span>
                     </div>
-                    <div className="text-xs text-slate-600 dark:text-slate-400">
-                      {network === "base" ? "Smart Wallet" : "Regular Wallet"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Account Number */}
-                <div>
-                  <label className="block text-sm sm:text-base font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Account Number *
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={accountNumber}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "").slice(0, 10);
-                      setAccountNumber(value);
-                      setVerifiedAccountName("");
-                    }}
-                    placeholder="Enter 10-digit account number"
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-primary focus:border-primary min-h-[48px] text-base"
-                    maxLength={10}
-                  />
-                </div>
-
-                {/* 5. Bank (SEND flow only) */}
-                {isSendFlow && (
-                  <div ref={bankDropdownRef} className="relative">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Bank *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setBankDropdownOpen(!bankDropdownOpen)}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-left text-slate-900 dark:text-slate-100 min-h-[48px] text-base flex items-center justify-between"
-                    >
-                      <span className={selectedBankName ? "" : "text-slate-500 dark:text-slate-400"}>
-                        {selectedBankName || "Select bank"}
-                      </span>
-                      <span className="material-icons-outlined text-slate-500">expand_more</span>
-                    </button>
-                    {bankDropdownOpen && (
-                      <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg max-h-56 overflow-hidden">
-                        <input
-                          type="text"
-                          value={bankSearchQuery}
-                          onChange={(e) => setBankSearchQuery(e.target.value)}
-                          placeholder="Search banks..."
-                          className="w-full px-3 py-2 border-b border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm"
-                        />
-                        <div className="overflow-y-auto max-h-44">
-                          {filteredBanks.map((bank) => (
+                    {/* Crypto dropdown (network already selected from card) */}
+                    <div ref={cryptoDropdownRef} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => selectedNetwork !== "send" && setCryptoDropdownOpen(!cryptoDropdownOpen)}
+                        className={`flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5 hover:border-accent/20 transition-colors ${selectedNetwork === "send" ? "cursor-default" : ""}`}
+                      >
+                        {getTokenLogo(selectedCrypto) ? (
+                          <img src={getTokenLogo(selectedCrypto)!} alt={selectedCrypto} className="w-5 h-5 rounded-full object-cover" />
+                        ) : null}
+                        <span className="font-bold text-white text-sm">{selectedCrypto}</span>
+                        {selectedNetwork !== "send" && (
+                          <span className="material-icons-outlined text-accent/60 text-sm">{cryptoDropdownOpen ? "expand_less" : "expand_more"}</span>
+                        )}
+                      </button>
+                      {cryptoDropdownOpen && selectedNetwork !== "send" && (
+                        <div className="absolute top-full right-0 mt-1 z-20 rounded-xl border border-secondary/20 bg-surface/95 backdrop-blur-xl shadow-xl overflow-hidden min-w-[140px]">
+                          {(["USDC", "USDT"] as const).map((token) => (
                             <button
-                              key={bank.code}
+                              key={token}
                               type="button"
                               onClick={() => {
-                                setSelectedBankCode(bank.code);
-                                setBankDropdownOpen(false);
-                                setBankSearchQuery("");
-                                setVerifiedAccountName("");
+                                setSelectedCrypto(token);
+                                setCryptoDropdownOpen(false);
                               }}
-                              className="w-full px-3 py-2.5 text-left text-sm text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700"
+                              className={`w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-primary/60 transition-colors ${selectedCrypto === token ? "bg-primary/40 text-secondary" : "text-white"}`}
                             >
-                              {bank.name}
+                              {getTokenLogo(token) ? (
+                                <img src={getTokenLogo(token)!} alt={token} className="w-5 h-5 rounded-full object-cover" />
+                              ) : null}
+                              <span className="font-medium">{token}</span>
+                              {selectedCrypto === token && (
+                                <span className="material-icons-outlined text-secondary text-sm ml-auto">check</span>
+                              )}
                             </button>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
 
-                {/* 6. Verify account (SEND flow) */}
+                {/* Arrow */}
+                <div className="flex justify-center -my-0.5">
+                  <div className="bg-primary border border-accent/10 rounded-full p-1.5 z-10">
+                    <span className="material-icons-outlined text-secondary">arrow_downward</span>
+                  </div>
+                </div>
+
+                {/* You Receive */}
+                <div className="space-y-1.5 mb-3">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">You Receive</label>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10">
+                    <div className="flex flex-col">
+                      <div className="text-xl font-bold text-white">
+                        {sendAmountNum > 0 && sellRate != null && sellRate > 0
+                          ? `₦${ngnAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : "0.00"}
+                      </div>
+                      {sellRate != null && sellRate > 0 ? (
+                        <span className="text-xs text-accent/60">
+                          Rate: 1 {selectedCrypto} = <span className="text-secondary font-semibold">{sellRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-accent/60">Loading sell rate…</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 bg-primary px-3 py-2 rounded-xl border border-accent/5">
+                      <span className="text-sm font-bold text-white">🇳🇬 NGN</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Destination Bank Account */}
+                <div className="space-y-1.5 mb-3">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 px-1">Destination Bank Account</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                      <span className="material-icons-outlined text-accent/40">account_balance</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={accountNumber}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setAccountNumber(value);
+                          setVerifiedAccountName("");
+                        }}
+                        placeholder="10-digit NUBAN"
+                        className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/20 focus:ring-0 outline-none"
+                        maxLength={10}
+                      />
+                    </div>
+                    <div ref={bankDropdownRef} className="relative min-w-0">
+                      <button
+                          type="button"
+                          onClick={() => setBankDropdownOpen(!bankDropdownOpen)}
+                          className="w-full flex items-center justify-between p-3 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="material-icons-outlined text-secondary">account_balance</span>
+                            <div className="text-left">
+                              <div className="text-sm font-medium text-white">{selectedBankName || "Select bank"}</div>
+                              {verifiedAccountName && (
+                                <div className="text-xs text-accent/60">{verifiedAccountName} • {accountNumber ? `${accountNumber.slice(0, 3)}****${accountNumber.slice(-3)}` : ""}</div>
+                              )}
+                            </div>
+                          </div>
+                          <span className="material-icons-outlined text-accent/60">expand_more</span>
+                        </button>
+                        {bankDropdownOpen && (
+                          <div className="absolute z-20 left-0 right-0 mt-2 min-w-0 w-full rounded-2xl border border-secondary/20 bg-surface/95 backdrop-blur-xl shadow-xl max-h-56 overflow-hidden">
+                            <input
+                              type="text"
+                              value={bankSearchQuery}
+                              onChange={(e) => setBankSearchQuery(e.target.value)}
+                              placeholder="Search banks..."
+                              className="w-full px-4 py-3 border-b border-white/10 bg-surface text-white placeholder-white/40 text-sm focus:outline-none focus:ring-0"
+                            />
+                            <div className="overflow-y-auto overflow-x-hidden max-h-44 custom-scrollbar">
+                              {filteredBanks.map((bank) => (
+                                <button
+                                  key={bank.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedBankCode(bank.code);
+                                    setBankDropdownOpen(false);
+                                    setBankSearchQuery("");
+                                    setVerifiedAccountName("");
+                                  }}
+                                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-primary/50"
+                                >
+                                  {bank.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                  </div>
+                </div>
+
+                {/* Verify account (SEND flow) */}
                 {isSendFlow && (
                   <>
                     <button
                       type="button"
                       onClick={handleVerifyAccount}
                       disabled={verifying || accountNumber.replace(/\D/g, "").length !== 10 || !selectedBankCode}
-                      className="w-full px-4 py-3 rounded-lg border-2 border-primary text-primary dark:text-primary font-semibold hover:bg-primary/10 dark:hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] text-base"
+                      className="w-full py-2.5 rounded-lg border-2 border-secondary/40 text-secondary font-semibold hover:bg-secondary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                     >
+                      <span className="material-icons-outlined text-lg">verified_user</span>
                       {verifying ? "Verifying…" : "Verify account"}
                     </button>
                     {verifiedAccountName && (
-                      <div className="rounded-lg border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
-                        <p className="text-xs font-medium text-green-800 dark:text-green-300 mb-1">Account name</p>
-                        <p className="text-base font-semibold text-green-900 dark:text-green-100">{verifiedAccountName}</p>
+                      <div className="p-3 rounded-xl bg-secondary/10 border border-secondary/30">
+                        <p className="text-sm text-secondary font-medium flex items-center gap-2">
+                          <span className="material-icons-outlined text-lg">check_circle</span>
+                          {verifiedAccountName} • {selectedBankName}
+                        </p>
                       </div>
                     )}
                   </>
                 )}
 
-                {/* 7. Continue */}
+                {/* Continue */}
                 {isSendFlow && sendAmountNum > 0 && !meetsMinimumSell && (
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Minimum sell amount is {minimumOfframpSEND} $SEND.
+                  <p className="text-sm text-amber-400">
+                    Minimum sell amount is {minimumAmount} {selectedCrypto}.
                   </p>
                 )}
                 <button
@@ -597,33 +755,47 @@ function OffRampPageContent() {
                   disabled={
                     loading ||
                     accountNumber.replace(/\D/g, "").length !== 10 ||
-                    (isSendFlow && (!selectedBankCode || !verifiedAccountName || !meetsMinimumSell))
+                    !selectedBankCode ||
+                    (isSendFlow && !verifiedAccountName) ||
+                    !meetsMinimumSell
                   }
-                  className="w-full min-h-[48px] sm:min-h-[52px] bg-primary text-slate-900 dark:text-white font-bold py-3.5 px-4 rounded-lg hover:opacity-90 active:opacity-95 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary text-base"
+                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
-                  {loading ? (isSendFlow ? "Verifying…" : "Generating…") : isSendFlow ? "Continue" : "Generate Wallet Address"}
+                  <span className="material-icons-outlined font-bold">account_balance</span>
+                  {loading ? (isSendFlow ? "Verifying…" : "Generating…") : isSendFlow ? "Withdraw to Bank" : "Generate Wallet Address"}
                 </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 pt-1">
+                <div className="flex items-center gap-1.5 text-accent/60">
+                  <span className="material-icons-outlined text-sm text-secondary">bolt</span>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold">Instant Processing</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-accent/60">
+                  <span className="material-icons-outlined text-sm text-secondary">lock</span>
+                  <span className="text-[10px] uppercase tracking-wider font-semibold">End-to-End Secure</span>
+                </div>
               </div>
             </>
           ) : (
             <>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+              <h2 className="text-base font-bold text-white mb-3">
                 Send Crypto to This Address
               </h2>
 
               {verifiedAccountName && (
-                <div className="mb-4 rounded-lg border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
-                  <p className="text-xs font-medium text-green-800 dark:text-green-300 mb-1">Payout account name</p>
-                  <p className="text-base font-semibold text-green-900 dark:text-green-100">{verifiedAccountName}</p>
+                <div className="mb-3 p-3 rounded-xl bg-secondary/10 border border-secondary/30">
+                  <p className="text-xs font-medium text-secondary mb-1">Payout account name</p>
+                  <p className="text-base font-semibold text-white">{verifiedAccountName}</p>
                 </div>
               )}
 
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {/* Network Badge */}
                 <div className="flex items-center justify-center">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 dark:bg-primary/20 border-2 border-primary/30 dark:border-primary/50 rounded-full">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span className="font-semibold text-primary dark:text-primary">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 border border-secondary/30 rounded-full text-sm">
+                    <div className="w-2 h-2 bg-secondary rounded-full animate-pulse"></div>
+                    <span className="font-semibold text-secondary">
                       {networkType === "send" ? "Send Token" : networkType === "base" ? "Base Network" : "Solana Network"}
                     </span>
                   </div>
@@ -631,19 +803,19 @@ function OffRampPageContent() {
 
                 {/* QR Code Section */}
                 {cleanAddress && (
-                  <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6 border-2 border-gray-200 dark:border-white/5 shadow-lg">
-                    <div className="flex flex-col items-center space-y-4">
-                      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md">
+                  <div className="rounded-lg p-2.5 bg-primary/40 border border-accent/10">
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="bg-white p-1.5 rounded-md">
                         <QRCodeSVG
                           value={cleanAddress}
-                          size={200}
+                          size={120}
                           level="H"
                           includeMargin={true}
-                          fgColor={isDarkMode ? "#ffffff" : "#1a1a1a"}
-                          bgColor={isDarkMode ? "#1f2937" : "#ffffff"}
+                          fgColor="#1a1a1a"
+                          bgColor="#ffffff"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      <p className="text-xs text-accent/60 text-center">
                         Scan to send crypto to this address
                       </p>
                     </div>
@@ -651,25 +823,23 @@ function OffRampPageContent() {
                 )}
 
                 {/* Wallet Address Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border-2 border-gray-200 dark:border-white/5 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Wallet Address</p>
+                <div className="rounded-lg p-2.5 bg-primary/40 border border-accent/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-accent">Wallet Address</p>
                     <button
                       onClick={() => copyToClipboard(cleanAddress)}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-md hover:shadow-lg"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-lg text-xs font-semibold hover:bg-secondary/90 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
+                      <span className="material-icons-outlined text-sm">content_copy</span>
                       Copy
                     </button>
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-white/5">
-                    <p className="font-mono text-sm break-all text-gray-900 dark:text-white leading-relaxed">
+                  <div className="bg-primary/50 rounded-lg p-2.5 border border-white/5">
+                    <p className="font-mono text-sm break-all text-white leading-relaxed">
                       {cleanAddress}
                     </p>
                   </div>
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-2 flex justify-end">
                     <button
                       type="button"
                       onClick={async () => {
@@ -688,7 +858,7 @@ function OffRampPageContent() {
                         }
                       }}
                       disabled={refreshingAddress}
-                      className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary underline disabled:opacity-50"
+                      className="flex items-center gap-2 text-xs text-accent/60 hover:text-secondary underline disabled:opacity-50"
                     >
                       <svg
                         className={`w-4 h-4 ${refreshingAddress ? "animate-spin" : ""}`}
@@ -705,17 +875,15 @@ function OffRampPageContent() {
                 </div>
 
                 {/* Instructions: automatic sweep + payout */}
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-200 dark:border-blue-800/50 rounded-xl p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-sm font-bold text-blue-900 dark:text-blue-300">Automatic payout</p>
+                <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-2.5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="material-icons-outlined text-secondary">info</span>
+                    <p className="text-sm font-bold text-secondary">Automatic payout</p>
                   </div>
-                  <ol className="text-sm text-blue-800 dark:text-blue-200 space-y-3 list-decimal list-inside">
+                  <ol className="text-xs text-accent space-y-2 list-decimal list-inside">
                     <li className="leading-relaxed">
                       {networkType === "send" ? (
-                        <>Send only <span className="font-semibold">$SEND</span> to the wallet address above (Base network)</>
+                        <>Send only <span className="font-semibold">{selectedCrypto === "SEND" ? "$SEND" : selectedCrypto}</span> to the wallet address above (Base network)</>
                       ) : (
                         <>
                           Send <span className="font-semibold">
@@ -733,38 +901,38 @@ function OffRampPageContent() {
                 </div>
 
                 {sendDetected && !payoutSuccess && (
-                  <div className="rounded-lg border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
-                    <p className="text-sm font-semibold text-green-800 dark:text-green-200">
+                  <div className="rounded-2xl bg-secondary/10 border border-secondary/30 p-4">
+                    <p className="text-sm font-semibold text-secondary">
                       SEND detected! {sendDetected.balance} SEND — Processing payout…
                     </p>
                   </div>
                 )}
                 {payoutError && (
-                  <div className="rounded-lg border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3">
-                    <p className="text-sm text-red-800 dark:text-red-200">{payoutError}</p>
+                  <div className="rounded-2xl bg-red-500/10 border border-red-500/30 p-4">
+                    <p className="text-sm text-red-400">{payoutError}</p>
                   </div>
                 )}
                 {payoutSuccess && (
-                  <div className="rounded-lg border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3">
-                    <p className="text-sm font-semibold text-green-800 dark:text-green-200">{payoutSuccess.message}</p>
+                  <div className="rounded-2xl bg-secondary/10 border border-secondary/30 p-4">
+                    <p className="text-sm font-semibold text-secondary">{payoutSuccess.message}</p>
                     {payoutSuccess.ngnAmount != null && (
-                      <p className="text-sm text-green-700 dark:text-green-300 mt-1">Amount: ₦{payoutSuccess.ngnAmount.toLocaleString()}</p>
+                      <p className="text-sm text-accent mt-1">Amount: ₦{payoutSuccess.ngnAmount.toLocaleString()}</p>
                     )}
                   </div>
                 )}
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                <p className="text-xs text-accent/60 text-center">
                   Watching for SEND… We check every few seconds. Or trigger manually:
                 </p>
                 <button
                   onClick={handleIHaveTransferred}
                   disabled={processingPayout || !transactionId}
-                  className="w-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold py-3 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] text-base"
+                  className="w-full py-4 rounded-2xl border-2 border-secondary/40 text-secondary font-semibold hover:bg-secondary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]"
                 >
-                  {processingPayout ? "Processing…" : "I've sent SEND — process now"}
+                  {processingPayout ? "Processing…" : `I've sent ${selectedCrypto} — process now`}
                 </button>
                 {payoutTakingLong && (
-                  <p className="text-sm text-amber-600 dark:text-amber-400 text-center mt-2">
+                  <p className="text-sm text-amber-400 text-center mt-2">
                     Still processing… This can take up to 2 minutes. Don&apos;t close the page.
                   </p>
                 )}
@@ -776,35 +944,42 @@ function OffRampPageContent() {
                     setVerifiedAccountName("");
                     setAccountNumber("");
                     setSelectedBankCode("");
+                    setSelectedNetwork("send");
+                    setShowNetworkSelectionCard(true);
                     setNetwork("base");
                     setPayoutError("");
                     setPayoutSuccess(null);
                     setSendDetected(null);
                   }}
-                  className="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-semibold py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  className="w-full py-3 rounded-2xl border border-accent/30 text-accent font-semibold hover:bg-accent/10 transition-colors"
                 >
                   Start New Transaction
                 </button>
               </div>
             </>
           )}
+          </div>
         </div>
+        )}
+
+        <p className="text-center text-accent/40 text-xs mt-10">
+          Powered by Flippay • Licensed Financial Provider
+        </p>
       </div>
-      <BottomNavigation />
     </div>
   );
 }
 
 export default function OffRampPage() {
   return (
+    <DashboardLayout>
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-background-light dark:bg-background-dark" />
       }
     >
       <OffRampPageContent />
     </Suspense>
+    </DashboardLayout>
   );
 }

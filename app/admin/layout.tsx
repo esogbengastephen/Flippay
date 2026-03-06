@@ -1,23 +1,27 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+import Image from "next/image";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DEPOSIT_ACCOUNT } from "@/lib/constants";
 import AdminAuthGuard from "@/components/AdminAuthGuard";
+import FSpinner from "@/components/FSpinner";
 import WagmiProvider from "@/components/WagmiProvider";
 import PoweredBySEND from "@/components/PoweredBySEND";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAccount, useDisconnect } from "wagmi";
 import {
   ADMIN_NAV_ITEMS,
+  ADMIN_NAV_SECTIONS,
   canAccessRoute,
   filterNavByPermission,
-  isViewOnlyAdmin,
+  getAdminPageTitle,
+  USE_MOCK_ADMIN_AUTH,
+  type AdminNavSection,
 } from "@/lib/admin-permissions";
-import { AdminViewOnlyProvider } from "@/contexts/AdminViewOnlyContext";
 
 function AdminLayoutContent({
   children,
@@ -33,6 +37,12 @@ function AdminLayoutContent({
   const [loadingMe, setLoadingMe] = useState(true);
 
   useEffect(() => {
+    if (USE_MOCK_ADMIN_AUTH) {
+      setRole("super_admin");
+      setPermissions([]);
+      setLoadingMe(false);
+      return;
+    }
     if (!address) {
       setRole(undefined);
       setPermissions([]);
@@ -71,226 +81,179 @@ function AdminLayoutContent({
 
   const allowedNavItems = filterNavByPermission(ADMIN_NAV_ITEMS, role, permissions);
   const canAccessCurrentPage = canAccessRoute(pathname ?? "", role, permissions);
-  const isViewOnly = role !== "super_admin" && isViewOnlyAdmin(permissions);
+
+  const itemsBySection = allowedNavItems.reduce<Record<AdminNavSection, typeof allowedNavItems>>(
+    (acc, item) => {
+      if (!acc[item.section]) acc[item.section] = [];
+      acc[item.section].push(item);
+      return acc;
+    },
+    { operations: [], management: [], tokenomics: [], system: [] }
+  );
+
+  const sectionOrder: AdminNavSection[] = ["operations", "management", "tokenomics", "system"];
 
   return (
-    <AdminViewOnlyProvider permissions={permissions} role={role}>
-    <div className="min-h-screen bg-background-light dark:bg-background-dark" style={{ backgroundColor: "var(--background-light)" }}>
-      <style jsx global>{`
-        :root {
-          --background-light: #FFFFFF;
-          --background-dark: #011931;
-        }
-        .dark {
-          --background-light: #011931;
-        }
-
-        .admin-view-only-content button:not([aria-label="Toggle menu"]):not([aria-label="Close menu"]),
-        .admin-view-only-content input[type="submit"],
-        .admin-view-only-content input[type="button"],
-        .admin-view-only-content [role="button"],
-        .admin-view-only-content select {
-          pointer-events: none !important;
-          opacity: 0.6;
-          cursor: not-allowed !important;
-        }
-      `}</style>
+    <div className="min-h-screen bg-surface flex overflow-hidden text-white">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-white dark:bg-slate-900 p-2 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700"
+        className="fixed top-4 left-4 z-50 lg:hidden bg-primary p-2 rounded-lg border border-accent/10"
         aria-label="Toggle menu"
       >
-        <span className="material-icons-outlined text-slate-900 dark:text-slate-100">
+        <span className="material-icons-outlined text-white">
           {sidebarOpen ? "close" : "menu"}
         </span>
       </button>
 
-      {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-background-dark/80 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Flippay branding */}
       <aside
-        className={`fixed left-0 top-0 h-full w-72 sm:w-80 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 z-40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${
+        className={`fixed left-0 top-0 h-full w-64 bg-background-dark flex-shrink-0 border-r border-accent/10 flex flex-col z-40 transform transition-transform duration-300 ease-in-out lg:translate-x-0 overflow-y-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Close Button for Mobile */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 lg:hidden">
-          <div className="flex items-center gap-3">
-            <div>
-              {/* White logo for light mode */}
-              <img 
-                src="/whitelogo.png" 
-                alt="FlipPay" 
-                className="h-10 w-auto dark:hidden"
-              />
-              {/* Regular logo for dark mode */}
-              <img 
-                src="/logo.png" 
-                alt="FlipPay" 
-                className="h-10 w-auto hidden dark:block"
+        <div className="h-20 flex items-center px-6 border-b border-accent/10">
+          <Link href="/admin" className="flex items-center" onClick={() => setSidebarOpen(false)}>
+            <div className="relative w-12 h-12 flex-shrink-0">
+              <Image
+                src="/flippay-logo-white.png"
+                alt="FlipPay"
+                fill
+                sizes="48px"
+                className="object-contain mix-blend-lighten"
               />
             </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
-                Admin Panel
-              </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                FlipPay Platform
+          </Link>
+        </div>
+
+        <nav className="flex-1 px-4 py-6 space-y-1">
+          {loadingMe ? (
+            <div className="flex items-center gap-2 py-3 text-accent/60 text-sm">
+              <FSpinner size="xs" />
+              <span>Loading...</span>
+            </div>
+          ) : (
+            sectionOrder.map((sectionKey) => {
+              const items = itemsBySection[sectionKey];
+              if (!items.length) return null;
+              const sectionLabel = ADMIN_NAV_SECTIONS[sectionKey];
+              return (
+                <div key={sectionKey}>
+                  <p className="px-3 pt-4 pb-2 text-xs font-semibold text-accent/50 uppercase tracking-wider">
+                    {sectionLabel}
+                  </p>
+                  {items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all group ${
+                        pathname === item.href
+                          ? "bg-secondary/10 text-secondary border border-secondary/20 shadow-[0_0_10px_rgba(19,236,90,0.1)]"
+                          : "text-accent/70 hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <span className="material-icons-outlined text-[20px] text-white">
+                        {item.icon}
+                      </span>
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              );
+            })
+          )}
+
+          <div className="mt-4 pt-4 border-t border-accent/10">
+            <ThemeToggle />
+          </div>
+
+          <Link
+            href="/"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-accent/70 hover:text-white hover:bg-white/5 transition-colors mt-2"
+          >
+            <span className="material-icons-outlined text-[20px] text-white">arrow_back</span>
+            <span className="text-sm font-medium">Back to App</span>
+          </Link>
+        </nav>
+
+        <div className="p-4 border-t border-accent/10 flex-shrink-0">
+          {address ? (
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-primary border border-accent/20 flex items-center justify-center text-white text-xs font-mono">
+                {address.slice(2, 6)}
+              </div>
+              <div className="text-sm min-w-0">
+                <p className="font-bold text-white truncate">{role === "super_admin" ? "Super Admin" : "Admin"}</p>
+                <p className="text-xs text-secondary truncate">{address.slice(0, 10)}...</p>
+              </div>
+              <button
+                onClick={() => {
+                  disconnect();
+                  localStorage.removeItem("admin_session");
+                  localStorage.removeItem("admin_wallet");
+                  window.location.href = "/admin";
+                }}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <div className="bg-primary/40 rounded-lg p-3 border border-accent/10">
+              <p className="text-xs font-medium text-accent/60 mb-1">Deposit Account</p>
+              <p className="text-xs font-semibold text-white break-words">{DEPOSIT_ACCOUNT.name}</p>
+              <p className="text-xs text-accent/60 mt-1">
+                {DEPOSIT_ACCOUNT.accountNumber} • {DEPOSIT_ACCOUNT.bank}
               </p>
             </div>
+          )}
+          <div className="mt-3">
+            <PoweredBySEND />
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Close menu"
-          >
-            <span className="material-icons-outlined text-slate-900 dark:text-slate-100">close</span>
-          </button>
-        </div>
-
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-4 sm:p-6">
-            {/* Header for Desktop */}
-            <div className="hidden lg:flex items-center gap-3 mb-6 sm:mb-8">
-              <div>
-                {/* White logo for light mode */}
-                <img 
-                  src="/whitelogo.png" 
-                  alt="FlipPay" 
-                  className="h-12 w-auto dark:hidden"
-                />
-                {/* Regular logo for dark mode */}
-                <img 
-                  src="/logo.png" 
-                  alt="FlipPay" 
-                  className="h-12 w-auto hidden dark:block"
-                />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  Admin Panel
-                </h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  FlipPay Platform
-                </p>
-              </div>
-            </div>
-
-            {/* Wallet Info */}
-            {address && (
-              <div className="mb-4 p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Connected Wallet</p>
-                <p className="text-xs font-mono text-slate-900 dark:text-slate-100 break-all">
-                  {address.slice(0, 8)}...{address.slice(-6)}
-                </p>
-                <button
-                  onClick={() => {
-                    disconnect();
-                    localStorage.removeItem("admin_session");
-                    localStorage.removeItem("admin_wallet");
-                    window.location.href = "/admin";
-                  }}
-                  className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline"
-                >
-                  Disconnect
-                </button>
-              </div>
-            )}
-
-            <nav className="space-y-1 sm:space-y-2">
-              {loadingMe ? (
-                <div className="flex items-center gap-2 py-3 text-slate-500 dark:text-slate-400 text-sm">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-                  <span>Loading access...</span>
-                </div>
-              ) : (
-                allowedNavItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base transition-colors ${
-                      pathname === item.href
-                        ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
-                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <span className="material-icons-outlined text-lg sm:text-xl">{item.icon}</span>
-                    <span className={item.label === "Token Distribution" ? "whitespace-nowrap" : ""}>{item.label}</span>
-                  </Link>
-                ))
-              )}
-              {/* Theme Toggle */}
-              <div className="mt-2 sm:mt-4" onClick={() => setSidebarOpen(false)}>
-                <ThemeToggle />
-              </div>
-              <Link
-                href="/"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mt-2 sm:mt-4"
-              >
-                <span className="material-icons-outlined text-lg sm:text-xl">arrow_back</span>
-                <span>Back to App</span>
-              </Link>
-            </nav>
-          </div>
-        </div>
-
-        {/* Account Info - Fixed at bottom */}
-        <div className="flex-shrink-0 p-4 sm:p-6 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <div className="bg-slate-100 dark:bg-slate-800 p-3 sm:p-4 rounded-lg mb-4">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 sm:mb-2">
-              Deposit Account
-            </p>
-            <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">
-              {DEPOSIT_ACCOUNT.name}
-            </p>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-              {DEPOSIT_ACCOUNT.accountNumber} • {DEPOSIT_ACCOUNT.bank}
-            </p>
-          </div>
-          <PoweredBySEND />
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-72 xl:ml-80 p-4 sm:p-6 lg:p-8 pt-16 sm:pt-20 lg:pt-8 min-h-screen">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden pt-16 lg:pt-0 lg:ml-64">
         {!loadingMe && pathname && !canAccessCurrentPage ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-            <span className="material-icons-outlined text-6xl text-slate-400 dark:text-slate-500 mb-4">lock</span>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Access denied</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-4 max-w-md">
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+            <span className="material-icons-outlined text-6xl text-white mb-4">lock</span>
+            <h2 className="text-xl font-bold text-white mb-2">Access denied</h2>
+            <p className="text-accent/70 mb-4 max-w-md">
               You don&apos;t have permission to view this page. Contact a super admin to request access.
             </p>
             <Link
               href="/admin"
-              className="px-4 py-2 rounded-lg bg-primary text-slate-900 font-medium hover:opacity-90"
+              className="px-4 py-2 rounded-lg bg-secondary text-primary font-medium hover:bg-secondary/90"
             >
               Back to Dashboard
             </Link>
           </div>
         ) : (
-          <div className={isViewOnly ? "admin-view-only-content" : ""}>
-            {isViewOnly && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-                <span className="material-icons-outlined text-lg">visibility</span>
-                <span>View only — you can open pages and tabs but cannot use buttons or make changes.</span>
-              </div>
-            )}
-            {children}
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
+            {/* Sticky Top Bar - page title (h-20 matches sidebar header for aligned divider) */}
+            <header className="sticky top-0 z-20 flex-shrink-0 h-20 flex items-center bg-surface/95 backdrop-blur-md border-b border-accent/10 px-6 lg:px-8">
+              <h1 className="text-xl font-bold text-white tracking-tight">
+                {pathname ? getAdminPageTitle(pathname) : "Admin"}
+              </h1>
+            </header>
+            {/* Content */}
+            <div className="flex-1 pt-4 px-6 lg:px-8 pb-6 lg:pb-8">
+              {children}
+            </div>
           </div>
         )}
       </main>
     </div>
-    </AdminViewOnlyProvider>
   );
 }
 
@@ -307,4 +270,3 @@ export default function AdminLayout({
     </WagmiProvider>
   );
 }
-

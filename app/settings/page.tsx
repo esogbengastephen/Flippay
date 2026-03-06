@@ -6,10 +6,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getUserFromStorage } from "@/lib/session";
+import DashboardLayout from "@/components/DashboardLayout";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { decryptSeedPhrase } from "@/lib/wallet";
 import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo } from "@/lib/logos";
+import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import { getKYCTierInfo, canUpgradeTier, formatCurrency, type KYCTier, KYC_TIERS } from "@/lib/kyc-tiers";
 
 // Add Phone Number Form Component
@@ -64,27 +67,27 @@ function AddPhoneNumberForm({ onSuccess, userId }: { onSuccess: () => void; user
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
           placeholder="07034494055"
-          className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-white/20 bg-white/60 dark:bg-white/10 text-gray-900 dark:text-white"
+          className="w-full px-4 py-3 rounded-xl bg-primary/40 border border-accent/10 text-white placeholder-white/30 focus:border-secondary/30 focus:ring-0 outline-none"
           required
         />
-        <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
+        <p className="text-xs text-accent/50 mt-1">
           Enter your Nigerian mobile number (e.g., 07034494055)
         </p>
       </div>
       {error && (
-        <div className="p-3 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+        <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
       {success && (
-        <div className="p-3 bg-green-100/80 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-xl">
-          <p className="text-sm text-green-700 dark:text-green-300">{success}</p>
+        <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
+          <p className="text-sm text-secondary">{success}</p>
         </div>
       )}
       <button
         type="submit"
         disabled={loading || !phoneNumber}
-        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
       >
         {loading ? "Adding..." : "Add Phone Number"}
       </button>
@@ -245,90 +248,91 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary"></div>
-      </div>
+      <DashboardLayout>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-background-dark">
-      {/* Header Background */}
-      <div className="absolute top-0 left-0 w-full h-[200px] bg-primary rounded-b-[3rem] z-0 overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
-      </div>
+    <DashboardLayout>
+      <div className="min-h-screen bg-background-dark relative flex flex-col p-4 pb-24 lg:pb-8">
+        {/* Background blur orbs */}
+        <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
+          <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
+        </div>
 
-      <div className="relative z-10 p-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-4xl mx-auto w-full relative">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-6 text-secondary dark:text-white">
+          <div className="text-center mb-10 relative">
             <button
               onClick={() => router.back()}
-              className="p-2 hover:bg-secondary/10 dark:hover:bg-white/10 rounded-lg transition"
+              className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
             >
-              <span className="material-icons-outlined text-secondary dark:text-white">arrow_back</span>
+              <span className="material-icons-outlined">arrow_back</span>
             </button>
-            <h1 className="text-2xl font-bold text-secondary dark:text-white">Settings</h1>
+            <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">Settings</h1>
+            <p className="text-accent/70">Manage your profile, security, and preferences</p>
           </div>
 
-          {/* Main Content */}
           <div className="space-y-6">
             {/* Profile Section */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">person</span>
-                Profile
-              </h2>
-              <div className="space-y-4">
+            <section id="profile" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">Profile</h2>
+                <p className="text-sm text-accent/60 mt-1">Your basic account information</p>
+              </div>
+              <div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-white/60">Display Name</p>
-                    <p className="text-base font-medium text-gray-900 dark:text-white">
+                    <p className="text-sm text-accent/60">Display Name</p>
+                    <p className="text-base font-medium text-white">
                       {userProfile?.displayName || "Not set"}
                     </p>
                   </div>
                   <button
                     onClick={() => router.push("/profile")}
-                    className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2 px-4 rounded-xl transition-colors"
+                    className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-5 rounded-xl transition-all shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
                   >
                     Edit Profile
                   </button>
                 </div>
-                <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-                  <p className="text-sm text-gray-600 dark:text-white/60 mb-1">Email</p>
-                  <p className="text-base text-gray-900 dark:text-white">{user?.email}</p>
+                <div className="pt-4 border-t border-accent/10">
+                  <p className="text-sm text-accent/60 mb-1">Email</p>
+                  <p className="text-base text-white">{user?.email}</p>
                 </div>
               </div>
-            </div>
+            </section>
 
             {/* Phone Number & NGN Account Section */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">phone</span>
-                Phone Number & NGN Account
-              </h2>
-              <div className="space-y-4">
+            <section id="phone-ngn" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">Phone & NGN Account</h2>
+                <p className="text-sm text-accent/60 mt-1">Manage your phone number and NGN wallet</p>
+              </div>
+              <div className="p-6 space-y-4">
                 {userProfile?.mobileNumber ? (
                   <>
-                    <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-                      <p className="text-sm text-gray-600 dark:text-white/60 mb-1">Phone Number</p>
-                      <p className="text-base text-gray-900 dark:text-white">{userProfile.mobileNumber}</p>
+                    <div className="pt-4 border-t border-accent/10">
+                      <p className="text-sm text-accent/60 mb-1">Phone Number</p>
+                      <p className="text-base text-white">{userProfile.mobileNumber}</p>
                     </div>
                     {userProfile.flutterwaveAccountNumber && (
                       <>
-                        <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-                          <p className="text-sm text-gray-600 dark:text-white/60 mb-1">NGN Account Number</p>
-                          <p className="text-base font-mono text-gray-900 dark:text-white">{userProfile.flutterwaveAccountNumber}</p>
-                          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">{userProfile.flutterwaveBank}</p>
+                        <div className="pt-4 border-t border-accent/10">
+                          <p className="text-sm text-accent/60 mb-1">NGN Account Number</p>
+                          <p className="text-base font-mono text-white">{userProfile.flutterwaveAccountNumber}</p>
+                          <p className="text-xs text-accent/50 mt-1">{userProfile.flutterwaveBank}</p>
                         </div>
                         {!userProfile.flutterwaveIsPermanent && (
-                          <div className="p-3 bg-yellow-100/80 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800 rounded-xl">
-                            <p className="text-xs text-yellow-800 dark:text-yellow-300 mb-2">
+                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
+                            <p className="text-xs text-accent/80 mb-2">
                               ⚠️ Temporary account (Tier 1). Verify your BVN to get a permanent account and upgrade to Tier 2 with higher limits.
                             </p>
                             <button
                               onClick={() => router.push("/kyc/verify-bvn")}
-                              className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors"
+                              className="text-xs bg-secondary text-primary font-semibold py-2 px-4 rounded-lg transition-colors"
                             >
                               Verify BVN Now
                             </button>
@@ -339,22 +343,22 @@ export default function SettingsPage() {
                   </>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-sm text-gray-600 dark:text-white/60">
+                    <p className="text-sm text-accent/70">
                       Add your phone number to create your NGN wallet account.
                     </p>
                     <AddPhoneNumberForm onSuccess={() => fetchUserProfile(user.id)} userId={user.id} />
                   </div>
                 )}
               </div>
-            </div>
+            </section>
 
             {/* KYC Section */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">verified_user</span>
-                KYC Verification & Limits
-              </h2>
-              <div className="space-y-4">
+            <section id="kyc" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">KYC Verification & Limits</h2>
+                <p className="text-sm text-accent/60 mt-1">Your verification tier and transaction limits</p>
+              </div>
+              <div className="p-6 space-y-4">
                 {(() => {
                   const hasAccount = userProfile?.mobileNumber && userProfile?.flutterwaveAccountNumber;
                   const currentTier = hasAccount ? ((userProfile?.flutterwaveKYCTier || 1) as KYCTier) : (1 as KYCTier);
@@ -365,8 +369,8 @@ export default function SettingsPage() {
                     return (
                       <>
                         {!hasAccount && (
-                          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl mb-4">
-                            <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 mb-4">
+                            <p className="text-sm text-accent/80">
                               Add your phone number above to create your NGN account. Once created, you'll start at Tier 1.
                             </p>
                           </div>
@@ -374,34 +378,34 @@ export default function SettingsPage() {
 
                         {/* Current Tier Card */}
                         {hasAccount && (
-                          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 mb-4">
+                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 mb-4">
                             <div className="flex items-center justify-between mb-2">
-                              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                              <h3 className="text-base font-semibold text-white">
                                 Your Current Tier: {tierInfo.name}
                               </h3>
-                              <span className="px-3 py-1 bg-blue-500 dark:bg-blue-600 text-white rounded-full text-xs font-bold">
+                              <span className="px-3 py-1 bg-secondary text-primary rounded-full text-xs font-bold">
                                 Tier {currentTier} ✓
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-white/70 mb-4">
+                            <p className="text-sm text-accent/70 mb-4">
                               {tierInfo.description}
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                              <div className="p-3 bg-white/80 dark:bg-white/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <p className="text-xs text-gray-600 dark:text-white/60 mb-1">Daily Limit</p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10">
+                                <p className="text-xs text-accent/60 mb-1">Daily Limit</p>
+                                <p className="text-sm font-bold text-white">
                                   {formatCurrency(tierInfo.dailyLimit)}
                                 </p>
                               </div>
-                              <div className="p-3 bg-white/80 dark:bg-white/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <p className="text-xs text-gray-600 dark:text-white/60 mb-1">Monthly Limit</p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10">
+                                <p className="text-xs text-accent/60 mb-1">Monthly Limit</p>
+                                <p className="text-sm font-bold text-white">
                                   {formatCurrency(tierInfo.monthlyLimit)}
                                 </p>
                               </div>
-                              <div className="p-3 bg-white/80 dark:bg-white/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <p className="text-xs text-gray-600 dark:text-white/60 mb-1">Single Transaction</p>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10">
+                                <p className="text-xs text-accent/60 mb-1">Single Transaction</p>
+                                <p className="text-sm font-bold text-white">
                                   {formatCurrency(tierInfo.singleTransactionLimit)}
                                 </p>
                               </div>
@@ -411,7 +415,7 @@ export default function SettingsPage() {
 
                         {/* All Tiers Comparison */}
                         <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                          <h4 className="text-sm font-semibold text-white">
                             Available Tiers & Upgrade Options
                           </h4>
                           {allTiers.map((tier) => {
@@ -423,55 +427,55 @@ export default function SettingsPage() {
                             return (
                               <div
                                 key={tier}
-                                className={`p-4 rounded-xl border-2 ${
+                                className={`p-4 rounded-xl border ${
                                   isCurrentTier
-                                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-400 dark:border-blue-600"
+                                    ? "bg-secondary/10 border-secondary/30"
                                     : isNextTier
-                                    ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700"
-                                    : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+                                    ? "bg-secondary/5 border-secondary/20"
+                                    : "bg-primary/40 border-accent/10"
                                 }`}
                               >
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
-                                      <h5 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                      <h5 className="text-sm font-semibold text-white">
                                         {info.name}
                                       </h5>
                                       {isCurrentTier && (
-                                        <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full font-medium">
+                                        <span className="px-2 py-0.5 bg-secondary text-primary text-xs rounded-full font-medium">
                                           Current
                                         </span>
                                       )}
                                       {isNextTier && (
-                                        <span className="px-2 py-0.5 bg-green-500 text-white text-xs rounded-full font-medium">
+                                        <span className="px-2 py-0.5 bg-secondary/80 text-primary text-xs rounded-full font-medium">
                                           Available
                                         </span>
                                       )}
                                       {isLocked && (
-                                        <span className="px-2 py-0.5 bg-gray-400 text-white text-xs rounded-full font-medium">
+                                        <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs rounded-full font-medium">
                                           Locked
                                         </span>
                                       )}
                                     </div>
-                                    <p className="text-xs text-gray-600 dark:text-white/70 mb-3">
+                                    <p className="text-xs text-accent/70 mb-3">
                                       {info.description}
                                     </p>
                                     <div className="grid grid-cols-3 gap-2 text-xs">
                                       <div>
-                                        <p className="text-gray-500 dark:text-white/50">Daily</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">
+                                        <p className="text-accent/50">Daily</p>
+                                        <p className="font-semibold text-white">
                                           {formatCurrency(info.dailyLimit)}
                                         </p>
                                       </div>
                                       <div>
-                                        <p className="text-gray-500 dark:text-white/50">Monthly</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">
+                                        <p className="text-accent/50">Monthly</p>
+                                        <p className="font-semibold text-white">
                                           {formatCurrency(info.monthlyLimit)}
                                         </p>
                                       </div>
                                       <div>
-                                        <p className="text-gray-500 dark:text-white/50">Single TX</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">
+                                        <p className="text-accent/50">Single TX</p>
+                                        <p className="font-semibold text-white">
                                           {formatCurrency(info.singleTransactionLimit)}
                                         </p>
                                       </div>
@@ -481,11 +485,11 @@ export default function SettingsPage() {
 
                                 {/* Upgrade Button Logic */}
                                 {isNextTier && hasAccount && (
-                                  <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                                  <div className="mt-3 pt-3 border-t border-secondary/20">
                                     {currentTier === 1 ? (
                                       <button
                                         onClick={() => router.push("/kyc/verify-bvn")}
-                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                                       >
                                         <span className="material-icons-outlined text-sm">arrow_upward</span>
                                         Verify BVN to Upgrade to Tier 2
@@ -493,7 +497,7 @@ export default function SettingsPage() {
                                     ) : currentTier === 2 ? (
                                       <button
                                         onClick={() => router.push("/kyc/upgrade-tier-3")}
-                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                                       >
                                         <span className="material-icons-outlined text-sm">arrow_upward</span>
                                         Upgrade to Tier 3 (Enhanced KYC)
@@ -502,15 +506,15 @@ export default function SettingsPage() {
                                   </div>
                                 )}
                                 {isNextTier && !hasAccount && (
-                                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs text-gray-500 dark:text-white/50 text-center">
+                                  <div className="mt-3 pt-3 border-t border-accent/10">
+                                    <p className="text-xs text-accent/50 text-center">
                                       Add phone number to unlock
                                     </p>
                                   </div>
                                 )}
                                 {isLocked && (
-                                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs text-gray-500 dark:text-white/50 text-center">
+                                  <div className="mt-3 pt-3 border-t border-accent/10">
+                                    <p className="text-xs text-accent/50 text-center">
                                       Complete Tier {tier - 1} first to unlock
                                     </p>
                                   </div>
@@ -522,14 +526,14 @@ export default function SettingsPage() {
 
                         {/* Upgrade Benefits Summary */}
                         {hasAccount && upgradeInfo.canUpgrade && upgradeInfo.nextTier && (
-                          <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-300 dark:border-green-700 rounded-xl">
+                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="material-icons-outlined text-green-600 dark:text-green-400">trending_up</span>
-                              <h4 className="text-sm font-bold text-green-900 dark:text-green-300">
+                              <span className="material-icons-outlined text-secondary">trending_up</span>
+                              <h4 className="text-sm font-bold text-secondary">
                                 Upgrade Benefits
                               </h4>
                             </div>
-                            <div className="space-y-2 text-xs text-green-800 dark:text-green-400">
+                            <div className="space-y-2 text-xs text-accent/80">
                               <p className="font-semibold">Upgrade to {upgradeInfo.nextTier.name} and get:</p>
                               <ul className="list-disc list-inside space-y-1 ml-2">
                                 <li>
@@ -551,23 +555,24 @@ export default function SettingsPage() {
                       </>
                     );
                   })()}
-                </div>
               </div>
+            </section>
 
             {/* Security Section - Seed Phrase */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">security</span>
-                Security
-              </h2>
-              
+            <section id="security" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">Security</h2>
+                <p className="text-sm text-accent/60 mt-1">Seed phrase and wallet recovery</p>
+              </div>
+              <div className="p-6">
               {!showSeedPhrase ? (
                 <div className="space-y-4">
-                  <div className="p-4 bg-yellow-100/80 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-800 rounded-xl">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium mb-2">
-                      ⚠️ Important Security Warning
+                  <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
+                    <p className="text-sm text-secondary font-medium mb-2 flex items-center gap-2">
+                      <span className="material-icons-outlined text-white text-lg">warning</span>
+                      Important Security Warning
                     </p>
-                    <ul className="text-xs text-yellow-700 dark:text-yellow-400 space-y-1 list-disc list-inside">
+                    <ul className="text-xs text-accent/80 space-y-1 list-disc list-inside">
                       <li>Never share your seed phrase with anyone</li>
                       <li>Store it in a safe, offline location</li>
                       <li>Anyone with your seed phrase can access your wallet</li>
@@ -576,19 +581,19 @@ export default function SettingsPage() {
                   </div>
                   
                   {seedError && (
-                    <div className="p-3 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl">
-                      <p className="text-sm text-red-700 dark:text-red-300">{seedError}</p>
+                    <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
+                      <p className="text-sm text-red-400">{seedError}</p>
                     </div>
                   )}
 
                   <button
                     onClick={handleViewSeedPhrase}
                     disabled={authenticating}
-                    className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
                   >
                     {authenticating ? (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                        <FSpinner size="sm" />
                         <span>Authenticating...</span>
                       </>
                     ) : (
@@ -601,8 +606,8 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-4 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl">
-                    <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                  <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
+                    <p className="text-sm text-red-400 font-medium">
                       ⚠️ Keep this seed phrase secret and secure!
                     </p>
                   </div>
@@ -611,12 +616,12 @@ export default function SettingsPage() {
                     {seedPhrase.split(" ").map((word, index) => (
                       <div
                         key={index}
-                        className="p-3 bg-white/60 dark:bg-secondary/30 rounded-xl border border-secondary/10 dark:border-white/10 text-center"
+                        className="p-3 rounded-xl bg-primary/40 border border-accent/10 text-center"
                       >
-                        <span className="text-xs text-gray-500 dark:text-white/40 mr-1">
+                        <span className="text-xs text-accent/50 mr-1">
                           {index + 1}.
                         </span>
-                        <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                        <span className="text-sm font-mono font-semibold text-white">
                           {word}
                         </span>
                       </div>
@@ -625,9 +630,9 @@ export default function SettingsPage() {
 
                   <button
                     onClick={copySeedPhrase}
-                    className={`w-full font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                    className={`w-full font-semibold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)] ${
                       seedCopied
-                        ? "bg-accent-green hover:bg-accent-green/90 text-primary"
+                        ? "bg-secondary/80 text-primary"
                         : "bg-secondary hover:bg-secondary/90 text-primary"
                     }`}
                   >
@@ -649,23 +654,24 @@ export default function SettingsPage() {
                       setShowSeedPhrase(false);
                       setSeedPhrase("");
                     }}
-                    className="w-full bg-white/40 hover:bg-white/60 text-gray-900 dark:text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+                    className="w-full bg-primary/40 hover:bg-primary/60 border border-accent/10 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
                   >
                     Hide Seed Phrase
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </section>
 
             {/* Wallet Addresses Section */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">account_balance_wallet</span>
-                Wallet Addresses
-              </h2>
-              
+            <section id="wallets" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">Wallet Addresses</h2>
+                <p className="text-sm text-accent/60 mt-1">Your multi-chain wallet addresses</p>
+              </div>
+              <div className="p-6">
               {Object.keys(walletAddresses).length === 0 ? (
-                <p className="text-sm text-gray-600 dark:text-white/60">
+                <p className="text-sm text-accent/70">
                   No wallet addresses found. Please set up a passkey to generate addresses.
                 </p>
               ) : (
@@ -675,7 +681,7 @@ export default function SettingsPage() {
                     return (
                       <div
                         key={chainId}
-                        className="p-4 bg-white/60 dark:bg-secondary/30 rounded-xl border border-secondary/10 dark:border-white/10"
+                        className="p-4 rounded-xl bg-primary/40 border border-accent/10"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -692,24 +698,24 @@ export default function SettingsPage() {
                                 }}
                               />
                             ) : null}
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            <span className="text-sm font-semibold text-white">
                               {chain?.name || chainId}
                             </span>
-                            <span className="text-xs text-gray-600 dark:text-white/50">
+                            <span className="text-xs text-accent/50">
                               ({chain?.nativeCurrency?.symbol || "N/A"})
                             </span>
                           </div>
                           <button
                             onClick={() => copyAddress(address)}
-                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition"
+                            className="p-1.5 hover:bg-white/10 rounded-lg transition"
                             title="Copy address"
                           >
-                            <span className="material-icons-outlined text-sm text-gray-700 dark:text-white">
+                            <span className="material-icons-outlined text-sm text-white">
                               content_copy
                             </span>
                           </button>
                         </div>
-                        <p className="text-xs font-mono text-gray-700 dark:text-white/70 break-all">
+                        <p className="text-xs font-mono text-accent/80 break-all">
                           {address}
                         </p>
                       </div>
@@ -717,28 +723,29 @@ export default function SettingsPage() {
                   })}
                 </div>
               )}
-            </div>
+              </div>
+            </section>
 
             {/* Invoice Settings */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">receipt_long</span>
-                Invoice Settings
-              </h2>
-              <div className="space-y-4">
+            <section id="invoice" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">Invoice Settings</h2>
+                <p className="text-sm text-accent/60 mt-1">Personal or business invoice type</p>
+              </div>
+              <div className="p-6 space-y-4">
                 {/* Invoice Type Toggle */}
                 <div>
-                  <label className="block text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium mb-3 text-accent/80">
                     Invoice Type
                   </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setInvoiceType("personal")}
-                      className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-colors ${
+                      className={`flex-1 py-2.5 px-4 rounded-xl font-semibold transition-all ${
                         invoiceType === "personal"
-                          ? "bg-primary text-secondary"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          ? "bg-primary border border-secondary/40 text-secondary"
+                          : "bg-primary/40 border border-accent/10 text-accent hover:border-secondary/20"
                       }`}
                     >
                       Personal
@@ -746,16 +753,16 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => setInvoiceType("business")}
-                      className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-colors ${
+                      className={`flex-1 py-2.5 px-4 rounded-xl font-semibold transition-all ${
                         invoiceType === "business"
-                          ? "bg-primary text-secondary"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          ? "bg-primary border border-secondary/40 text-secondary"
+                          : "bg-primary/40 border border-accent/10 text-accent hover:border-secondary/20"
                       }`}
                     >
                       Business
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  <p className="text-xs text-accent/60 mt-2">
                     {invoiceType === "personal" 
                       ? "Invoices will show your personal name and email"
                       : "Invoices will show your business information and logo"}
@@ -764,13 +771,13 @@ export default function SettingsPage() {
 
                 {/* Success/Error Messages */}
                 {invoiceSettingsSuccess && (
-                  <div className="p-3 bg-green-100/80 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-xl">
-                    <p className="text-sm text-green-700 dark:text-green-300">{invoiceSettingsSuccess}</p>
+                  <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
+                    <p className="text-sm text-secondary">{invoiceSettingsSuccess}</p>
                   </div>
                 )}
                 {invoiceSettingsError && (
-                  <div className="p-3 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl">
-                    <p className="text-sm text-red-700 dark:text-red-300">{invoiceSettingsError}</p>
+                  <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
+                    <p className="text-sm text-red-400">{invoiceSettingsError}</p>
                   </div>
                 )}
 
@@ -778,11 +785,11 @@ export default function SettingsPage() {
                 <button
                   onClick={handleSaveInvoiceSettings}
                   disabled={savingInvoiceSettings}
-                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
                 >
                   {savingInvoiceSettings ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                      <FSpinner size="sm" />
                       <span>Saving...</span>
                     </>
                   ) : (
@@ -795,67 +802,67 @@ export default function SettingsPage() {
 
                 {/* Link to Profile for Business Details */}
                 {invoiceType === "business" && (
-                  <div className="p-3 bg-blue-100/80 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800 rounded-xl">
-                    <p className="text-xs text-blue-800 dark:text-blue-300 mb-2">
+                  <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
+                    <p className="text-xs text-accent/80 mb-2">
                       💡 To set up your business information (name, logo, address), visit your Profile page.
                     </p>
                     <button
                       onClick={() => router.push("/profile")}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      className="text-xs text-secondary hover:underline font-medium"
                     >
                       Go to Profile →
                     </button>
                   </div>
                 )}
               </div>
-            </div>
+            </section>
 
             {/* Other Settings */}
-            <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <span className="material-icons-outlined">tune</span>
-                Preferences
-              </h2>
-              <div className="space-y-4">
+            <section id="preferences" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
+              <div className="p-6 border-b border-accent/10">
+                <h2 className="text-xl font-semibold text-white">Preferences</h2>
+                <p className="text-sm text-accent/60 mt-1">Quick links to receive and send</p>
+              </div>
+              <div className="p-6 space-y-4">
                 <button
                   onClick={() => router.push("/receive")}
-                  className="w-full flex items-center justify-between p-4 bg-white/60 dark:bg-secondary/30 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-white/80 dark:hover:bg-secondary/40 transition"
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="material-icons-outlined text-gray-900 dark:text-white">
+                    <span className="material-icons-outlined text-white">
                       qr_code
                     </span>
-                    <span className="text-gray-900 dark:text-white font-medium">
+                    <span className="text-white font-medium">
                       Receive Crypto
                     </span>
                   </div>
-                  <span className="material-icons-outlined text-gray-600 dark:text-white/40">
+                  <span className="material-icons-outlined text-accent/60">
                     arrow_forward
                   </span>
                 </button>
 
                 <button
                   onClick={() => router.push("/send")}
-                  className="w-full flex items-center justify-between p-4 bg-white/60 dark:bg-secondary/30 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-white/80 dark:hover:bg-secondary/40 transition"
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="material-icons-outlined text-gray-900 dark:text-white">
+                    <span className="material-icons-outlined text-white">
                       send
                     </span>
-                    <span className="text-gray-900 dark:text-white font-medium">
+                    <span className="text-white font-medium">
                       Send Crypto
                     </span>
                   </div>
-                  <span className="material-icons-outlined text-gray-600 dark:text-white/40">
+                  <span className="material-icons-outlined text-accent/60">
                     arrow_forward
                   </span>
                 </button>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

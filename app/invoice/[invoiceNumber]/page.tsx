@@ -5,9 +5,12 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect, Suspense, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { getUserFromStorage } from "@/lib/session";
+import DashboardLayout from "@/components/DashboardLayout";
 import Modal from "@/components/Modal";
 import Toast from "@/components/Toast";
 import { getChainLogo } from "@/lib/logos";
+import FSpinner from "@/components/FSpinner";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import dynamic from "next/dynamic";
 
 // Lazy load QRCode component to reduce initial bundle
@@ -584,35 +587,35 @@ function InvoiceDetailContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-primary">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
-          <p className="text-secondary">Loading...</p>
-        </div>
-      </div>
+      <DashboardLayout>
+        <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />
+      </DashboardLayout>
     );
   }
 
   if (!invoice) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark">
-        <div className="text-center">
-          <span className="material-icons-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4">
-            receipt_long
-          </span>
-          <p className="text-gray-600 dark:text-gray-400">Invoice not found</p>
-          <button
-            onClick={() => router.push("/invoice")}
-            className="mt-4 bg-primary text-secondary font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
-          >
-            Back to Invoices
-          </button>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark pb-24 lg:pb-0">
+          <div className="text-center">
+            <span className="material-icons-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4">
+              receipt_long
+            </span>
+            <p className="text-gray-600 dark:text-gray-400">Invoice not found</p>
+            <button
+              onClick={() => router.push("/invoice")}
+              className="mt-4 bg-primary text-secondary font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Back to Invoices
+            </button>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
+    <DashboardLayout>
     <>
       {/* Print Styles */}
       <style jsx global>{`
@@ -674,7 +677,7 @@ function InvoiceDetailContent() {
         <div className="mb-6 no-print">
           <button
             onClick={() => router.push("/invoice")}
-            className="mb-2 text-primary hover:opacity-80 transition-opacity flex items-center gap-2"
+            className="hidden lg:flex mb-2 text-primary hover:opacity-80 transition-opacity items-center gap-2"
           >
             <span className="material-icons-outlined">arrow_back</span>
             Back
@@ -1003,7 +1006,7 @@ function InvoiceDetailContent() {
                   >
                     {isMarkingPaid ? (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <FSpinner size="sm" />
                         Processing...
                       </>
                     ) : (
@@ -1071,18 +1074,14 @@ function InvoiceDetailContent() {
       />
       </div>
     </>
+    </DashboardLayout>
   );
 }
 
 export default function InvoiceDetailPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-primary">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
-          <p className="text-secondary">Loading...</p>
-        </div>
-      </div>
+      <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />
     }>
       <InvoiceDetailContent />
     </Suspense>

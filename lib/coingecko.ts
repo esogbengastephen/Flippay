@@ -2,29 +2,12 @@ import { SEND_TOKEN_ADDRESS } from "./constants";
 
 const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
 
-export function coinGeckoHeaders(): HeadersInit {
+function coinGeckoHeaders(): HeadersInit {
   const headers: HeadersInit = { Accept: "application/json" };
-
-  const keys = [
-    process.env.COINGECKO_API_KEY,
-    process.env.COINGECKO_API_KEY_1,
-    process.env.COINGECKO_API_KEY_2,
-    process.env.COINGECKO_API_KEY_3,
-    process.env.COINGECKO_API_KEY_4,
-    process.env.COINGECKO_API_KEY_5,
-    process.env.COINGECKO_API_KEY_6,
-    process.env.COINGECKO_API_KEY_7,
-    process.env.COINGECKO_API_KEY_8,
-    process.env.COINGECKO_API_KEY_9,
-    process.env.COINGECKO_API_KEY_10,
-  ].filter((key): key is string => !!key);
-
-  if (keys.length > 0) {
-    const randomIndex = Math.floor(Math.random() * keys.length);
-    const apiKey = keys[randomIndex];
+  const apiKey = process.env.COINGECKO_API_KEY;
+  if (apiKey) {
     (headers as Record<string, string>)["x-cg-demo-api-key"] = apiKey;
   }
-
   return headers;
 }
 

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import WalletConnect from "./WalletConnect";
 import { useRouter } from "next/navigation";
+import PageLoadingSpinner from "@/components/PageLoadingSpinner";
+import { USE_MOCK_ADMIN_AUTH } from "@/lib/admin-permissions";
 
 interface AdminAuthGuardProps {
   children: React.ReactNode;
@@ -22,7 +24,13 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
   const checkAuth = async () => {
     setIsChecking(true);
-    
+
+    if (USE_MOCK_ADMIN_AUTH) {
+      setIsAuthenticated(true);
+      setIsChecking(false);
+      return;
+    }
+
     // Check localStorage for session
     const session = localStorage.getItem("admin_session");
     if (session) {
@@ -74,36 +82,18 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   };
 
   if (isChecking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-slate-600 dark:text-slate-400">Checking authentication...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Checking authentication..." bgClass="bg-surface" />;
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background-light dark:bg-background-dark p-8">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-xl shadow-lg">
+      <div className="flex items-center justify-center min-h-screen bg-surface p-8">
+        <div className="w-full max-w-md bg-primary p-8 rounded-xl border border-white/10 shadow-lg">
           <div className="flex items-center gap-3 mb-6">
-            <div>
-              {/* White logo for light mode */}
-              <img 
-                src="/whitelogo.png" 
-                alt="FlipPay" 
-                className="h-12 w-auto dark:hidden"
-              />
-              {/* Regular logo for dark mode */}
-              <img 
-                src="/logo.png" 
-                alt="FlipPay" 
-                className="h-12 w-auto hidden dark:block"
-              />
+            <div className="w-8 h-8 bg-secondary rounded flex items-center justify-center text-primary font-bold shadow-[0_0_15px_rgba(19,236,90,0.6)]">
+              <span className="material-icons-outlined text-xl font-bold">token</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            <h1 className="text-2xl font-bold text-white">
               Admin Access Required
             </h1>
           </div>

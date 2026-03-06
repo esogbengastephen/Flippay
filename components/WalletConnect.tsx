@@ -5,6 +5,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect } from "react";
 import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
 import { isAdminWallet } from "@/lib/supabase";
+import FSpinner from "@/components/FSpinner";
 
 interface WalletConnectProps {
   onAuthSuccess: (address: string) => void;
@@ -83,7 +84,7 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
       <div className="space-y-4">
         {isVerifying ? (
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+            <FSpinner size="md" className="mx-auto mb-2" />
             <p className="text-sm text-slate-600 dark:text-slate-400">
               Verifying admin access...
             </p>
@@ -131,7 +132,7 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
           >
             {isPending ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-900"></div>
+                <FSpinner size="xs" />
                 Connecting...
               </>
             ) : (
