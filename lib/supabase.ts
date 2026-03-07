@@ -1,15 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
-const USE_MOCK_AUTH = false; // Local dev: use warnings instead of errors for missing keys
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ksdzzqdafodlstfkqzuv.supabase.co";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Validate that we have a valid anon key
+// Validate that we have a valid anon key (use warn so Next.js overlay doesn't show when key is missing)
 let validAnonKey = supabaseAnonKey;
 if (!validAnonKey || validAnonKey.trim() === "" || validAnonKey.includes("placeholder")) {
-  (USE_MOCK_AUTH ? console.warn : console.error)("[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY is not set or is invalid. Set it in your .env.local file.");
+  console.warn("[Supabase] NEXT_PUBLIC_SUPABASE_ANON_KEY is not set or is invalid. Set it in your .env.local file.");
   validAnonKey = "INVALID_KEY_PLEASE_SET_NEXT_PUBLIC_SUPABASE_ANON_KEY";
 } else {
   // Check if it's a valid format (JWT or sb_ format)

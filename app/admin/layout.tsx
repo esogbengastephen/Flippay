@@ -22,6 +22,7 @@ import {
   USE_MOCK_ADMIN_AUTH,
   type AdminNavSection,
 } from "@/lib/admin-permissions";
+import { AdminViewOnlyProvider } from "@/contexts/AdminViewOnlyContext";
 
 function AdminLayoutContent({
   children,
@@ -94,6 +95,7 @@ function AdminLayoutContent({
   const sectionOrder: AdminNavSection[] = ["operations", "management", "tokenomics", "system"];
 
   return (
+    <AdminViewOnlyProvider role={role} permissions={permissions}>
     <div className="min-h-screen bg-surface flex overflow-hidden text-white">
       {/* Mobile Menu Button */}
       <button
@@ -254,6 +256,7 @@ function AdminLayoutContent({
         )}
       </main>
     </div>
+    </AdminViewOnlyProvider>
   );
 }
 

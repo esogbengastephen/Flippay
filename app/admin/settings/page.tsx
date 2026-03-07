@@ -6,6 +6,7 @@ import { useState, useEffect, Fragment } from "react";
 import { useAccount } from "wagmi";
 import { DEPOSIT_ACCOUNT } from "@/lib/constants";
 import { ALL_ADMIN_PERMISSIONS, getEffectivePermissions } from "@/lib/admin-permissions";
+import { useAdminViewOnly } from "@/contexts/AdminViewOnlyContext";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
@@ -144,6 +145,7 @@ function EditAdminForm({ admin, availablePermissions, onSave, onCancel }: {
 
 export default function SettingsPage() {
   const { address } = useAccount();
+  const isViewOnly = useAdminViewOnly();
   const [exchangeRate, setExchangeRate] = useState("50"); // NGN to SEND (1 NGN = X SEND)
   const [sendToNgnRate, setSendToNgnRate] = useState("45"); // SEND to NGN (1 SEND = Y NGN)
   const [transactionsEnabled, setTransactionsEnabled] = useState(true);
@@ -216,7 +218,7 @@ export default function SettingsPage() {
   
   // Save fee tiers
   const saveFeeTiers = async () => {
-    if (!address) return;
+    if (!address || isViewOnly) return;
     setSavingFeeTiers(true);
     try {
       const response = await fetch(getApiUrl("/api/admin/fee-tiers"), {
@@ -246,7 +248,7 @@ export default function SettingsPage() {
 
   // Save minimum purchase (onramp)
   const saveMinimumPurchase = async () => {
-    if (!address) return;
+    if (!address || isViewOnly) return;
     setSavingMinimumPurchase(true);
     try {
       const response = await fetch(getApiUrl("/api/admin/settings"), {
@@ -262,6 +264,9 @@ export default function SettingsPage() {
       if (data.success) {
         setAdminSuccess("Minimum purchase (onramp) updated successfully!");
         setTimeout(() => setAdminSuccess(null), 3000);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("exchangeRateUpdated", { detail: {} }));
+        }
       } else {
         setAdminError(data.error || "Failed to update minimum purchase");
         setTimeout(() => setAdminError(null), 3000);
@@ -275,7 +280,7 @@ export default function SettingsPage() {
   };
 
   const saveMinimumOfframp = async () => {
-    if (!address) return;
+    if (!address || isViewOnly) return;
     setSavingMinimumOfframp(true);
     try {
       const response = await fetch(getApiUrl("/api/admin/settings"), {
@@ -290,6 +295,9 @@ export default function SettingsPage() {
       if (data.success) {
         setAdminSuccess("Minimum sell (offramp) updated successfully!");
         setTimeout(() => setAdminSuccess(null), 3000);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("exchangeRateUpdated", { detail: {} }));
+        }
       } else {
         setAdminError(data.error || "Failed to update minimum sell");
         setTimeout(() => setAdminError(null), 3000);
@@ -980,7 +988,8 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={handleAddAdmin}
-                className="w-full bg-secondary text-primary font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+                disabled={isViewOnly}
+                className="w-full bg-secondary text-primary font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Admin
               </button>

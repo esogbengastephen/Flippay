@@ -1399,8 +1399,9 @@ export default function PriceActionPage() {
         </div>
       )}
 
-      {/* Minimum Purchase (Onramp) & Minimum Sell (Offramp) */}
+      {/* Minimum Purchase (Onramp) - shown on Buy tab only; Minimum Sell (Offramp) - shown on Sell tab only */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {activeTab === "buy" && (
         <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
           <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <span className="material-icons-outlined text-secondary">shopping_cart</span>
@@ -1441,6 +1442,8 @@ export default function PriceActionPage() {
             </button>
           </div>
         </div>
+        )}
+        {activeTab === "sell" && (
         <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
           <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <span className="material-icons-outlined text-secondary">sell</span>
@@ -1481,6 +1484,7 @@ export default function PriceActionPage() {
             </button>
           </div>
         </div>
+        )}
       </div>
 
       {/* Quick Links (tab-specific) */}

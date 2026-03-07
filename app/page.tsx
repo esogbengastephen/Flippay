@@ -121,7 +121,18 @@ export default function Home() {
           });
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let errDetail = "";
+            try {
+              const errBody = await response.json();
+              errDetail = errBody.details ?? errBody.error ?? "";
+            } catch {
+              errDetail = await response.text().catch(() => "") || "";
+            }
+            const msg = errDetail
+              ? `HTTP error! status: ${response.status} — ${errDetail}`
+              : `HTTP error! status: ${response.status}`;
+            console.error("[Auth] verify-user failed:", msg);
+            throw new Error(msg);
           }
 
           const data = await response.json();

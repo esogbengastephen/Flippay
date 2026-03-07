@@ -424,13 +424,13 @@ export default function UserDashboard() {
 
   const handleOfframpOptionClick = (option: "SEND" | "BASE" | "SOLANA") => {
     setShowOfframpOptions(false);
-    // Map SEND to base network but with type=send for display
+    // startNew=1: always show bank details form first, don't auto-resume pending
     if (option === "SEND") {
-      router.push("/offramp?network=base&type=send");
+      router.push("/offramp?network=base&type=send&startNew=1");
     } else if (option === "BASE") {
-      router.push("/offramp?network=base&type=base");
+      router.push("/offramp?network=base&type=base&startNew=1");
     } else if (option === "SOLANA") {
-      router.push("/offramp?network=solana&type=solana");
+      router.push("/offramp?network=solana&type=solana&startNew=1");
     }
   };
 
@@ -661,15 +661,15 @@ export default function UserDashboard() {
                 <div className="text-xs text-accent/60">Multi-chain</div>
               </div>
             </div>
-            {/* Mobile only: Send to Crypto + Receive buttons in portfolio card (branding: bg-primary/40, border-accent/10) */}
+            {/* Mobile only: Send + Receive buttons in portfolio card (branding: bg-primary/40, border-accent/10) */}
             <div className="flex gap-3 mt-4 lg:hidden">
               <button
-                onClick={() => router.push("/payment")}
+                onClick={() => router.push("/send")}
                 className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
               >
-                <span className="material-icons-outlined text-lg text-white group-hover:scale-110 transition-transform">swap_vert</span>
-                <span className="text-sm font-semibold text-accent">Send to Crypto</span>
-                <span className="text-[10px] text-secondary/80">Naira to Crypto</span>
+                <span className="material-icons-outlined text-lg text-white group-hover:scale-110 transition-transform">send</span>
+                <span className="text-sm font-semibold text-accent">Send</span>
+                <span className="text-[10px] text-secondary/80">Send Crypto</span>
               </button>
               <button
                 onClick={() => router.push("/receive")}

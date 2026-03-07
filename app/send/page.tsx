@@ -871,9 +871,9 @@ function SendPageContent() {
                                     !bankSearchQuery || bank.name.toLowerCase().includes(bankSearchQuery.toLowerCase())
                                   )
                                   .slice(0, 20) // Limit to 20 results
-                                  .map((bank) => (
+                                  .map((bank, index) => (
                                     <button
-                                      key={bank.code}
+                                      key={`${bank.code}-${bank.name}-${index}`}
                                       type="button"
                                       onClick={() => {
                                         setSelectedBank(bank.code);

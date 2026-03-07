@@ -42,6 +42,7 @@ const safeLocalStorage = {
   },
 };
 
+
 interface VirtualAccount {
   accountNumber: string;
   bankName: string;
@@ -64,6 +65,8 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
   const [exchangeRate, setExchangeRate] = useState<number>(50);
   const [minimumPurchase, setMinimumPurchase] = useState<number>(3000);
   const [selectedStablecoin, setSelectedStablecoin] = useState<"USDC" | "USDT">("USDC");
+  /** 1 SEND = buyRateNGN NGN (onramp buy price). Same shape as offramp's sellRate. Null = not loaded yet. */
+  const [buyRateNGN, setBuyRateNGN] = useState<number | null>(null);
   const [stablecoinPricesNGN, setStablecoinPricesNGN] = useState<{ USDC: number | null; USDT: number | null }>({ USDC: null, USDT: null });
   const [isStablecoinDropdownOpen, setIsStablecoinDropdownOpen] = useState(false);
   const stablecoinDropdownRef = useRef<HTMLDivElement>(null);
@@ -219,160 +222,91 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     }
   };
 
-  // Fetch transaction status on mount (uses same /api/rate endpoint)
+  // Load minimum purchase, rate, and transactions from DB via same-origin proxy.
+  // Proxy (app/api/payment-rate) runs on frontend server and fetches backend → no CORS; Min always from DB.
   useEffect(() => {
-    const fetchTransactionStatus = async () => {
-      try {
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        const data = await response.json();
-        if (response.ok && data.success) {
-          setTransactionsEnabled(data.transactionsEnabled !== false);
-        }
-      } catch (error) {
-        console.error("Failed to fetch transaction status:", error);
-      }
-    };
+    let cancelled = false;
 
-    fetchTransactionStatus();
-    const statusInterval = setInterval(fetchTransactionStatus, 30000);
-    return () => clearInterval(statusInterval);
-  }, []);
+    const syncFromAdmin = () => {
+      const t = Date.now();
 
-  // Fetch exchange rate on mount and periodically to get admin updates
-  useEffect(() => {
-    const fetchExchangeRate = async () => {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
-      if (!apiBase.trim()) {
-        console.warn("[PaymentForm] NEXT_PUBLIC_API_URL is not set – rate and minimum purchase use defaults. Set it to your backend URL (e.g. https://flippayback.vercel.app) in the frontend env.");
-        setRateFromApi(false);
-        return;
-      }
-      try {
-        const url = getApiUrl(`/api/rate?t=${Date.now()}`);
-        const response = await fetch(url, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        const data = await response.json();
-        console.log("[PaymentForm] Fetched exchange rate:", response.status, data);
-        if (response.ok && data.success && data.rate != null) {
-          const newRate = Number(data.rate);
-          if (!Number.isNaN(newRate) && newRate > 0) {
-            setExchangeRate(newRate);
-            setRateFromApi(true);
+      // Same-origin: frontend server fetches backend and returns rate + minimumPurchase (from DB)
+      fetch(`/api/payment-rate?t=${t}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          // Minimum purchase – from DB via proxy; always apply
+          const minVal = data.minimumPurchase ?? data.minimum_purchase;
+          if (minVal !== undefined && minVal !== null) {
+            const m = Number(minVal);
+            setMinimumPurchase(Number.isNaN(m) || m < 0 ? 3000 : m);
           }
           if (data.transactionsEnabled !== undefined) {
             setTransactionsEnabled(data.transactionsEnabled !== false);
           }
-          if (data.minimumPurchase !== undefined && Number(data.minimumPurchase) > 0) {
-            setMinimumPurchase(Number(data.minimumPurchase) || 3000);
+          if (data.rate != null) {
+            const r = Number(data.rate);
+            if (!Number.isNaN(r) && r > 0) {
+              setExchangeRate(r);
+              setBuyRateNGN((prev) => (prev != null ? prev : 1 / r));
+            }
           }
-        } else {
-          setRateFromApi(false);
-        }
-      } catch (error) {
-        console.error("[PaymentForm] Failed to fetch exchange rate:", error);
-        setRateFromApi(false);
-      }
-    };
+          setRateFromApi(Boolean(data.rateFromApi));
+        })
+        .catch(() => { if (!cancelled) setRateFromApi(false); });
 
-    // Fetch immediately on mount
-    fetchExchangeRate();
-
-    // Refresh every 10 seconds to get admin updates immediately
-    const interval = setInterval(fetchExchangeRate, 10000);
-
-    // Refresh when window regains focus (user comes back to tab)
-    const handleFocus = () => {
-      console.log("[PaymentForm] Window focused, refreshing exchange rate");
-      fetchExchangeRate();
-    };
-    window.addEventListener("focus", handleFocus);
-
-    // Refresh when page becomes visible (user switches back to tab)
-    const handleVisibilityChange = () => {
-      try {
-        if (typeof document !== "undefined" && !document.hidden) {
-          console.log("[PaymentForm] Page visible, refreshing exchange rate");
-          fetchExchangeRate();
-        }
-      } catch (e) {
-        console.warn("Error in visibility change handler:", e);
-      }
-    };
-    
-    try {
-      if (typeof document !== "undefined") {
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-      }
-    } catch (e) {
-      console.warn("Error adding visibility change listener:", e);
-    }
-
-    // Listen for exchange rate updates from admin dashboard (cross-tab communication)
-    const handleRateUpdate = (event: CustomEvent) => {
-      try {
-        console.log("[PaymentForm] Exchange rate updated event received:", event.detail);
-        fetchExchangeRate();
-      } catch (e) {
-        console.warn("Error in rate update handler:", e);
-      }
-    };
-    
-    try {
-      if (typeof window !== "undefined") {
-        window.addEventListener("exchangeRateUpdated" as any, handleRateUpdate as EventListener);
-      }
-    } catch (e) {
-      console.warn("Error adding rate update listener:", e);
-    }
-
-    return () => {
-      try {
-        clearInterval(interval);
-        if (typeof window !== "undefined") {
-          window.removeEventListener("focus", handleFocus);
-          window.removeEventListener("exchangeRateUpdated" as any, handleRateUpdate as EventListener);
-        }
-        if (typeof document !== "undefined") {
-          document.removeEventListener("visibilitychange", handleVisibilityChange);
-        }
-      } catch (e) {
-        console.warn("Error cleaning up event listeners:", e);
-      }
-    };
-  }, []);
-
-  // Fetch stablecoin prices (USDC/USDT) when network is base or solana
-  useEffect(() => {
-    if (network !== "base" && network !== "solana") return;
-    const fetchTokenPrices = async () => {
-      try {
-        const response = await fetch(getApiUrl(`/api/token-prices?t=${Date.now()}`), { cache: "no-store" });
-        const data = await response.json();
-        if (data.success && data.pricesNGN) {
+      // Token prices for buy rate display (optional; proxy already gives rate fallback)
+      const base = (process.env.NEXT_PUBLIC_API_URL ?? "").trim() || (typeof window !== "undefined" && window.location.port === "3000" ? "http://localhost:3001" : "");
+      const pricesUrl = base ? `${base}/api/token-prices?t=${t}` : `/api/token-prices?t=${t}`;
+      fetch(pricesUrl, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled || !data?.success || !data.pricesNGN) return;
+          const sendNgn = Number(data.pricesNGN.SEND);
+          if (!Number.isNaN(sendNgn) && sendNgn > 0) {
+            setBuyRateNGN(sendNgn);
+            setExchangeRate(1 / sendNgn);
+          }
           setStablecoinPricesNGN({
             USDC: data.pricesNGN.USDC ?? null,
             USDT: data.pricesNGN.USDT ?? null,
           });
-        }
-      } catch (error) {
-        console.error("Failed to fetch token prices:", error);
-      }
+        })
+        .catch(() => {});
     };
-    fetchTokenPrices();
-    const interval = setInterval(fetchTokenPrices, 60000);
-    return () => clearInterval(interval);
-  }, [network]);
 
-  // Effective exchange rate: SEND uses /api/rate; base/solana use 1/priceNGN (tokens per 1 NGN)
+    // Fetch immediately on mount, then every 10 s
+    syncFromAdmin();
+    const interval = setInterval(syncFromAdmin, 10000);
+
+    // Re-sync on tab focus / visibility
+    const onFocus = () => syncFromAdmin();
+    const onVisible = () => { if (!document.hidden) syncFromAdmin(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+
+    // Re-sync immediately when admin saves any setting (same-tab event)
+    const onAdminSave = () => syncFromAdmin();
+    window.addEventListener("exchangeRateUpdated" as any, onAdminSave);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("exchangeRateUpdated" as any, onAdminSave);
+    };
+  }, []);
+
+  // effectiveExchangeRate: tokens received per 1 NGN (used for calculation: sendAmount = ngnAmount * effectiveExchangeRate)
+  // SEND:  1/buyRateNGN  (e.g. 1/38.51 ≈ 0.026 SEND per NGN)
+  // USDC/USDT: 1/priceNGN
   const effectiveExchangeRate =
     network === "send"
-      ? exchangeRate
+      ? (buyRateNGN != null && buyRateNGN > 0 ? 1 / buyRateNGN : exchangeRate)
       : (() => {
           const priceNGN = selectedStablecoin === "USDC" ? stablecoinPricesNGN.USDC : stablecoinPricesNGN.USDT;
           return priceNGN && priceNGN > 0 ? 1 / priceNGN : 0;
@@ -758,8 +692,13 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        const detail = data.details ? ` (${JSON.stringify(data.details)})` : "";
-        throw new Error((data.error || "Failed to generate payment account. Please try again.") + detail);
+        const errMsg = data.error || "Failed to generate payment account. Please try again.";
+        const code = data.details?.code ?? data.code;
+        const isZainpayConfig = String(code) === "20" || /Invalid Source Account|ZainboxCode/i.test(String(errMsg));
+        const userMsg = isZainpayConfig
+          ? "Payment provider is not fully configured. Please ensure Zainpay (Zainbox code and source account) is set up correctly in the backend, or contact support."
+          : errMsg;
+        throw new Error(userMsg);
       }
 
       // Always store the fresh transaction ID returned by the API
@@ -780,7 +719,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       startPollingForZainpayPayment(data.transactionId);
 
     } catch (error: any) {
-      console.error("[ZainPay] Payment error:", error);
+      console.warn("[ZainPay] Payment error:", error?.message || error);
       setModalData({
         title: "Payment Error",
         message: error?.message || "An error occurred. Please try again.",
@@ -970,13 +909,22 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                 <div className="flex flex-col">
                   <div className="text-xl font-bold text-white">{sendAmount}</div>
                   {network === "send" ? (
-                    <span className="text-xs text-accent/60">
-                      Rate: 1 NGN = <span className="text-secondary font-semibold">{exchangeRate}</span> SEND
-                    </span>
+                    buyRateNGN != null && buyRateNGN > 0 ? (
+                      <span className="text-xs text-accent/60">
+                        Rate: 1 SEND = <span className="text-secondary font-semibold">{buyRateNGN.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-accent/60">Loading buy rate…</span>
+                    )
                   ) : effectiveExchangeRate > 0 ? (
-                    <span className="text-xs text-accent/60">
-                      Rate: 1 NGN = <span className="text-secondary font-semibold">{effectiveExchangeRate.toFixed(6)}</span> {selectedStablecoin}
-                    </span>
+                    (() => {
+                      const priceNGN = selectedStablecoin === "USDC" ? stablecoinPricesNGN.USDC : stablecoinPricesNGN.USDT;
+                      return priceNGN ? (
+                        <span className="text-xs text-accent/60">
+                          Rate: 1 {selectedStablecoin} = <span className="text-secondary font-semibold">{priceNGN.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} NGN</span>
+                        </span>
+                      ) : null;
+                    })()
                   ) : (
                     <span className="text-xs text-accent/60">Loading rate for {selectedStablecoin}…</span>
                   )}

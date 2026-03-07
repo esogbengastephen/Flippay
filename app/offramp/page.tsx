@@ -41,7 +41,7 @@ function OffRampPageContent() {
   const [payoutTakingLong, setPayoutTakingLong] = useState(false);
   const [sendDetected, setSendDetected] = useState<{ balance: string } | null>(null);
   const [payoutError, setPayoutError] = useState("");
-  const [payoutSuccess, setPayoutSuccess] = useState<{ message: string; ngnAmount?: number } | null>(null);
+  const [payoutSuccess, setPayoutSuccess] = useState<{ message: string; ngnAmount?: number; sendAmount?: string } | null>(null);
   const [cancellingPending, setCancellingPending] = useState(false);
   const [refreshingAddress, setRefreshingAddress] = useState(false);
   const [sendAmount, setSendAmount] = useState("");
@@ -78,8 +78,9 @@ function OffRampPageContent() {
     const u = getUserFromStorage();
     setUser(u);
 
-    // Pre-fill pending off-ramp from server (shows updated deposit address after regeneration)
-    if (u?.email) {
+    // Pre-fill pending off-ramp from server (unless startNew=1 — user chose "start fresh" from dashboard)
+    const startNew = searchParams.get("startNew") === "1";
+    if (u?.email && !startNew) {
       fetch(getApiUrl(`/api/offramp/pending?userEmail=${encodeURIComponent(u.email)}`))
         .then((res) => res.json())
         .then((data) => {
@@ -400,6 +401,7 @@ function OffRampPageContent() {
         setPayoutSuccess({
           message: data.message || "Processing complete. Naira has been sent to your bank account.",
           ngnAmount: data.ngnAmount,
+          sendAmount: data.sendAmount,
         });
       } else {
         setPayoutError(data.error || "Processing failed. Try again or wait for automatic payout.");
@@ -530,6 +532,7 @@ function OffRampPageContent() {
                       type="button"
                       onClick={async () => {
                         setCancellingPending(true);
+                        setLoading(false);
                         try {
                           const res = await fetch(getApiUrl("/api/offramp/cancel-pending"), {
                             method: "POST",
@@ -539,10 +542,11 @@ function OffRampPageContent() {
                           const data = await res.json();
                           if (res.ok && data.success) {
                             setError("");
+                            setCancellingPending(false);
+                            setLoading(true);
                             await handleContinue();
                           } else {
-                            const msg = data.error || "Could not cancel. Try again.";
-                            setError(data.detail ? `${msg} ${data.detail}` : msg);
+                            setError(data?.error || "Could not cancel. Try again.");
                           }
                         } catch (e) {
                           setError("Could not cancel. Try again.");
@@ -550,7 +554,7 @@ function OffRampPageContent() {
                           setCancellingPending(false);
                         }
                       }}
-                      disabled={cancellingPending || loading}
+                      disabled={cancellingPending}
                       className="mt-2 w-full py-2.5 rounded-lg bg-primary/40 border border-accent/10 text-accent text-sm font-medium hover:bg-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {cancellingPending ? "Cancelling…" : "Cancel pending and start new"}
@@ -699,9 +703,9 @@ function OffRampPageContent() {
                               className="w-full px-4 py-3 border-b border-white/10 bg-surface text-white placeholder-white/40 text-sm focus:outline-none focus:ring-0"
                             />
                             <div className="overflow-y-auto overflow-x-hidden max-h-44 custom-scrollbar">
-                              {filteredBanks.map((bank) => (
+                              {filteredBanks.map((bank, index) => (
                                 <button
-                                  key={bank.code}
+                                  key={`${bank.code}-${bank.name}-${index}`}
                                   type="button"
                                   onClick={() => {
                                     setSelectedBankCode(bank.code);
@@ -903,8 +907,13 @@ function OffRampPageContent() {
                 {sendDetected && !payoutSuccess && (
                   <div className="rounded-2xl bg-secondary/10 border border-secondary/30 p-4">
                     <p className="text-sm font-semibold text-secondary">
-                      SEND detected! {sendDetected.balance} SEND — Processing payout…
+                      Your {sendDetected.balance} SEND payment detected — processing payout…
                     </p>
+                    {sellRate != null && sellRate > 0 && (
+                      <p className="text-xs text-accent/80 mt-1">
+                        ≈ ₦{(parseFloat(sendDetected.balance || "0") * sellRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} will be sent to your bank
+                      </p>
+                    )}
                   </div>
                 )}
                 {payoutError && (
@@ -915,8 +924,16 @@ function OffRampPageContent() {
                 {payoutSuccess && (
                   <div className="rounded-2xl bg-secondary/10 border border-secondary/30 p-4">
                     <p className="text-sm font-semibold text-secondary">{payoutSuccess.message}</p>
-                    {payoutSuccess.ngnAmount != null && (
-                      <p className="text-sm text-accent mt-1">Amount: ₦{payoutSuccess.ngnAmount.toLocaleString()}</p>
+                    {(payoutSuccess.sendAmount != null || payoutSuccess.ngnAmount != null) && (
+                      <p className="text-sm text-accent mt-1">
+                        {payoutSuccess.sendAmount != null && (
+                          <span>{payoutSuccess.sendAmount} SEND</span>
+                        )}
+                        {payoutSuccess.sendAmount != null && payoutSuccess.ngnAmount != null && " → "}
+                        {payoutSuccess.ngnAmount != null && (
+                          <span>₦{payoutSuccess.ngnAmount.toLocaleString()} sent to your bank</span>
+                        )}
+                      </p>
                     )}
                   </div>
                 )}

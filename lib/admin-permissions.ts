@@ -157,3 +157,15 @@ export function filterNavByPermission(
   const effective = getEffectivePermissions(permissions);
   return items.filter((item) => effective.includes(item.permission));
 }
+
+/** True if admin has only view-level permissions (no manage/verify/test). */
+export function isViewOnlyAdmin(permissions: string[]): boolean {
+  const effective = getEffectivePermissions(permissions);
+  if (effective.length === 0) return false;
+  const writePermissions = new Set([
+    "manage_onramp", "manage_transactions", "verify_payments", "manage_invoices",
+    "manage_users", "manage_token_distribution", "manage_utility", "test_transfers",
+    "manage_price_action", "manage_banners", "manage_offramp", "manage_kyc", "manage_settings",
+  ]);
+  return !effective.some((p) => writePermissions.has(p));
+}

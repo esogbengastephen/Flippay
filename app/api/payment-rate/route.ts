@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_RATE = 50;
 const DEFAULT_MINIMUM = 3000;
 
 /**
  * Server-side proxy for payment page rate. Fetches from backend so the client
  * never hits CORS (same-origin request to this route, server fetches backend).
- * Requires NEXT_PUBLIC_API_URL to be set in the frontend project.
+ * Minimum purchase is always loaded from DB via backend /api/rate.
  */
 export async function GET() {
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
+  let base = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
   if (!base) {
-    return NextResponse.json({
-      success: false,
-      rate: DEFAULT_RATE,
-      minimumPurchase: DEFAULT_MINIMUM,
-      transactionsEnabled: true,
-      rateFromApi: false,
-      error: "NEXT_PUBLIC_API_URL not set",
-    });
+    base = "http://localhost:3001";
   }
 
   let rate: number | null = null;
