@@ -660,7 +660,7 @@ function SendPageContent() {
                                     <span className="text-xs text-white font-bold">{selectedTokenInfo.symbol.charAt(0)}</span>
                                   </div>
                                 ) : null}
-                                <span className="font-bold text-white tracking-tight">{selectedTokenInfo?.symbol || "Select"}</span>
+                                <span className="font-bold text-white tracking-tight">{typeof selectedTokenInfo === "object" && selectedTokenInfo ? selectedTokenInfo.symbol : "Select"}</span>
                                 <span className="material-icons-outlined text-sm text-secondary">expand_more</span>
                               </button>
 
