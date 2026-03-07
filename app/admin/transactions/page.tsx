@@ -50,6 +50,7 @@ interface OfframpTx {
   ngn_amount?: number;
   status: string;
   swap_tx_hash?: string;
+  paystack_reference?: string;
   created_at: string;
 }
 
