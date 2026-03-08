@@ -15,7 +15,7 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
-  const { data: connections } = useConnections();
+  const connections = useConnections();
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const verifiedRef = useRef(false);
