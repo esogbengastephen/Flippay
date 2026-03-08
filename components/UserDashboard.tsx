@@ -123,7 +123,7 @@ export default function UserDashboard() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
-  const [dashboardBanners, setDashboardBanners] = useState<{ id: string; image_url: string; link_url: string | null }[]>([]);
+  const [dashboardBanners, setDashboardBanners] = useState<{ id: string; title?: string | null; image_url: string; link_url: string | null }[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
 
   // Primary services (first 4 visible by default); secondary shown after "See more"
@@ -277,7 +277,7 @@ export default function UserDashboard() {
       const response = await fetch(getApiUrl("/api/banners?placement=dashboard"));
       const data = await response.json();
       if (data.success && Array.isArray(data.banners)) {
-        setDashboardBanners(data.banners.map((b: any) => ({ id: b.id, image_url: b.image_url, link_url: b.link_url })));
+        setDashboardBanners(data.banners.map((b: any) => ({ id: b.id, title: b.title ?? null, image_url: b.image_url, link_url: b.link_url })));
       }
     } catch (error) {
       console.error("Error fetching dashboard banners:", error);
