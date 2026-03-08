@@ -453,58 +453,58 @@ function SendPageContent() {
   }, [recipient, selectedBank, ngnRecipientType]);
 
   return (
-    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-4 pb-24 lg:pb-8">
+    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-3 sm:p-4 pb-24 lg:pb-8">
       {/* Background blur orbs */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
         <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
       </div>
 
-      <div className="w-full max-w-sm mt-6 lg:mt-12 relative">
+      <div className="w-full max-w-sm mt-2 sm:mt-6 lg:mt-12 relative">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-3 sm:mb-6">
           <button
             onClick={() => router.back()}
             className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
           >
             <span className="material-icons-outlined">arrow_back</span>
           </button>
-          <h1 className="text-2xl font-bold mb-2 tracking-tight text-white font-display">Send</h1>
-          <p className="text-accent/70">
+          <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2 tracking-tight text-white font-display">Send</h1>
+          <p className="text-xs sm:text-base text-accent/70">
             {sendType === "crypto" ? "Transfer crypto across multiple chains" : "Send NGN to users or bank accounts"}
           </p>
         </div>
 
         {/* Main Card - glass style (compact) */}
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl p-4 sm:p-6 border border-secondary/10 shadow-xl relative overflow-hidden">
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl p-3 sm:p-6 border border-secondary/10 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl -z-10" />
           {/* Type Selector */}
-          <div className="mb-4">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+          <div className="mb-2 sm:mb-4">
+            <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1 sm:mb-2 px-1">
               Send Type
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
               <button
                 onClick={() => setSendType("ngn")}
-                className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-1 ${
+                className={`p-2 sm:p-3 rounded-xl border transition-all flex flex-col items-center gap-0.5 sm:gap-1 ${
                   sendType === "ngn"
                     ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                     : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                 }`}
               >
-                <span className="material-icons-outlined">account_balance</span>
-                <span className="font-semibold">NGN</span>
+                <span className="material-icons-outlined text-lg sm:text-2xl">account_balance</span>
+                <span className="text-sm sm:text-base font-semibold">NGN</span>
               </button>
               <button
                 onClick={() => setSendType("crypto")}
-                className={`p-3 rounded-xl border transition-all flex flex-col items-center gap-1 ${
+                className={`p-2 sm:p-3 rounded-xl border transition-all flex flex-col items-center gap-0.5 sm:gap-1 ${
                   sendType === "crypto"
                     ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                     : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                 }`}
               >
-                <span className="material-icons-outlined">currency_bitcoin</span>
-                <span className="font-semibold">Crypto</span>
+                <span className="material-icons-outlined text-lg sm:text-2xl">currency_bitcoin</span>
+                <span className="text-sm sm:text-base font-semibold">Crypto</span>
               </button>
             </div>
           </div>
@@ -512,12 +512,12 @@ function SendPageContent() {
           {sendType === "crypto" ? (
             <>
               {/* Chain selector - only show chains with balance > 0 */}
-              <div className="mb-4">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+              <div className="mb-2 sm:mb-4">
+                <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1 sm:mb-2 px-1">
                   Select Chain {loadingBalances && <span className="normal-case">(Loading...)</span>}
                 </label>
                 {loadingBalances ? (
-                  <div className="w-full p-4 rounded-2xl bg-primary/40 border border-accent/10 flex items-center justify-center gap-3">
+                  <div className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/10 flex items-center justify-center gap-2 sm:gap-3">
                     <FSpinner size="sm" />
                     <span className="text-sm text-accent">Loading balances...</span>
                   </div>
@@ -526,11 +526,11 @@ function SendPageContent() {
                   {availableChains.length > 0 ? (
                     <>
                       {/* Chain selector with logo */}
-                      <div className="relative mb-3" ref={chainDropdownRef}>
+                      <div className="relative mb-2 sm:mb-3" ref={chainDropdownRef}>
                         <button
                           type="button"
                           onClick={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
-                          className="w-full p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-secondary/30"
+                          className="w-full py-3 px-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-secondary/30"
                         >
                           <div className="flex items-center gap-4">
                             {getChainLogo(selectedChain) ? (
@@ -615,23 +615,23 @@ function SendPageContent() {
                           
                       {/* Token selector - You Send section */}
                       {availableTokens.length > 0 && (
-                        <div className="space-y-3 mb-6">
+                        <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-6">
                           <div className="flex justify-between items-end px-1">
-                            <label className="text-xs font-semibold uppercase tracking-wider text-accent/60">You Send</label>
+                            <label className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60">You Send</label>
                             {selectedTokenInfo && (
                               <span className="text-xs text-accent/60">
                                 Balance: {parseFloat(selectedTokenInfo.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} {selectedTokenInfo.symbol}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center justify-between p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                          <div className="flex items-center justify-between py-3 px-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
                             <div className="flex flex-col flex-1 min-w-0">
                               <input
                                 type="text"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 placeholder="0.00"
-                                className="bg-transparent border-none p-0 text-2xl sm:text-3xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
+                                className="bg-transparent border-none p-0 text-xl sm:text-3xl font-bold focus:ring-0 w-full outline-none text-white placeholder-white/20"
                               />
                               {selectedTokenInfo && amount && parseFloat(amount) > 0 && selectedTokenInfo.usdValue > 0 && (
                                 <span className="text-xs text-accent/50 mt-1">≈ ${(parseFloat(amount) * selectedTokenInfo.usdValue / parseFloat(selectedTokenInfo.balance)).toFixed(2)} USD</span>
@@ -746,8 +746,8 @@ function SendPageContent() {
                   </div>
 
                   {userAddress && (
-                    <div className="mb-6 p-4 rounded-2xl bg-primary/40 border border-accent/5">
-                      <p className="text-xs text-accent/60 font-mono mb-1">
+                    <div className="mb-3 sm:mb-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/5">
+                      <p className="text-[10px] sm:text-xs text-accent/60 font-mono mb-0.5 sm:mb-1">
                         Your {chainConfig?.name} address: {userAddress.substring(0, 10)}...{userAddress.substring(userAddress.length - 8)}
                       </p>
                       <p className="text-xs font-semibold text-white">
@@ -758,14 +758,30 @@ function SendPageContent() {
                 </>
               )}
               </>
+            ) : !virtualAccount?.accountNumber ? (
+              <div className="text-center py-8 sm:py-12">
+                <span className="material-icons-outlined text-5xl sm:text-6xl text-accent/30 mb-4">account_balance</span>
+                <p className="text-white font-medium mb-2">You need an NGN account to send Naira</p>
+                <p className="text-sm text-accent/80 mb-6 max-w-sm mx-auto">
+                  Complete verification in Settings to create your ZainBank NGN account. It only takes a minute.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/settings#phone-ngn")}
+                  className="bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-4 px-6 rounded-xl sm:rounded-[1.5rem] transition-all flex items-center justify-center gap-2 mx-auto shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                >
+                  <span className="material-icons-outlined">verified_user</span>
+                  <span>Create NGN account</span>
+                </button>
+              </div>
             ) : (
               <>
                 {/* Recipient Type Selector */}
-                <div className="mb-6">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                <div className="mb-3 sm:mb-6">
+                  <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-3 px-1">
                     Send To
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     <button
                       type="button"
                       onClick={() => {
@@ -773,14 +789,14 @@ function SendPageContent() {
                         setRecipient("");
                         setSelectedBank("");
                       }}
-                      className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                      className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col items-center gap-1 sm:gap-2 ${
                         ngnRecipientType === "user"
                           ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                           : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                       }`}
                     >
-                      <span className="material-icons-outlined">person</span>
-                      <span className="font-semibold">User</span>
+                      <span className="material-icons-outlined text-lg sm:text-2xl">person</span>
+                      <span className="text-sm sm:text-base font-semibold">User</span>
                     </button>
                     <button
                       type="button"
@@ -792,14 +808,14 @@ function SendPageContent() {
                         setVerifiedAccount(null);
                         setVerificationError(null);
                       }}
-                      className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                      className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col items-center gap-1 sm:gap-2 ${
                         ngnRecipientType === "bank"
                           ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                           : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                       }`}
                     >
-                      <span className="material-icons-outlined">account_balance</span>
-                      <span className="font-semibold">Bank</span>
+                      <span className="material-icons-outlined text-lg sm:text-2xl">account_balance</span>
+                      <span className="text-sm sm:text-base font-semibold">Bank</span>
                     </button>
                   </div>
                 </div>
@@ -807,12 +823,12 @@ function SendPageContent() {
                 {ngnRecipientType === "bank" && (
                   <>
                     {/* Searchable Bank Input */}
-                    <div className="mb-6">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                    <div className="mb-3 sm:mb-6">
+                      <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-3 px-1">
                         Search Bank
                       </label>
                       <div className="relative" ref={bankDropdownRef}>
-                        <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                        <div className="flex items-center gap-2 sm:gap-3 py-3 px-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
                           <span className="material-icons-outlined text-accent/40">account_balance</span>
                           <input
                           type="text"
@@ -839,7 +855,7 @@ function SendPageContent() {
                             }
                           }}
                           placeholder="Type to search banks (e.g., OPay, GTB, Moniepoint)"
-                          className="flex-1 bg-transparent border-none p-0 text-base focus:ring-0 outline-none text-white placeholder-white/20"
+                          className="flex-1 bg-transparent border-none p-0 text-sm sm:text-base focus:ring-0 outline-none text-white placeholder-white/20 min-w-0"
                         />
                         {selectedBank && (
                           <button
@@ -912,14 +928,14 @@ function SendPageContent() {
                 )}
 
                 {/* Recipient input */}
-                <div className="mb-6">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                <div className="mb-3 sm:mb-6">
+                  <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-3 px-1">
                     {ngnRecipientType === "user" 
                       ? "Recipient Phone Number" 
                       : "Recipient Account Number"}
                   </label>
-                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
-                    <span className="material-icons-outlined text-accent/40">
+                  <div className="flex items-center gap-2 sm:gap-3 py-3 px-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                    <span className="material-icons-outlined text-accent/40 text-lg sm:text-2xl shrink-0">
                       {ngnRecipientType === "user" ? "phone" : "account_balance"}
                     </span>
                     <input
@@ -942,11 +958,11 @@ function SendPageContent() {
                         ? "Enter phone (e.g., 07034494055)" 
                         : "Enter 10-digit account number"}
                       maxLength={ngnRecipientType === "bank" ? 10 : undefined}
-                      className="flex-1 bg-transparent border-none p-0 text-base focus:ring-0 outline-none text-white placeholder-white/20"
+                      className="flex-1 bg-transparent border-none p-0 text-sm sm:text-base focus:ring-0 outline-none text-white placeholder-white/20 min-w-0"
                     />
                   </div>
                   {ngnRecipientType === "user" && (
-                    <p className="text-xs text-background-dark/70 dark:text-white/60 mt-1">
+                    <p className="text-[10px] sm:text-xs text-background-dark/70 dark:text-white/60 mt-0.5 sm:mt-1">
                       Enter recipient's Nigerian mobile number
                     </p>
                   )}
@@ -957,7 +973,7 @@ function SendPageContent() {
                       </p>
                       {/* Account Verification Status */}
                       {verifyingAccount && (
-                        <div className="mt-3 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
+                        <div className="mt-2 sm:mt-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-secondary/10 border border-secondary/20">
                           <div className="flex items-center gap-2">
                             <FSpinner size="xs" />
                             <p className="text-xs text-accent">Verifying account...</p>
@@ -965,17 +981,17 @@ function SendPageContent() {
                         </div>
                       )}
                       {verifiedAccount && !verifyingAccount && (
-                        <div className="mt-3 p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-                          <div className="flex items-center gap-2 mb-1">
+                        <div className="mt-2 sm:mt-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-secondary/10 border border-secondary/20">
+                          <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
                             <span className="material-icons-outlined text-sm text-secondary">check_circle</span>
                             <p className="text-xs font-semibold text-secondary">Account Verified</p>
                           </div>
-                          <p className="text-sm font-medium text-white">{verifiedAccount.accountName}</p>
-                          <p className="text-xs text-accent/80 mt-1">Account: {verifiedAccount.accountNumber}</p>
+                          <p className="text-xs sm:text-sm font-medium text-white">{verifiedAccount.accountName}</p>
+                          <p className="text-[10px] sm:text-xs text-accent/80 mt-0.5 sm:mt-1">Account: {verifiedAccount.accountNumber}</p>
                         </div>
                       )}
                       {verificationError && !verifyingAccount && !verifiedAccount && (
-                        <div className="mt-3 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
+                        <div className="mt-2 sm:mt-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-red-500/20 border border-red-500/30">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="material-icons-outlined text-sm text-red-400">error</span>
                             <p className="text-xs font-semibold text-red-400">Verification Failed</p>
@@ -988,48 +1004,49 @@ function SendPageContent() {
                 </div>
 
                 {/* Amount */}
-                <div className="mb-6">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                <div className="mb-3 sm:mb-6">
+                  <label className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-3 px-1">
                     Amount (₦)
                   </label>
-                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
-                    <span className="material-icons-outlined text-accent/40">payments</span>
+                  <div className="flex items-center gap-2 sm:gap-3 py-3 px-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
+                    <span className="material-icons-outlined text-accent/40 text-lg sm:text-2xl shrink-0">payments</span>
                     <input
                       type="text"
                       inputMode="decimal"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                       placeholder="0.00"
-                      className="flex-1 bg-transparent border-none p-0 text-2xl font-bold focus:ring-0 outline-none text-white placeholder-white/20"
+                      className="flex-1 bg-transparent border-none p-0 text-xl sm:text-2xl font-bold focus:ring-0 outline-none text-white placeholder-white/20 min-w-0"
                     />
                   </div>
                   {virtualAccount && (
-                    <p className="text-xs text-accent/60 mt-2 px-1">Balance: ₦ {(virtualAccount.balance || 0).toLocaleString()}</p>
+                    <p className="text-[10px] sm:text-xs text-accent/60 mt-1 sm:mt-2 px-1">Balance: ₦ {(virtualAccount.balance || 0).toLocaleString()}</p>
                   )}
                 </div>
               </>
             )}
 
           {error && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-500/20 border border-red-500/30">
-              <p className="text-sm text-red-400 font-medium">{error}</p>
+            <div className="mb-3 sm:mb-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-red-500/20 border border-red-500/30">
+              <p className="text-xs sm:text-sm text-red-400 font-medium">{error}</p>
             </div>
           )}
 
           {authenticating && (
-            <div className="mb-6 p-4 rounded-2xl bg-primary/40 border border-secondary/20">
-              <p className="text-sm text-accent font-medium">
+            <div className="mb-3 sm:mb-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/40 border border-secondary/20">
+              <p className="text-xs sm:text-sm text-accent font-medium">
                 Authenticating with passkey... Please follow the prompt on your device.
               </p>
             </div>
           )}
 
+          {!(sendType === "ngn" && !virtualAccount?.accountNumber) && (
           <button
             onClick={handleSend}
             disabled={loading || !recipient || !amount || authenticating || 
                      (sendType === "crypto" && (availableChains.length === 0 || !selectedTokenInfo)) ||
                      (sendType === "ngn" && ngnRecipientType === "bank" && !selectedBank)}
-            className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] transition-all"
+            className="w-full text-sm sm:text-base font-extrabold py-3 sm:py-5 rounded-xl sm:rounded-[1.5rem] bg-secondary hover:bg-secondary/90 text-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 shadow-[0_10px_30px_rgba(19,236,90,0.2)] active:scale-[0.98] transition-all"
           >
             {loading ? (
               <>
@@ -1043,6 +1060,7 @@ function SendPageContent() {
               </>
             )}
           </button>
+          )}
         </div>
       </div>
     </div>

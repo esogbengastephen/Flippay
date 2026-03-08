@@ -174,8 +174,8 @@ export default function UserDashboard() {
       const cached = localStorage.getItem(`cached_crypto_balance_${userId}`);
       if (cached) {
         const data = JSON.parse(cached);
-        // Use cached balance if it's less than 5 minutes old
-        if (Date.now() - data.timestamp < 5 * 60 * 1000) {
+        // Always return last stored balance for display (show while new one loads)
+        if (typeof data.totalUSD === "number") {
           return data.totalUSD;
         }
       }
@@ -356,10 +356,16 @@ export default function UserDashboard() {
     }
   };
 
+  const WALLET_BALANCES_TIMEOUT_MS = 25_000;
+
   const fetchWalletBalances = async (userId: string) => {
     setLoadingBalances(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), WALLET_BALANCES_TIMEOUT_MS);
     try {
-      const response = await fetch(getApiUrl(`/api/wallet/balances?userId=${userId}`));
+      const response = await fetch(getApiUrl(`/api/wallet/balances?userId=${userId}`), {
+        signal: controller.signal,
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -371,7 +377,7 @@ export default function UserDashboard() {
         setWalletBalances(data.balances || {});
         setTotalCryptoUSD(newTotalUSD);
         
-        // Save to cache
+        // Save to cache (last balance for next visit / show while loading)
         saveCachedBalance(userId, newTotalUSD);
         setCachedTotalCryptoUSD(newTotalUSD);
         
@@ -388,8 +394,13 @@ export default function UserDashboard() {
         console.error("[Frontend] API returned success: false", data);
       }
     } catch (error) {
-      console.error("Error fetching wallet balances:", error);
+      if ((error as Error)?.name === "AbortError") {
+        console.warn("Wallet balances request timed out; showing last cached balance if any.");
+      } else {
+        console.error("Error fetching wallet balances:", error);
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoadingBalances(false);
     }
   };
@@ -509,7 +520,7 @@ export default function UserDashboard() {
         <div>
           <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white font-display">Dashboard</h2>
           <p className="opacity-60 text-xs sm:text-sm text-accent">
-            Welcome back, {getFirstNameFromEmail(userProfile?.email || user?.email)}
+            Welcome back, {userProfile?.displayName?.trim() || getFirstNameFromEmail(userProfile?.email || user?.email)}
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">

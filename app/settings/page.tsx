@@ -13,67 +13,245 @@ import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
-import { getKYCTierInfo, canUpgradeTier, formatCurrency, type KYCTier, KYC_TIERS } from "@/lib/kyc-tiers";
 
-// Add Phone Number Form Component
-function AddPhoneNumberForm({ onSuccess, userId }: { onSuccess: () => void; userId: string }) {
-  const [phoneNumber, setPhoneNumber] = useState("");
+const NGN_FORM_STEPS = 3;
+
+// Create NGN Account (Zainpay SVA - ZainBank only) — 3-step form with progress bar
+function CreateNGNAccountForm({
+  onSuccess,
+  userId,
+  userEmail,
+}: {
+  onSuccess: () => void;
+  userId: string;
+  userEmail: string;
+}) {
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [form, setForm] = useState({
+    firstName: "",
+    surname: "",
+    mobileNumber: "",
+    dob: "",
+    gender: "M" as "M" | "F",
+    address: "",
+    title: "Mr",
+    state: "",
+    bvn: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step < NGN_FORM_STEPS) {
+      setStep((s) => s + 1);
+      return;
+    }
     setLoading(true);
     setError("");
     setSuccess("");
-
-    if (!userId) {
-      setError("User ID is missing. Please log in again.");
+    if (!userId || !userEmail) {
+      setError("Session missing. Please log in again.");
       setLoading(false);
       return;
     }
-
+    const bvnClean = form.bvn.replace(/\D/g, "");
+    if (bvnClean.length !== 11) {
+      setError("BVN must be 11 digits.");
+      setLoading(false);
+      return;
+    }
     try {
-      const response = await fetch(getApiUrl("/api/flutterwave/add-phone-number"), {
+      const response = await fetch(getApiUrl("/api/zainpay/create-user-sva"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber, userId }),
+        body: JSON.stringify({
+          userId,
+          firstName: form.firstName.trim(),
+          surname: form.surname.trim(),
+          email: userEmail,
+          mobileNumber: form.mobileNumber.replace(/\D/g, "").slice(0, 11),
+          dob: form.dob.trim(),
+          gender: form.gender,
+          address: form.address.trim(),
+          title: form.title.trim(),
+          state: form.state.trim(),
+          bvn: bvnClean,
+        }),
       });
-
       const data = await response.json();
-
       if (data.success) {
-        setSuccess("Phone number added successfully!");
-        setPhoneNumber("");
-        setTimeout(() => {
-          onSuccess();
-        }, 1000);
+        setSuccess(data.message || "NGN account created. You can now send and receive NGN.");
+        setTimeout(() => onSuccess(), 1500);
       } else {
-        setError(data.error || "Failed to add phone number");
+        setError(data.error || "Failed to create NGN account.");
       }
     } catch (err: any) {
-      setError(err.message || "Failed to add phone number");
+      setError(err.message || "Failed to create NGN account.");
     } finally {
       setLoading(false);
     }
   };
 
+  const inputClass =
+    "w-full px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base rounded-xl bg-primary/40 border border-accent/10 text-white placeholder-white/30 focus:border-secondary/30 focus:ring-0 outline-none";
+  const btnClass =
+    "flex-1 text-sm sm:text-base font-semibold py-2.5 px-4 sm:py-3 sm:px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <input
-          type="tel"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          placeholder="07034494055"
-          className="w-full px-4 py-3 rounded-xl bg-primary/40 border border-accent/10 text-white placeholder-white/30 focus:border-secondary/30 focus:ring-0 outline-none"
-          required
-        />
-        <p className="text-xs text-accent/50 mt-1">
-          Enter your Nigerian mobile number (e.g., 07034494055)
-        </p>
+      <p className="text-sm text-accent/70">
+        Create a ZainBank NGN account for sending and receiving Naira. One account per user.
+      </p>
+
+      {/* Progress bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs text-accent/60">
+          <span>Step {step} of {NGN_FORM_STEPS}</span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-primary/40 overflow-hidden flex">
+          {[1, 2, 3].map((s) => (
+            <div
+              key={s}
+              className={`h-full flex-1 transition-colors ${s <= step ? "bg-secondary" : "bg-primary/20"}`}
+              style={{ minWidth: 0 }}
+            />
+          ))}
+        </div>
       </div>
+
+      {/* Step 1: Personal basics */}
+      {step === 1 && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-accent/60 mb-1">First name *</label>
+              <input
+                type="text"
+                value={form.firstName}
+                onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                className={inputClass}
+                placeholder="John"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-accent/60 mb-1">Surname *</label>
+              <input
+                type="text"
+                value={form.surname}
+                onChange={(e) => setForm((f) => ({ ...f, surname: e.target.value }))}
+                className={inputClass}
+                placeholder="Doe"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-accent/60 mb-1">Mobile number *</label>
+            <input
+              type="tel"
+              value={form.mobileNumber}
+              onChange={(e) => setForm((f) => ({ ...f, mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 11) }))}
+              className={inputClass}
+              placeholder="00000000000"
+              maxLength={11}
+              required
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Date of birth, gender, address */}
+      {step === 2 && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-accent/60 mb-1">Date of birth *</label>
+              <input
+                type="date"
+                aria-label="Date of birth"
+                value={form.dob}
+                onChange={(e) => setForm((f) => ({ ...f, dob: e.target.value }))}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-accent/60 mb-1">Gender *</label>
+              <select
+                aria-label="Gender"
+                value={form.gender}
+                onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value as "M" | "F" }))}
+                className={inputClass}
+              >
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-accent/60 mb-1">Address *</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+              className={inputClass}
+              placeholder="123 Street, City"
+              required
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Title, state, BVN */}
+      {step === 3 && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-accent/60 mb-1">Title *</label>
+              <select
+                aria-label="Title"
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                className={inputClass}
+              >
+                <option value="Mr">Mr</option>
+                <option value="Mrs">Mrs</option>
+                <option value="Ms">Ms</option>
+                <option value="Miss">Miss</option>
+                <option value="Dr">Dr</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-accent/60 mb-1">State *</label>
+              <input
+                type="text"
+                value={form.state}
+                onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                className={inputClass}
+                placeholder="Lagos"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-accent/60 mb-1">BVN (11 digits) *</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.bvn}
+              onChange={(e) => setForm((f) => ({ ...f, bvn: e.target.value.replace(/\D/g, "").slice(0, 11) }))}
+              className={inputClass}
+              placeholder="00000000000"
+              maxLength={11}
+              required
+            />
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30">
           <p className="text-sm text-red-400">{error}</p>
@@ -84,13 +262,37 @@ function AddPhoneNumberForm({ onSuccess, userId }: { onSuccess: () => void; user
           <p className="text-sm text-secondary">{success}</p>
         </div>
       )}
-      <button
-        type="submit"
-        disabled={loading || !phoneNumber}
-        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
-      >
-        {loading ? "Adding..." : "Add Phone Number"}
-      </button>
+
+      {/* Navigation: Previous + Next or Submit */}
+      <div className="flex gap-3 pt-2">
+        {step > 1 ? (
+          <button
+            type="button"
+            onClick={() => setStep((s) => s - 1)}
+            className={`${btnClass} bg-primary/60 hover:bg-primary/80 text-white border border-accent/20`}
+          >
+            Previous
+          </button>
+        ) : (
+          <div className="flex-1" />
+        )}
+        {step < NGN_FORM_STEPS ? (
+          <button
+            type="submit"
+            className={`${btnClass} bg-secondary hover:bg-secondary/90 text-primary shadow-[0_4px_14px_rgba(19,236,90,0.2)]`}
+          >
+            Next
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={loading}
+            className={`${btnClass} bg-secondary hover:bg-secondary/90 text-primary shadow-[0_4px_14px_rgba(19,236,90,0.2)]`}
+          >
+            {loading ? "Creating NGN account..." : "Create NGN account (ZainBank)"}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
@@ -256,7 +458,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-background-dark relative flex flex-col p-4 pb-24 lg:pb-8">
+      <div className="min-h-screen bg-background-dark relative flex flex-col p-3 sm:p-4 pb-24 lg:pb-8">
         {/* Background blur orbs */}
         <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
@@ -265,306 +467,118 @@ export default function SettingsPage() {
 
         <div className="max-w-4xl mx-auto w-full relative">
           {/* Header */}
-          <div className="text-center mb-10 relative">
+          <div className="text-center mb-6 sm:mb-10 relative">
             <button
               onClick={() => router.back()}
               className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
             >
               <span className="material-icons-outlined">arrow_back</span>
             </button>
-            <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">Settings</h1>
-            <p className="text-accent/70">Manage your profile, security, and preferences</p>
+            <h1 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2 tracking-tight text-white font-display">Settings</h1>
+            <p className="text-sm sm:text-base text-accent/70">Manage your profile, security, and preferences</p>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Profile Section */}
             <section id="profile" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
-              <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">Profile</h2>
+              <div className="p-4 sm:p-6 border-b border-accent/10">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Profile</h2>
                 <p className="text-sm text-accent/60 mt-1">Your basic account information</p>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
                     <p className="text-sm text-accent/60">Display Name</p>
-                    <p className="text-base font-medium text-white">
+                    <p className="text-sm sm:text-base font-medium text-white truncate">
                       {userProfile?.displayName || "Not set"}
                     </p>
                   </div>
                   <button
                     onClick={() => router.push("/profile")}
-                    className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-5 rounded-xl transition-all shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
+                    className="shrink-0 text-sm font-semibold py-2 px-3 sm:py-2.5 sm:px-5 rounded-xl bg-secondary hover:bg-secondary/90 text-primary transition-all shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
                   >
                     Edit Profile
                   </button>
                 </div>
                 <div className="pt-4 border-t border-accent/10">
                   <p className="text-sm text-accent/60 mb-1">Email</p>
-                  <p className="text-base text-white">{user?.email}</p>
+                  <p className="text-sm sm:text-base text-white break-all">{user?.email}</p>
                 </div>
               </div>
             </section>
 
-            {/* Phone Number & NGN Account Section */}
+            {/* NGN Account Section (Zainpay SVA - ZainBank) */}
             <section id="phone-ngn" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
-              <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">Phone & NGN Account</h2>
-                <p className="text-sm text-accent/60 mt-1">Manage your phone number and NGN wallet</p>
+              <div className="p-4 sm:p-6 border-b border-accent/10">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">NGN Account</h2>
+                <p className="text-sm text-accent/60 mt-1">Your NGN account for send and receive (ZainBank)</p>
               </div>
-              <div className="p-6 space-y-4">
-                {userProfile?.mobileNumber ? (
+              <div className="p-4 sm:p-6 space-y-4">
+                {userProfile?.zainpayAccountNumber ? (
                   <>
                     <div className="pt-4 border-t border-accent/10">
-                      <p className="text-sm text-accent/60 mb-1">Phone Number</p>
-                      <p className="text-base text-white">{userProfile.mobileNumber}</p>
+                      <p className="text-sm text-accent/60 mb-1">NGN Account Number</p>
+                      <p className="text-sm sm:text-base font-mono text-white">{userProfile.zainpayAccountNumber}</p>
+                      <p className="text-xs text-accent/50 mt-1">{userProfile.zainpayBank || "ZainBank"}</p>
+                      {userProfile.zainpayAccountName && (
+                        <p className="text-xs text-accent/50 mt-0.5">{userProfile.zainpayAccountName}</p>
+                      )}
                     </div>
-                    {userProfile.flutterwaveAccountNumber && (
-                      <>
-                        <div className="pt-4 border-t border-accent/10">
-                          <p className="text-sm text-accent/60 mb-1">NGN Account Number</p>
-                          <p className="text-base font-mono text-white">{userProfile.flutterwaveAccountNumber}</p>
-                          <p className="text-xs text-accent/50 mt-1">{userProfile.flutterwaveBank}</p>
-                        </div>
-                        {!userProfile.flutterwaveIsPermanent && (
-                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                            <p className="text-xs text-accent/80 mb-2">
-                              ⚠️ Temporary account (Tier 1). Verify your BVN to get a permanent account and upgrade to Tier 2 with higher limits.
-                            </p>
-                            <button
-                              onClick={() => router.push("/kyc/verify-bvn")}
-                              className="text-xs bg-secondary text-primary font-semibold py-2 px-4 rounded-lg transition-colors"
-                            >
-                              Verify BVN Now
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    <p className="text-xs text-accent/60">
+                      Use this account to send and receive NGN. It appears on your Receive and Send pages.
+                    </p>
                   </>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-sm text-accent/70">
-                      Add your phone number to create your NGN wallet account.
-                    </p>
-                    <AddPhoneNumberForm onSuccess={() => fetchUserProfile(user.id)} userId={user.id} />
+                    <CreateNGNAccountForm
+                      onSuccess={() => fetchUserProfile(user.id)}
+                      userId={user.id}
+                      userEmail={user?.email || ""}
+                    />
                   </div>
                 )}
               </div>
             </section>
 
-            {/* KYC Section */}
+            {/* KYC Section - simple verified / not verified */}
             <section id="kyc" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
               <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">KYC Verification & Limits</h2>
-                <p className="text-sm text-accent/60 mt-1">Your verification tier and transaction limits</p>
+                <h2 className="text-xl font-semibold text-white">KYC Status</h2>
+                <p className="text-sm text-accent/60 mt-1">Whether you have completed identity verification</p>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-6">
                 {(() => {
-                  const hasAccount = userProfile?.mobileNumber && userProfile?.flutterwaveAccountNumber;
-                  const currentTier = hasAccount ? ((userProfile?.flutterwaveKYCTier || 1) as KYCTier) : (1 as KYCTier);
-                  const tierInfo = getKYCTierInfo(currentTier);
-                  const upgradeInfo = hasAccount ? canUpgradeTier(currentTier, !!userProfile?.flutterwaveIsPermanent) : { canUpgrade: false, nextTier: KYC_TIERS[2] };
-                  const allTiers = [1, 2, 3] as KYCTier[];
-                    
-                    return (
-                      <>
-                        {!hasAccount && (
-                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 mb-4">
-                            <p className="text-sm text-accent/80">
-                              Add your phone number above to create your NGN account. Once created, you'll start at Tier 1.
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Current Tier Card */}
-                        {hasAccount && (
-                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="text-base font-semibold text-white">
-                                Your Current Tier: {tierInfo.name}
-                              </h3>
-                              <span className="px-3 py-1 bg-secondary text-primary rounded-full text-xs font-bold">
-                                Tier {currentTier} ✓
-                              </span>
-                            </div>
-                            <p className="text-sm text-accent/70 mb-4">
-                              {tierInfo.description}
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10">
-                                <p className="text-xs text-accent/60 mb-1">Daily Limit</p>
-                                <p className="text-sm font-bold text-white">
-                                  {formatCurrency(tierInfo.dailyLimit)}
-                                </p>
-                              </div>
-                              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10">
-                                <p className="text-xs text-accent/60 mb-1">Monthly Limit</p>
-                                <p className="text-sm font-bold text-white">
-                                  {formatCurrency(tierInfo.monthlyLimit)}
-                                </p>
-                              </div>
-                              <div className="p-3 rounded-lg bg-primary/40 border border-accent/10">
-                                <p className="text-xs text-accent/60 mb-1">Single Transaction</p>
-                                <p className="text-sm font-bold text-white">
-                                  {formatCurrency(tierInfo.singleTransactionLimit)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* All Tiers Comparison */}
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-white">
-                            Available Tiers & Upgrade Options
-                          </h4>
-                          {allTiers.map((tier) => {
-                            const info = KYC_TIERS[tier];
-                            const isCurrentTier = tier === currentTier;
-                            const isNextTier = tier === currentTier + 1;
-                            const isLocked = tier > currentTier + 1;
-                            
-                            return (
-                              <div
-                                key={tier}
-                                className={`p-4 rounded-xl border ${
-                                  isCurrentTier
-                                    ? "bg-secondary/10 border-secondary/30"
-                                    : isNextTier
-                                    ? "bg-secondary/5 border-secondary/20"
-                                    : "bg-primary/40 border-accent/10"
-                                }`}
-                              >
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h5 className="text-sm font-semibold text-white">
-                                        {info.name}
-                                      </h5>
-                                      {isCurrentTier && (
-                                        <span className="px-2 py-0.5 bg-secondary text-primary text-xs rounded-full font-medium">
-                                          Current
-                                        </span>
-                                      )}
-                                      {isNextTier && (
-                                        <span className="px-2 py-0.5 bg-secondary/80 text-primary text-xs rounded-full font-medium">
-                                          Available
-                                        </span>
-                                      )}
-                                      {isLocked && (
-                                        <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs rounded-full font-medium">
-                                          Locked
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-accent/70 mb-3">
-                                      {info.description}
-                                    </p>
-                                    <div className="grid grid-cols-3 gap-2 text-xs">
-                                      <div>
-                                        <p className="text-accent/50">Daily</p>
-                                        <p className="font-semibold text-white">
-                                          {formatCurrency(info.dailyLimit)}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-accent/50">Monthly</p>
-                                        <p className="font-semibold text-white">
-                                          {formatCurrency(info.monthlyLimit)}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-accent/50">Single TX</p>
-                                        <p className="font-semibold text-white">
-                                          {formatCurrency(info.singleTransactionLimit)}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Upgrade Button Logic */}
-                                {isNextTier && hasAccount && (
-                                  <div className="mt-3 pt-3 border-t border-secondary/20">
-                                    {currentTier === 1 ? (
-                                      <button
-                                        onClick={() => router.push("/kyc/verify-bvn")}
-                                        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-                                      >
-                                        <span className="material-icons-outlined text-sm">arrow_upward</span>
-                                        Verify BVN to Upgrade to Tier 2
-                                      </button>
-                                    ) : currentTier === 2 ? (
-                                      <button
-                                        onClick={() => router.push("/kyc/upgrade-tier-3")}
-                                        className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-                                      >
-                                        <span className="material-icons-outlined text-sm">arrow_upward</span>
-                                        Upgrade to Tier 3 (Enhanced KYC)
-                                      </button>
-                                    ) : null}
-                                  </div>
-                                )}
-                                {isNextTier && !hasAccount && (
-                                  <div className="mt-3 pt-3 border-t border-accent/10">
-                                    <p className="text-xs text-accent/50 text-center">
-                                      Add phone number to unlock
-                                    </p>
-                                  </div>
-                                )}
-                                {isLocked && (
-                                  <div className="mt-3 pt-3 border-t border-accent/10">
-                                    <p className="text-xs text-accent/50 text-center">
-                                      Complete Tier {tier - 1} first to unlock
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                  const kycDone = !!userProfile?.zainpayAccountNumber;
+                  return (
+                    <div className={`p-3 sm:p-4 rounded-xl border ${kycDone ? "bg-secondary/10 border-secondary/20" : "bg-primary/40 border-accent/10"}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`material-icons-outlined text-xl sm:text-2xl shrink-0 ${kycDone ? "text-secondary" : "text-accent/50"}`}>
+                          {kycDone ? "verified_user" : "person_off"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm sm:text-base font-semibold text-white">
+                            {kycDone ? "KYC: Verified" : "KYC: Not verified"}
+                          </p>
+                          <p className="text-sm text-accent/60 mt-0.5">
+                            {kycDone
+                              ? "You have completed identity verification."
+                              : "Create your NGN account (ZainBank) above with BVN to complete verification."}
+                          </p>
                         </div>
-
-                        {/* Upgrade Benefits Summary */}
-                        {hasAccount && upgradeInfo.canUpgrade && upgradeInfo.nextTier && (
-                          <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="material-icons-outlined text-secondary">trending_up</span>
-                              <h4 className="text-sm font-bold text-secondary">
-                                Upgrade Benefits
-                              </h4>
-                            </div>
-                            <div className="space-y-2 text-xs text-accent/80">
-                              <p className="font-semibold">Upgrade to {upgradeInfo.nextTier.name} and get:</p>
-                              <ul className="list-disc list-inside space-y-1 ml-2">
-                                <li>
-                                  <strong>{(upgradeInfo.nextTier.dailyLimit / tierInfo.dailyLimit).toFixed(1)}x</strong> higher daily limit
-                                  ({formatCurrency(tierInfo.dailyLimit)} → {formatCurrency(upgradeInfo.nextTier.dailyLimit)})
-                                </li>
-                                <li>
-                                  <strong>{(upgradeInfo.nextTier.monthlyLimit / tierInfo.monthlyLimit).toFixed(1)}x</strong> higher monthly limit
-                                  ({formatCurrency(tierInfo.monthlyLimit)} → {formatCurrency(upgradeInfo.nextTier.monthlyLimit)})
-                                </li>
-                                <li>
-                                  <strong>{(upgradeInfo.nextTier.singleTransactionLimit / tierInfo.singleTransactionLimit).toFixed(1)}x</strong> higher single transaction limit
-                                  ({formatCurrency(tierInfo.singleTransactionLimit)} → {formatCurrency(upgradeInfo.nextTier.singleTransactionLimit)})
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </section>
 
             {/* Security Section - Seed Phrase */}
             <section id="security" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
-              <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">Security</h2>
+              <div className="p-4 sm:p-6 border-b border-accent/10">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Security</h2>
                 <p className="text-sm text-accent/60 mt-1">Seed phrase and wallet recovery</p>
               </div>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
               {!showSeedPhrase ? (
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20">
@@ -589,7 +603,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleViewSeedPhrase}
                     disabled={authenticating}
-                    className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
+                    className="w-full text-sm sm:text-base font-semibold py-3 px-4 sm:py-4 sm:px-6 rounded-xl bg-secondary hover:bg-secondary/90 text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
                   >
                     {authenticating ? (
                       <>
@@ -630,7 +644,7 @@ export default function SettingsPage() {
 
                   <button
                     onClick={copySeedPhrase}
-                    className={`w-full font-semibold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)] ${
+                    className={`w-full text-sm sm:text-base font-semibold py-3 px-4 sm:py-4 sm:px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)] ${
                       seedCopied
                         ? "bg-secondary/80 text-primary"
                         : "bg-secondary hover:bg-secondary/90 text-primary"
@@ -654,7 +668,7 @@ export default function SettingsPage() {
                       setShowSeedPhrase(false);
                       setSeedPhrase("");
                     }}
-                    className="w-full bg-primary/40 hover:bg-primary/60 border border-accent/10 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+                    className="w-full text-sm sm:text-base font-semibold py-2.5 px-4 sm:py-3 sm:px-6 rounded-xl bg-primary/40 hover:bg-primary/60 border border-accent/10 text-white transition-colors"
                   >
                     Hide Seed Phrase
                   </button>
@@ -665,25 +679,25 @@ export default function SettingsPage() {
 
             {/* Wallet Addresses Section */}
             <section id="wallets" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
-              <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">Wallet Addresses</h2>
+              <div className="p-4 sm:p-6 border-b border-accent/10">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Wallet Addresses</h2>
                 <p className="text-sm text-accent/60 mt-1">Your multi-chain wallet addresses</p>
               </div>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
               {Object.keys(walletAddresses).length === 0 ? (
                 <p className="text-sm text-accent/70">
                   No wallet addresses found. Please set up a passkey to generate addresses.
                 </p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {Object.entries(walletAddresses).map(([chainId, address]) => {
                     const chain = SUPPORTED_CHAINS[chainId];
                     return (
                       <div
                         key={chainId}
-                        className="p-4 rounded-xl bg-primary/40 border border-accent/10"
+                        className="p-3 sm:p-4 rounded-xl bg-primary/40 border border-accent/10"
                       >
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                           <div className="flex items-center gap-2">
                             {getChainLogo(chainId) ? (
                               <Image
@@ -728,11 +742,11 @@ export default function SettingsPage() {
 
             {/* Invoice Settings */}
             <section id="invoice" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
-              <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">Invoice Settings</h2>
+              <div className="p-4 sm:p-6 border-b border-accent/10">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Invoice Settings</h2>
                 <p className="text-sm text-accent/60 mt-1">Personal or business invoice type</p>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 {/* Invoice Type Toggle */}
                 <div>
                   <label className="block text-sm font-medium mb-3 text-accent/80">
@@ -742,7 +756,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => setInvoiceType("personal")}
-                      className={`flex-1 py-2.5 px-4 rounded-xl font-semibold transition-all ${
+                      className={`flex-1 text-sm sm:text-base font-semibold py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl transition-all ${
                         invoiceType === "personal"
                           ? "bg-primary border border-secondary/40 text-secondary"
                           : "bg-primary/40 border border-accent/10 text-accent hover:border-secondary/20"
@@ -753,7 +767,7 @@ export default function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => setInvoiceType("business")}
-                      className={`flex-1 py-2.5 px-4 rounded-xl font-semibold transition-all ${
+                      className={`flex-1 text-sm sm:text-base font-semibold py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl transition-all ${
                         invoiceType === "business"
                           ? "bg-primary border border-secondary/40 text-secondary"
                           : "bg-primary/40 border border-accent/10 text-accent hover:border-secondary/20"
@@ -785,7 +799,7 @@ export default function SettingsPage() {
                 <button
                   onClick={handleSaveInvoiceSettings}
                   disabled={savingInvoiceSettings}
-                  className="w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
+                  className="w-full text-sm sm:text-base font-semibold py-3 px-4 sm:py-4 sm:px-6 rounded-xl bg-secondary hover:bg-secondary/90 text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_14px_rgba(19,236,90,0.2)]"
                 >
                   {savingInvoiceSettings ? (
                     <>
@@ -819,14 +833,14 @@ export default function SettingsPage() {
 
             {/* Other Settings */}
             <section id="preferences" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
-              <div className="p-6 border-b border-accent/10">
-                <h2 className="text-xl font-semibold text-white">Preferences</h2>
+              <div className="p-4 sm:p-6 border-b border-accent/10">
+                <h2 className="text-lg sm:text-xl font-semibold text-white">Preferences</h2>
                 <p className="text-sm text-accent/60 mt-1">Quick links to receive and send</p>
               </div>
-              <div className="p-6 space-y-4">
+              <div className="p-4 sm:p-6 space-y-4">
                 <button
                   onClick={() => router.push("/receive")}
-                  className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all"
+                  className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all text-sm sm:text-base"
                 >
                   <div className="flex items-center gap-3">
                     <span className="material-icons-outlined text-white">
@@ -843,7 +857,7 @@ export default function SettingsPage() {
 
                 <button
                   onClick={() => router.push("/send")}
-                  className="w-full flex items-center justify-between p-4 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all"
+                  className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/20 transition-all text-sm sm:text-base"
                 >
                   <div className="flex items-center gap-3">
                     <span className="material-icons-outlined text-white">

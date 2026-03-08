@@ -37,6 +37,7 @@ export default function ReceivePage() {
   const [regenerateError, setRegenerateError] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [qrSize, setQrSize] = useState(192);
 
   useEffect(() => {
     if (!isUserLoggedIn()) {
@@ -50,6 +51,15 @@ export default function ReceivePage() {
       return;
     }
     setUser(currentUser);
+  }, []);
+
+  // Responsive QR size for mobile fit (avoids hydration mismatch)
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setQrSize(mq.matches ? 136 : 192);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
 
   useEffect(() => {
@@ -290,30 +300,30 @@ export default function ReceivePage() {
 
   return (
     <DashboardLayout>
-    <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-4 pb-24 lg:pb-8">
-      {/* Background blur orbs */}
-      <div className="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+    <div className="h-[100dvh] max-h-[100dvh] lg:min-h-screen lg:h-auto bg-background-dark relative flex flex-col items-center overflow-hidden">
+      {/* Background blur orbs - clipped to viewport to prevent bottom artifact */}
+      <div className="fixed inset-0 w-full h-[100dvh] max-h-[100dvh] overflow-hidden -z-10 pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-secondary rounded-full blur-[160px] opacity-[0.05]" />
-        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] bg-primary rounded-full blur-[120px] opacity-30" />
+        <div className="absolute bottom-0 left-[-5%] w-[400px] h-[400px] bg-primary rounded-full blur-[120px] opacity-30" />
       </div>
 
-      <div className="w-full max-w-lg mt-8 lg:mt-16 relative">
-        {/* Header */}
-        <div className="text-center mb-10">
+      <div className="w-full max-w-lg flex-1 flex flex-col min-h-0 overflow-y-auto p-4 pt-4 pb-28 lg:pt-16 lg:pb-8">
+        {/* Header - tighter on mobile */}
+        <div className="text-center mb-4 lg:mb-10 shrink-0">
           <button
             onClick={() => router.back()}
             className="hidden lg:flex absolute left-0 top-0 p-2 hover:bg-white/5 rounded-xl transition-colors text-accent/60 hover:text-secondary"
           >
             <span className="material-icons-outlined">arrow_back</span>
           </button>
-          <h1 className="text-3xl font-bold mb-2 tracking-tight text-white font-display">Receive</h1>
-          <p className="text-accent/70">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2 tracking-tight text-white font-display">Receive</h1>
+          <p className="text-accent/70 text-sm sm:text-base">
             {receiveType === "crypto" ? "Get your wallet address to receive crypto" : "Share your virtual account to receive NGN"}
           </p>
         </div>
 
-        {/* Main Card - glass style */}
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] p-6 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden">
+        {/* Main Card - glass style, tighter padding on mobile */}
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl sm:rounded-[2.5rem] p-4 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden shrink-0">
           <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/10 rounded-full blur-3xl -z-10" />
 
           {/* Type Selector */}
@@ -335,7 +345,7 @@ export default function ReceivePage() {
               </button>
               <button
                 onClick={() => setReceiveType("crypto")}
-                className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${
+                className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex flex-col items-center gap-1.5 sm:gap-2 ${
                   receiveType === "crypto"
                     ? "bg-primary border-secondary/40 text-secondary shadow-lg shadow-secondary/10"
                     : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
@@ -500,7 +510,7 @@ export default function ReceivePage() {
                   <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center mb-4 p-4">
                     <QRCodeSVG
                       value={currentAddress}
-                      size={192}
+                      size={qrSize}
                       level="H"
                       includeMargin={true}
                       fgColor="#1a1a1a"
@@ -585,17 +595,17 @@ export default function ReceivePage() {
           ) : (
             <>
               {/* NGN Virtual Account Display */}
-              {virtualAccount ? (
+              {virtualAccount?.accountNumber ? (
                 <>
-                  <div className="mb-6">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-3 px-1">
+                  <div className="mb-4 sm:mb-6">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 sm:mb-3 px-1">
                       Your Virtual Account
                     </label>
-                    <div className="p-5 rounded-3xl bg-primary/40 border border-accent/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <p className="text-xs text-accent/60 mb-1 font-medium">Account Number</p>
-                          <p className="text-2xl font-bold text-white font-mono">
+                    <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-primary/40 border border-accent/10">
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-accent/60 mb-0.5 sm:mb-1 font-medium">Account Number</p>
+                          <p className="text-lg sm:text-2xl font-bold text-white font-mono truncate">
                             {virtualAccount.accountNumber}
                           </p>
                         </div>
@@ -645,33 +655,33 @@ export default function ReceivePage() {
                     </button>
                   </div>
 
-                  {/* QR Code for NGN */}
+                  {/* QR Code for NGN - compact on mobile */}
                   {virtualAccount?.accountNumber && (
-                    <div className="mt-6 p-8 rounded-2xl bg-primary/40 border border-accent/10 flex flex-col items-center justify-center">
-                      <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center mb-4 p-4">
+                    <div className="mt-4 sm:mt-6 p-4 sm:p-8 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/10 flex flex-col items-center justify-center">
+                      <div className="w-36 h-36 sm:w-48 sm:h-48 bg-white rounded-lg sm:rounded-xl flex items-center justify-center mb-3 sm:mb-4 p-2 sm:p-4">
                         <QRCodeSVG
                           value={`${virtualAccount.accountNumber}|${virtualAccount.bankName || "Wema Bank"}`}
-                          size={192}
+                          size={qrSize}
                           level="H"
                           includeMargin={true}
                           fgColor="#1a1a1a"
                           bgColor="#ffffff"
                         />
                       </div>
-                      <p className="text-sm text-accent/80 text-center font-medium">
+                      <p className="text-xs sm:text-sm text-accent/80 text-center font-medium">
                         QR Code for NGN payments
                       </p>
-                      <p className="text-xs text-accent/60 text-center mt-2 font-mono">
+                      <p className="text-xs text-accent/60 text-center mt-1 sm:mt-2 font-mono">
                         {virtualAccount.accountNumber}
                       </p>
-                      <p className="text-xs text-accent/60 text-center mt-1">
+                      <p className="text-xs text-accent/60 text-center mt-0.5 sm:mt-1">
                         {virtualAccount.bankName || "Wema Bank"}
                       </p>
                     </div>
                   )}
 
                   {/* Info */}
-                  <div className="mt-6 p-4 rounded-2xl bg-primary/40 border border-accent/5">
+                  <div className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/5">
                     <p className="text-xs text-white font-medium mb-2">
                       💡 How to receive NGN payments
                     </p>
@@ -681,12 +691,20 @@ export default function ReceivePage() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-12">
-                  <span className="material-icons-outlined text-6xl text-accent/30 mb-4">account_balance</span>
-                  <p className="text-white font-medium">No virtual account found</p>
-                  <p className="text-sm text-accent/80 mt-2">
-                    Please contact support to set up your virtual account
+                <div className="text-center py-8 sm:py-12">
+                  <span className="material-icons-outlined text-5xl sm:text-6xl text-accent/30 mb-4">account_balance</span>
+                  <p className="text-white font-medium mb-2">You need an NGN account to receive Naira</p>
+                  <p className="text-sm text-accent/80 mb-6 max-w-sm mx-auto">
+                    Complete verification in Settings to create your ZainBank NGN account. It only takes a minute.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/settings#phone-ngn")}
+                    className="bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-4 px-6 rounded-xl sm:rounded-[1.5rem] transition-all flex items-center justify-center gap-2 mx-auto shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
+                  >
+                    <span className="material-icons-outlined">verified_user</span>
+                    <span>Create NGN account</span>
+                  </button>
                 </div>
               )}
             </>

@@ -31,7 +31,6 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [referralCode, setReferralCode] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -298,14 +297,6 @@ export default function AuthPage() {
     }
 
     try {
-      // Sign up flow only (login doesn't need code verification)
-      // Phone number is required for signup
-      if (mode === "signup" && !phoneNumber) {
-        setError("Phone number is required");
-        setLoading(false);
-        return;
-      }
-
       const response = await fetch(getApiUrl("/api/auth/signup"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -313,7 +304,6 @@ export default function AuthPage() {
           email,
           code,
           referralCode: referralCode || undefined,
-          phoneNumber: mode === "signup" ? phoneNumber : undefined,
         }),
       });
 
@@ -793,41 +783,9 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {/* Phone Number Input - Only for Signup */}
-              {mode === "signup" && (
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
-                    Phone Number <span className="text-red-400">*</span>
-                  </label>
-                  <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 transition-all">
-                    <span className="material-icons-outlined text-accent/40">phone</span>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "").slice(0, 11);
-                        setPhoneNumber(value);
-                      }}
-                      placeholder="08012345678"
-                      maxLength={11}
-                      className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
-                      disabled={loading}
-                    />
-                  </div>
-                  <p className="text-xs text-accent/60 mt-2">
-                    Enter your 11-digit Nigerian phone number (e.g., 08012345678)
-                  </p>
-                  {phoneNumber && phoneNumber.length < 11 && (
-                    <p className="text-xs text-red-400 mt-1">
-                      Phone number must be 11 digits
-                    </p>
-                  )}
-                </div>
-              )}
-
               <button
                 onClick={handleVerifyCode}
-                disabled={loading || code.length !== 6 || (mode === "signup" && (!phoneNumber || phoneNumber.length < 11))}
+                disabled={loading || code.length !== 6}
                 className="w-full bg-secondary hover:bg-secondary/90 text-primary font-extrabold py-5 rounded-[1.5rem] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
               >
                 {loading ? "Verifying..." : mode === "login" ? "Login" : "Sign Up"}
@@ -837,7 +795,6 @@ export default function AuthPage() {
                 onClick={() => {
                   setCodeSent(false);
                   setCode("");
-                  setPhoneNumber("");
                   setError("");
                   setMessage("");
                   setResendCooldown(0); // Reset cooldown when changing email

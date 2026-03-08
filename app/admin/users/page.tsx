@@ -24,6 +24,18 @@ interface User {
   requiresReset?: boolean;
   blockedAt?: string | null;
   blockedReason?: string | null;
+  kycFirstName?: string | null;
+  kycSurname?: string | null;
+  kycMobileNumber?: string | null;
+  kycDateOfBirth?: string | null;
+  kycGender?: string | null;
+  kycAddress?: string | null;
+  kycTitle?: string | null;
+  kycState?: string | null;
+  kycBvnLast4?: string | null;
+  kycSubmittedAt?: string | null;
+  zainpayAccountNumber?: string | null;
+  zainpayBank?: string | null;
 }
 
 interface Pagination {
@@ -453,6 +465,7 @@ export default function UsersPage() {
                   <input type="checkbox" checked={selectAll} onChange={handleSelectAll} className="w-4 h-4 rounded border-accent/30 bg-primary text-secondary focus:ring-secondary cursor-pointer" title="Select all" />
                 </th>
                 <th className="px-6 py-4">User</th>
+                <th className="px-6 py-4">KYC</th>
                 <th className="px-6 py-4">Referrals</th>
                 <th className="px-6 py-4">Transactions</th>
                 <th className="px-6 py-4">Spent / Received</th>
@@ -492,6 +505,24 @@ export default function UsersPage() {
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.kycSubmittedAt ? (
+                        <div className="space-y-0.5" title={`${user.kycFirstName || ""} ${user.kycSurname || ""} • ${user.kycMobileNumber || ""} • BVN ****${user.kycBvnLast4 || ""} • ${user.kycState || ""}`}>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/30">
+                            <span className="material-icons-outlined text-sm">verified_user</span>
+                            Verified
+                          </span>
+                          <div className="text-[10px] text-accent/50">
+                            {[user.kycFirstName, user.kycSurname].filter(Boolean).join(" ") || "—"}
+                            {user.zainpayAccountNumber && (
+                              <span className="block font-mono text-accent/60">{user.zainpayAccountNumber}</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-accent/50 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-white font-medium">{user.referralCount || 0}</td>
                     <td className="px-6 py-4 text-white font-bold">{user.totalTransactions}</td>
