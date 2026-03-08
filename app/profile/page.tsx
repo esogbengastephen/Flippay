@@ -132,7 +132,7 @@ export default function ProfilePage() {
       pixelCrop.height
     );
 
-    // Convert to blob
+    // Convert to blob (0.85 = good quality, smaller file for faster compression/upload)
     return new Promise((resolve, reject) => {
       canvas.toBlob(
         (blob) => {
@@ -144,7 +144,7 @@ export default function ProfilePage() {
           resolve(url);
         },
         "image/jpeg",
-        0.95 // High quality
+        0.85
       );
     });
   };
@@ -171,13 +171,13 @@ export default function ProfilePage() {
       const blob = await response.blob();
       const file = new File([blob], "profile.jpg", { type: "image/jpeg" });
 
-      // Compress the image
+      // Compress for fast upload (smaller = faster processing and upload)
       const options = {
-        maxSizeMB: 0.5, // Max 500KB
-        maxWidthOrHeight: 800, // Max dimension
+        maxSizeMB: 0.2, // 200KB max for quick upload
+        maxWidthOrHeight: 400, // Profile avatar size
         useWebWorker: true,
-        fileType: "image/jpeg",
-        initialQuality: 0.85, // High quality compression
+        fileType: "image/jpeg" as const,
+        initialQuality: 0.8,
       };
 
       const compressedFile = await imageCompression(file, options);
@@ -200,13 +200,12 @@ export default function ProfilePage() {
 
         const uploadData = await uploadResponse.json();
 
-        if (uploadData.success) {
+        if (uploadData.success && uploadData.photoUrl) {
           setPhotoUrl(uploadData.photoUrl);
           setSuccess("Profile picture updated successfully!");
           setTimeout(() => setSuccess(""), 3000);
           setShowCropModal(false);
           setImageSrc("");
-          // Clean up blob URL
           URL.revokeObjectURL(croppedImageUrl);
         } else {
           setError(uploadData.error || "Failed to upload image");
@@ -299,23 +298,21 @@ export default function ProfilePage() {
       const blob = await response.blob();
       const file = new File([blob], "business-logo.jpg", { type: "image/jpeg" });
 
-      // Compress the image
+      // Compress for fast upload
       const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 800,
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 512,
         useWebWorker: true,
-        fileType: "image/jpeg",
-        initialQuality: 0.85,
+        fileType: "image/jpeg" as const,
+        initialQuality: 0.8,
       };
 
       const compressedFile = await imageCompression(file, options);
 
-      // Convert to base64
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
 
-        // Upload to API
         const uploadResponse = await fetch(getApiUrl("/api/user/upload-photo"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -390,70 +387,73 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <PageLoadingSpinner message="Loading..." bgClass="bg-primary" />;
+    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
   }
+
+  const inputClass =
+    "w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded-xl bg-primary/40 border border-accent/10 text-white placeholder-white/30 focus:border-secondary/30 focus:ring-0 outline-none";
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-primary">
-        <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="min-h-screen bg-background-dark">
+        <div className="max-w-lg mx-auto px-3 sm:px-4 pt-2 sm:pt-4 pb-24 sm:py-8">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
             <button
               onClick={() => router.back()}
-              className="hidden lg:flex bg-secondary/10 p-2 rounded-xl hover:bg-secondary/20 transition backdrop-blur-sm"
+              className="hidden lg:flex p-1.5 rounded-lg hover:bg-white/5 transition text-accent/60 hover:text-secondary"
             >
-              <span className="material-icons-outlined text-secondary">arrow_back</span>
+              <span className="material-icons-outlined text-lg">arrow_back</span>
             </button>
-            <h1 className="text-2xl font-bold text-secondary">Edit Profile</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-white font-display">Edit Profile</h1>
           </div>
 
-        {/* Main Card */}
-        <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-sm">
+        {/* Main Card - match Receive/Settings form style */}
+        <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-6 border border-secondary/10 shadow-xl">
           {/* Error/Success Messages */}
           {error && (
-            <div className="mb-6 p-4 bg-red-100/80 dark:bg-red-900/30 border border-red-300 dark:border-red-800 rounded-xl">
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            <div className="mb-2 sm:mb-4 p-2.5 sm:p-4 bg-red-500/20 border border-red-500/30 rounded-xl">
+              <p className="text-xs sm:text-sm text-red-400">{error}</p>
             </div>
           )}
           {success && (
-            <div className="mb-6 p-4 bg-green-100/80 dark:bg-green-900/30 border border-green-300 dark:border-green-800 rounded-xl">
-              <p className="text-sm text-green-700 dark:text-green-300">{success}</p>
+            <div className="mb-2 sm:mb-4 p-2.5 sm:p-4 bg-secondary/20 border border-secondary/30 rounded-xl">
+              <p className="text-xs sm:text-sm text-secondary">{success}</p>
             </div>
           )}
 
           {/* Profile Picture Section */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-3 text-secondary/80">
+          <div className="mb-3 sm:mb-5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
               Profile Picture
             </label>
-            <div className="flex items-center gap-4">
-              <div className="relative">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <div className="relative shrink-0">
                 {photoUrl ? (
                   <Image
                     src={photoUrl}
                     alt={displayName || "Profile"}
-                    width={100}
-                    height={100}
-                    className="rounded-full border-4 border-secondary/20 object-cover"
+                    width={64}
+                    height={64}
+                    className="rounded-full border-2 border-accent/20 object-cover w-14 h-14 sm:w-24 sm:h-24"
                     unoptimized
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-secondary/10 border-4 border-secondary/20 flex items-center justify-center">
-                    <span className="material-icons-outlined text-secondary/40 text-4xl">face</span>
+                  <div className="w-14 h-14 sm:w-24 sm:h-24 rounded-full bg-primary/40 border-2 border-accent/10 flex items-center justify-center">
+                    <span className="material-icons-outlined text-accent/40 text-2xl sm:text-4xl">face</span>
                   </div>
                 )}
                 {uploading && (
                   <div className="absolute inset-0 bg-secondary/50 rounded-full flex items-center justify-center">
-                    <FSpinner size="md" />
+                    <FSpinner size="sm" />
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5 sm:gap-2 min-w-0">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2 px-3 sm:py-2.5 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {uploading ? "Uploading..." : "Change Photo"}
                 </button>
@@ -464,7 +464,7 @@ export default function ProfilePage() {
                       setSuccess("Profile picture removed");
                       setTimeout(() => setSuccess(""), 3000);
                     }}
-                    className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                    className="text-xs sm:text-sm text-red-400 hover:text-red-300 transition-colors"
                   >
                     Remove Photo
                   </button>
@@ -476,63 +476,66 @@ export default function ProfilePage() {
                 accept="image/png,image/jpeg,image/jpg,.png,.jpg,.jpeg"
                 onChange={handleImageSelect}
                 className="hidden"
+                aria-label="Upload profile picture"
               />
             </div>
-            <p className="text-xs text-secondary/50 mt-2">
+            <p className="text-[10px] sm:text-xs text-accent/60 mt-1 sm:mt-2">
               PNG, JPG, or JPEG. Max size 10MB. Image will be optimized automatically.
             </p>
           </div>
 
           {/* Display Name Section */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2 text-secondary/80">
+          <div className="mb-3 sm:mb-5">
+            <label htmlFor="profile-display-name" className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1 sm:mb-2">
               Display Name
             </label>
             <input
+              id="profile-display-name"
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Enter your display name"
               maxLength={50}
-              className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={inputClass}
             />
-            <p className="text-xs text-secondary/50 mt-1">
+            <p className="text-[10px] sm:text-xs text-accent/60 mt-0.5 sm:mt-1">
               {displayName.length}/50 characters
             </p>
           </div>
 
           {/* Email (Read-only) */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2 text-secondary/80">
+          <div className="mb-3 sm:mb-5">
+            <label htmlFor="profile-email" className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1 sm:mb-2">
               Email
             </label>
             <input
+              id="profile-email"
               type="email"
               value={user?.email || ""}
               disabled
-              className="w-full p-3 border border-secondary/20 rounded-xl bg-secondary/10 text-secondary/60 cursor-not-allowed"
+              className={`${inputClass} bg-primary/30 text-accent/80 cursor-not-allowed`}
             />
-            <p className="text-xs text-secondary/50 mt-1">
+            <p className="text-[10px] sm:text-xs text-accent/60 mt-0.5 sm:mt-1">
               Email cannot be changed
             </p>
           </div>
 
           {/* Invoice Settings Divider */}
-          <div className="my-8 border-t border-secondary/20"></div>
+          <div className="my-2 sm:my-5 border-t border-accent/10" />
 
           {/* Invoice Type Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-3 text-secondary/80">
+          <div className="mb-3 sm:mb-5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
               Invoice Type
             </label>
-            <div className="flex gap-4">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setInvoiceType("personal")}
-                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors ${
+                className={`py-2.5 px-3 sm:py-3 sm:px-4 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all border ${
                   invoiceType === "personal"
-                    ? "bg-secondary text-primary"
-                    : "bg-white/40 hover:bg-white/60 text-secondary"
+                    ? "bg-secondary text-primary border-secondary/40 shadow-lg shadow-secondary/10"
+                    : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                 }`}
               >
                 Personal
@@ -540,17 +543,17 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setInvoiceType("business")}
-                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors ${
+                className={`py-2.5 px-3 sm:py-3 sm:px-4 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all border ${
                   invoiceType === "business"
-                    ? "bg-secondary text-primary"
-                    : "bg-white/40 hover:bg-white/60 text-secondary"
+                    ? "bg-secondary text-primary border-secondary/40 shadow-lg shadow-secondary/10"
+                    : "bg-primary/40 border-accent/10 hover:border-secondary/20 text-accent"
                 }`}
               >
                 Business
               </button>
             </div>
-            <p className="text-xs text-secondary/50 mt-2">
-              {invoiceType === "personal" 
+            <p className="text-[10px] sm:text-xs text-accent/60 mt-1 sm:mt-2">
+              {invoiceType === "personal"
                 ? "Invoices will show your personal name and email"
                 : "Invoices will show your business information and logo"}
             </p>
@@ -558,38 +561,38 @@ export default function ProfilePage() {
 
           {/* Business Settings (only shown if business is selected) */}
           {invoiceType === "business" && (
-            <div className="space-y-6 mb-6 p-4 bg-white/20 dark:bg-white/10 rounded-xl border border-secondary/20">
-              <h3 className="text-lg font-bold text-secondary">Business Information</h3>
-              
+            <div className="space-y-3 sm:space-y-5 mb-3 sm:mb-5 p-3 sm:p-5 bg-primary/40 rounded-xl border border-accent/10">
+              <h3 className="text-sm sm:text-lg font-bold text-white">Business Information</h3>
+
               {/* Business Logo */}
               <div>
-                <label className="block text-sm font-medium mb-3 text-secondary/80">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
                   Business Logo
                 </label>
-                <div className="flex items-center gap-4">
-                  <div className="relative">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  <div className="relative shrink-0">
                     {businessLogoUrl ? (
                       <img
                         src={businessLogoUrl}
                         alt="Business Logo"
-                        className="w-24 h-24 rounded-lg border-4 border-secondary/20 object-contain bg-white p-2"
+                        className="w-14 h-14 sm:w-24 sm:h-24 rounded-lg border-2 border-accent/10 object-contain bg-primary/40 p-1.5 sm:p-2"
                       />
                     ) : (
-                      <div className="w-24 h-24 rounded-lg bg-secondary/10 border-4 border-secondary/20 flex items-center justify-center">
-                        <span className="material-icons-outlined text-secondary/40 text-4xl">image</span>
+                      <div className="w-14 h-14 sm:w-24 sm:h-24 rounded-lg bg-primary/40 border-2 border-accent/10 flex items-center justify-center">
+                        <span className="material-icons-outlined text-accent/40 text-2xl sm:text-4xl">image</span>
                       </div>
                     )}
                     {uploadingBusinessLogo && (
                       <div className="absolute inset-0 bg-secondary/50 rounded-lg flex items-center justify-center">
-                        <FSpinner size="md" />
+                        <FSpinner size="sm" />
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1.5 sm:gap-2">
                     <button
                       onClick={() => businessLogoInputRef.current?.click()}
                       disabled={uploadingBusinessLogo}
-                      className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2 px-3 sm:py-2.5 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {uploadingBusinessLogo ? "Uploading..." : "Upload Logo"}
                     </button>
@@ -600,7 +603,7 @@ export default function ProfilePage() {
                           setSuccess("Business logo removed");
                           setTimeout(() => setSuccess(""), 3000);
                         }}
-                        className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                        className="text-xs sm:text-sm text-red-400 hover:text-red-300 transition-colors"
                       >
                         Remove Logo
                       </button>
@@ -612,16 +615,17 @@ export default function ProfilePage() {
                     accept="image/png,image/jpeg,image/jpg,.png,.jpg,.jpeg"
                     onChange={handleBusinessLogoSelect}
                     className="hidden"
+                    aria-label="Upload business logo"
                   />
                 </div>
-                <p className="text-xs text-secondary/50 mt-2">
+                <p className="text-[10px] sm:text-xs text-accent/60 mt-1 sm:mt-2">
                   PNG, JPG, or JPEG. Max size 10MB. Recommended: Square logo, transparent background.
                 </p>
               </div>
 
               {/* Business Name */}
               <div>
-                <label className="block text-sm font-medium mb-2 text-secondary/80">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1 sm:mb-2">
                   Business Name *
                 </label>
                 <input
@@ -630,13 +634,13 @@ export default function ProfilePage() {
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Enter business/company name"
                   maxLength={100}
-                  className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={inputClass}
                 />
               </div>
 
               {/* Business Address */}
               <div>
-                <label className="block text-sm font-medium mb-2 text-secondary/80">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
                   Street Address
                 </label>
                 <input
@@ -644,14 +648,14 @@ export default function ProfilePage() {
                   value={businessAddress}
                   onChange={(e) => setBusinessAddress(e.target.value)}
                   placeholder="Enter street address"
-                  className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={inputClass}
                 />
               </div>
 
               {/* City, State, ZIP Row */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-secondary/80">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
                     City
                   </label>
                   <input
@@ -659,11 +663,11 @@ export default function ProfilePage() {
                     value={businessCity}
                     onChange={(e) => setBusinessCity(e.target.value)}
                     placeholder="City"
-                    className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-secondary/80">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
                     State
                   </label>
                   <input
@@ -671,11 +675,11 @@ export default function ProfilePage() {
                     value={businessState}
                     onChange={(e) => setBusinessState(e.target.value)}
                     placeholder="State"
-                    className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-secondary/80">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
                     ZIP Code
                   </label>
                   <input
@@ -683,14 +687,14 @@ export default function ProfilePage() {
                     value={businessZip}
                     onChange={(e) => setBusinessZip(e.target.value)}
                     placeholder="ZIP"
-                    className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className={inputClass}
                   />
                 </div>
               </div>
 
               {/* Business Phone */}
               <div>
-                <label className="block text-sm font-medium mb-2 text-secondary/80">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-1.5 sm:mb-2">
                   Business Phone
                 </label>
                 <input
@@ -698,18 +702,24 @@ export default function ProfilePage() {
                   value={businessPhone}
                   onChange={(e) => setBusinessPhone(e.target.value)}
                   placeholder="(000) 000-0000"
-                  className="w-full p-3 border border-secondary/20 rounded-xl bg-white/60 dark:bg-secondary/30 backdrop-blur-sm text-secondary font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className={inputClass}
                 />
               </div>
             </div>
           )}
 
-          {/* Save Button */}
-          <div className="flex gap-4">
+          {/* Save / Cancel */}
+          <div className="flex flex-col-reverse sm:flex-row gap-1.5 sm:gap-4">
+            <button
+              onClick={() => router.back()}
+              className="w-full sm:w-auto bg-primary/40 border border-accent/10 hover:border-secondary/20 text-accent font-semibold py-2.5 px-4 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-sm sm:text-base transition-colors"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 w-full bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-4 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-sm sm:text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2 shadow-[0_10px_30px_rgba(19,236,90,0.2)]"
             >
               {saving ? (
                 <>
@@ -718,59 +728,53 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <>
-                  <span className="material-icons-outlined">save</span>
+                  <span className="material-icons-outlined text-base sm:text-xl">save</span>
                   <span>Save Changes</span>
                 </>
               )}
-            </button>
-            <button
-              onClick={() => router.back()}
-              className="bg-white/40 hover:bg-white/60 text-secondary font-semibold py-3 px-6 rounded-xl transition-colors"
-            >
-              Cancel
             </button>
           </div>
         </div>
       </div>
 
-      {/* Business Logo Crop Modal */}
+      {/* Business Logo Crop Modal - match page form style */}
       {showBusinessLogoCrop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-dark/80 backdrop-blur-sm">
-          <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-lg w-full max-w-2xl mx-4">
-            <h2 className="text-xl font-bold text-secondary mb-4">Crop Your Business Logo</h2>
-            
-            <div className="relative w-full h-96 bg-background-dark/20 rounded-xl overflow-hidden mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+          <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-6 border border-secondary/10 shadow-xl w-full max-w-lg">
+            <h2 className="text-base sm:text-xl font-bold text-white mb-2 sm:mb-4">Crop Your Business Logo</h2>
+
+            <div className="relative w-full h-52 sm:h-80 bg-primary/40 rounded-lg sm:rounded-xl overflow-hidden mb-2 sm:mb-4">
               <Cropper
                 image={businessImageSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={1} // Square crop for logo
+                aspect={1}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={onCropComplete}
-                cropShape="rect" // Rectangular crop for logo
+                cropShape="rect"
                 showGrid={false}
               />
             </div>
 
-            {/* Zoom Control */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-secondary/80 mb-2">
+            <div className="mb-2 sm:mb-4">
+              <label htmlFor="crop-zoom-business" className="block text-[10px] sm:text-xs font-semibold text-accent/60 mb-1">
                 Zoom: {Math.round(zoom * 100)}%
               </label>
               <input
+                id="crop-zoom-business"
                 type="range"
                 min={1}
                 max={3}
                 step={0.1}
                 value={zoom}
                 onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full h-2 bg-secondary/20 rounded-lg appearance-none cursor-pointer accent-secondary"
+                className="w-full h-1.5 sm:h-2 bg-primary/60 rounded-lg appearance-none cursor-pointer accent-secondary"
+                aria-label="Crop zoom level"
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex gap-1.5 sm:gap-4">
               <button
                 onClick={() => {
                   setShowBusinessLogoCrop(false);
@@ -779,14 +783,14 @@ export default function ProfilePage() {
                     businessLogoInputRef.current.value = "";
                   }
                 }}
-                className="flex-1 bg-white/40 hover:bg-white/60 text-secondary font-semibold py-3 px-6 rounded-xl transition-colors"
+                className="flex-1 bg-primary/40 border border-accent/10 hover:border-secondary/20 text-accent font-semibold py-2.5 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBusinessLogoCropAndUpload}
                 disabled={uploadingBusinessLogo}
-                className="flex-1 bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2"
               >
                 {uploadingBusinessLogo ? (
                   <>
@@ -795,7 +799,7 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <>
-                    <span className="material-icons-outlined">check</span>
+                    <span className="material-icons-outlined text-base sm:text-lg">check</span>
                     <span>Save Logo</span>
                   </>
                 )}
@@ -805,44 +809,44 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Crop Modal */}
+      {/* Crop Modal - match page form style */}
       {showCropModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background-dark/80 backdrop-blur-sm">
-          <div className="bg-white/40 dark:bg-white/20 backdrop-blur-md rounded-3xl p-6 border border-white/30 shadow-lg w-full max-w-2xl mx-4">
-            <h2 className="text-xl font-bold text-secondary mb-4">Crop Your Profile Picture</h2>
-            
-            <div className="relative w-full h-96 bg-background-dark/20 rounded-xl overflow-hidden mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+          <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl sm:rounded-[2.5rem] p-3 sm:p-6 border border-secondary/10 shadow-xl w-full max-w-lg">
+            <h2 className="text-base sm:text-xl font-bold text-white mb-2 sm:mb-4">Crop Your Profile Picture</h2>
+
+            <div className="relative w-full h-52 sm:h-80 bg-primary/40 rounded-lg sm:rounded-xl overflow-hidden mb-2 sm:mb-4">
               <Cropper
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={1} // Square crop for circular avatar
+                aspect={1}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={onCropComplete}
-                cropShape="round" // Circular crop
+                cropShape="round"
                 showGrid={false}
               />
             </div>
 
-            {/* Zoom Control */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-secondary/80 mb-2">
+            <div className="mb-2 sm:mb-4">
+              <label htmlFor="crop-zoom-profile" className="block text-[10px] sm:text-xs font-semibold text-accent/60 mb-1">
                 Zoom: {Math.round(zoom * 100)}%
               </label>
               <input
+                id="crop-zoom-profile"
                 type="range"
                 min={1}
                 max={3}
                 step={0.1}
                 value={zoom}
                 onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full h-2 bg-secondary/20 rounded-lg appearance-none cursor-pointer accent-secondary"
+                className="w-full h-1.5 sm:h-2 bg-primary/60 rounded-lg appearance-none cursor-pointer accent-secondary"
+                aria-label="Crop zoom level"
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex gap-1.5 sm:gap-4">
               <button
                 onClick={() => {
                   setShowCropModal(false);
@@ -851,14 +855,14 @@ export default function ProfilePage() {
                     fileInputRef.current.value = "";
                   }
                 }}
-                className="flex-1 bg-white/40 hover:bg-white/60 text-secondary font-semibold py-3 px-6 rounded-xl transition-colors"
+                className="flex-1 bg-primary/40 border border-accent/10 hover:border-secondary/20 text-accent font-semibold py-2.5 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-sm transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCropAndUpload}
                 disabled={uploading}
-                className="flex-1 bg-secondary hover:bg-secondary/90 text-primary font-semibold py-3 px-6 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 bg-secondary hover:bg-secondary/90 text-primary font-semibold py-2.5 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2"
               >
                 {uploading ? (
                   <>
@@ -867,7 +871,7 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <>
-                    <span className="material-icons-outlined">check</span>
+                    <span className="material-icons-outlined text-base sm:text-lg">check</span>
                     <span>Apply & Upload</span>
                   </>
                 )}
