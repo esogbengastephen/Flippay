@@ -355,6 +355,7 @@ export default function AdminBannersPage() {
                     link_url: "",
                     display_order: banners.length,
                     is_active: true,
+                    placement: "banners_page",
                   });
                   setEditingBanner(null);
                   setShowAddModal(true);
