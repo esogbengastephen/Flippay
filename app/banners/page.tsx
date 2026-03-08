@@ -26,7 +26,7 @@ export default function BannersPage() {
 
   const fetchBanners = async () => {
     try {
-      const response = await fetch(getApiUrl("/api/banners"));
+      const response = await fetch(getApiUrl("/api/banners?placement=banners_page"));
       const data = await response.json();
       
       if (data.success) {

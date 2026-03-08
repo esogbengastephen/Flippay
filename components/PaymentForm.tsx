@@ -1071,9 +1071,6 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       <div className="w-full mt-5">
         <PoweredBySEND />
       </div>
-      <p className="text-center text-accent/40 text-xs mt-3">
-        Powered by Flippay Infrastructure • Licensed Financial Provider
-      </p>
       
       {/* Create Send App Account Link */}
       <div className="mt-3 text-center px-4 w-full">

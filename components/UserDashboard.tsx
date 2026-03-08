@@ -53,6 +53,7 @@ interface Service {
 const services: Service[] = [
   { id: "crypto-to-naira", name: "Crypto\nto Naira", icon: "currency_exchange", route: "/offramp" },
   { id: "naira-to-crypto", name: "Naira\nto Crypto", icon: "swap_vert", route: "/payment" },
+  { id: "flip-lend", name: "Flip\nLend", icon: "savings", route: "/flip-lend" },
   { id: "generate-invoice", name: "Generate\nInvoice", icon: "receipt_long", route: "/invoice" },
   { id: "create-prediction", name: "Create\nPrediction", icon: "trending_up", route: "/prediction" },
   { id: "buy-data", name: "Buy\nData", icon: "wifi", route: "/buy-data" },
@@ -61,7 +62,6 @@ const services: Service[] = [
   { id: "tv-sub", name: "TV\nSub", icon: "tv", route: "/tv-sub" },
   { id: "buy-electricity", name: "Electricity", icon: "bolt", route: "/buy-electricity" },
   { id: "gift-card-redeem", name: "Gift Card\nRedeem", icon: "card_giftcard", route: "/gift-card-redeem" },
-  { id: "flip-lend", name: "Flip\nLend", icon: "savings", route: "/flip-lend" },
 ];
 
 /** Token icon for price banner: round, compact; fallback when image fails */
@@ -123,9 +123,11 @@ export default function UserDashboard() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+  const [dashboardBanners, setDashboardBanners] = useState<{ id: string; image_url: string; link_url: string | null }[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
 
-  // Primary services (visible by default); secondary shown after "See more"
-  const PRIMARY_SERVICE_IDS = ["crypto-to-naira", "naira-to-crypto", "generate-invoice", "create-prediction"];
+  // Primary services (first 4 visible by default); secondary shown after "See more"
+  const PRIMARY_SERVICE_IDS = ["crypto-to-naira", "naira-to-crypto", "flip-lend", "generate-invoice"];
   const primaryServices = services.filter((s) => PRIMARY_SERVICE_IDS.includes(s.id));
   const secondaryServices = services.filter((s) => !PRIMARY_SERVICE_IDS.includes(s.id));
 
@@ -269,6 +271,30 @@ export default function UserDashboard() {
       // Don't crash the app - just log the error
     }
   }, [router]);
+
+  const fetchDashboardBanners = async () => {
+    try {
+      const response = await fetch(getApiUrl("/api/banners?placement=dashboard"));
+      const data = await response.json();
+      if (data.success && Array.isArray(data.banners)) {
+        setDashboardBanners(data.banners.map((b: any) => ({ id: b.id, image_url: b.image_url, link_url: b.link_url })));
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard banners:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardBanners();
+  }, []);
+
+  useEffect(() => {
+    if (dashboardBanners.length <= 1) return;
+    const interval = setInterval(() => {
+      setBannerIndex((i) => (i + 1) % dashboardBanners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [dashboardBanners.length]);
 
   const fetchTokenPrices = async () => {
     try {
@@ -523,7 +549,7 @@ export default function UserDashboard() {
         </div>
       </header>
 
-      <div className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
+      <div className="flex-1 px-4 sm:px-6 lg:px-8 pt-3 pb-6 sm:py-6 max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
         {/* Token Price Banner */}
         <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl overflow-hidden border border-secondary/10">
           <p className="text-[9px] font-bold text-accent/70 uppercase tracking-tighter mb-0.5 px-3 pt-1.5">Token Price</p>
@@ -578,17 +604,17 @@ export default function UserDashboard() {
         {/* Portfolio + Quick Actions Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Portfolio Balance - Flippay branding */}
-          <div className="lg:col-span-2 bg-surface/60 backdrop-blur-[24px] p-6 sm:p-8 rounded-2xl border border-secondary/10">
-            <div className="flex justify-between items-start mb-6">
+          <div className="lg:col-span-2 bg-surface/60 backdrop-blur-[24px] p-4 sm:p-6 rounded-2xl border border-secondary/10">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <span className="text-xs font-semibold text-accent/60 uppercase tracking-wider">Total Portfolio Balance</span>
-                <div className="text-3xl sm:text-4xl font-bold mt-2 text-white font-display">
+                <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Total Portfolio Balance</span>
+                <div className="text-2xl sm:text-3xl font-bold mt-1.5 text-white font-display">
                   {loadingBalances && cachedTotalCryptoUSD === null ? (
                     "Loading..."
                   ) : (
                     <>
                       $ {(totalCryptoUSD || cachedTotalCryptoUSD || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className="text-lg font-normal text-accent/70 ml-1">
+                      <span className="text-base font-normal text-accent/70 ml-1">
                         + ₦ {(dashboardData?.balance.ngn || 0).toLocaleString()} NGN
                       </span>
                     </>
@@ -598,10 +624,10 @@ export default function UserDashboard() {
               <div className="relative">
                 <button
                   onClick={() => setShowDepositOptions((v) => !v)}
-                  className="bg-secondary text-primary px-4 py-2 rounded-xl font-bold text-sm shadow-[0_4px_14px_rgba(19,236,90,0.2)] hover:brightness-110 transition-all flex items-center gap-2">
-                  <span className="material-icons-outlined text-lg">add</span>
+                  className="bg-secondary text-primary px-3 py-1.5 rounded-lg font-bold text-xs shadow-[0_4px_14px_rgba(19,236,90,0.2)] hover:brightness-110 transition-all flex items-center gap-1.5">
+                  <span className="material-icons-outlined text-base">add</span>
                   Deposit
-                  <span className={`material-icons-outlined text-lg transition-transform ${showDepositOptions ? "rotate-180" : ""}`}>expand_more</span>
+                  <span className={`material-icons-outlined text-base transition-transform ${showDepositOptions ? "rotate-180" : ""}`}>expand_more</span>
                 </button>
                 {showDepositOptions && (
                   <>
@@ -635,78 +661,74 @@ export default function UserDashboard() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-primary p-6 rounded-2xl border border-accent/10 text-white">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-accent/70">NGN (Fiat)</span>
-                  <span className="material-icons-outlined text-white/70">payments</span>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-primary p-3 sm:p-6 rounded-xl border border-accent/10 text-white">
+                <div className="flex justify-between items-start mb-1 sm:mb-1.5">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-accent/70">NGN (Fiat)</span>
+                  <span className="material-icons-outlined text-white/70 text-sm sm:text-base">payments</span>
                 </div>
-                <div className="text-2xl font-bold">
+                <div className="text-base sm:text-lg font-bold">
                   {showNGNBalance ? `₦ ${(dashboardData?.balance.ngn || 0).toLocaleString()}` : "••••••••"}
                 </div>
-                <div className="text-xs text-accent/60">Nigerian Naira</div>
+                <div className="text-[9px] sm:text-[10px] text-accent/60">Nigerian Naira</div>
               </div>
-              <div className="bg-primary p-6 rounded-2xl border border-accent/10 text-white">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-accent/70">Crypto (USD)</span>
-                  <span className="material-icons-outlined text-white/70">currency_bitcoin</span>
+              <div className="bg-primary p-3 sm:p-6 rounded-xl border border-accent/10 text-white">
+                <div className="flex justify-between items-start mb-1 sm:mb-1.5">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-accent/70">Crypto (USD)</span>
+                  <span className="material-icons-outlined text-white/70 text-sm sm:text-base">currency_bitcoin</span>
                 </div>
-                <div className="text-2xl font-bold">
+                <div className="text-base sm:text-lg font-bold">
                   {showCryptoBalance
                     ? loadingBalances && cachedTotalCryptoUSD === null
                       ? "Loading..."
                       : `$ ${(totalCryptoUSD || cachedTotalCryptoUSD || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                     : "••••••••"}
                 </div>
-                <div className="text-xs text-accent/60">Multi-chain</div>
+                <div className="text-[9px] sm:text-[10px] text-accent/60">Multi-chain</div>
               </div>
             </div>
-            {/* Mobile only: Send + Receive buttons in portfolio card (branding: bg-primary/40, border-accent/10) */}
-            <div className="flex gap-3 mt-4 lg:hidden">
+            {/* Mobile only: Send, Receive, Crypto to Naira, Naira to Crypto (all on same line) */}
+            <div className="flex flex-nowrap gap-1 mt-2 lg:hidden">
               <button
                 onClick={() => router.push("/send")}
-                className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
               >
-                <span className="material-icons-outlined text-lg text-white group-hover:scale-110 transition-transform">send</span>
-                <span className="text-sm font-semibold text-accent">Send</span>
-                <span className="text-[10px] text-secondary/80">Send Crypto</span>
+                <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">send</span>
+                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">Send</span>
+                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Send Crypto</span>
               </button>
               <button
                 onClick={() => router.push("/receive")}
-                className="flex-1 flex flex-col items-center justify-center gap-1 py-3 rounded-xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
               >
-                <span className="material-icons-outlined text-lg text-white group-hover:scale-110 transition-transform">call_received</span>
-                <span className="text-sm font-semibold text-accent">Receive</span>
-                <span className="text-[10px] text-secondary/80">Get Wallet Address</span>
+                <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">call_received</span>
+                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">Receive</span>
+                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Get Address</span>
+              </button>
+              <button
+                onClick={() => canUseCryptoToNaira && handleServiceClick(services[0])}
+                className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group ${!canUseCryptoToNaira ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}`}
+                disabled={!canUseCryptoToNaira}
+              >
+                <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">account_balance</span>
+                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">To Naira</span>
+                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Withdraw</span>
+              </button>
+              <button
+                onClick={() => handleServiceClick(services[1])}
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
+              >
+                <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">swap_vert</span>
+                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">To Crypto</span>
+                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Buy</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-surface/60 backdrop-blur-[24px] p-6 sm:p-8 rounded-2xl flex flex-col justify-between border border-secondary/10">
+          {/* Quick Actions (desktop only - mobile actions are in Portfolio Balance) */}
+          <div className="hidden lg:flex flex-col bg-surface/60 backdrop-blur-[24px] p-6 sm:p-8 rounded-2xl justify-between border border-secondary/10">
             <h3 className="text-lg font-bold mb-6 text-white font-display">Quick Actions</h3>
-            {/* Mobile: only Crypto to Naira + Naira to Crypto */}
-            <div className="grid grid-cols-2 gap-4 lg:hidden">
-              <button
-                onClick={() => canUseCryptoToNaira && handleServiceClick(services[0])}
-                className={`flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group ${!canUseCryptoToNaira ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}`}
-                disabled={!canUseCryptoToNaira}
-              >
-                <span className="material-icons-outlined mb-2 group-hover:scale-110 transition-transform text-white">account_balance</span>
-                <span className="text-sm font-semibold text-accent">Crypto to Naira</span>
-                <span className="text-[10px] text-secondary/80 mt-0.5">Withdraw to Bank</span>
-              </button>
-              <button
-                onClick={() => handleServiceClick(services[1])}
-                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
-              >
-                <span className="material-icons-outlined mb-2 group-hover:scale-110 transition-transform text-white">swap_vert</span>
-                <span className="text-sm font-semibold text-accent">Naira to Crypto</span>
-                <span className="text-[10px] text-secondary/80 mt-0.5">Buy Crypto</span>
-              </button>
-            </div>
-            {/* Desktop: all 4 (Send, Receive, Crypto to Naira, Naira to Crypto) */}
-            <div className="hidden lg:grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => router.push("/send")}
                 className="flex flex-col items-center justify-center p-4 rounded-2xl bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
@@ -755,7 +777,8 @@ export default function UserDashboard() {
               const isComingSoon =
                 (svc.id === "crypto-to-naira" && !canUseCryptoToNaira) ||
                 (svc.id === "generate-invoice" && !canUseGenerateInvoice) ||
-                svc.id === "create-prediction";
+                svc.id === "create-prediction" ||
+                svc.id === "flip-lend";
               return (
                 <ServiceButton
                   key={svc.id}
@@ -768,7 +791,7 @@ export default function UserDashboard() {
             })}
             {servicesExpanded &&
               secondaryServices.map((svc) => {
-                const isComingSoon = svc.id === "flip-lend";
+                const isComingSoon = ["buy-data", "buy-airtime", "pay-betting", "tv-sub", "buy-electricity", "gift-card-redeem"].includes(svc.id);
                 return (
                   <ServiceButton
                     key={svc.id}
@@ -799,6 +822,55 @@ export default function UserDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Banner Carousel - 9x3 inch ratio (3:1 aspect) between Services and Recent Transactions */}
+        {dashboardBanners.length > 0 && (
+          <div className="relative w-full overflow-hidden rounded-2xl border border-secondary/10 bg-surface/60 backdrop-blur-[24px]">
+            <div className="aspect-[3/1] min-h-[72px] sm:min-h-[96px] relative">
+              {dashboardBanners.map((banner, idx) => (
+                <button
+                  key={banner.id}
+                  type="button"
+                  aria-label={banner.title ? `View ${banner.title}` : "View banner"}
+                  onClick={async () => {
+                    if (!banner.link_url) return;
+                    try {
+                      await fetch(getApiUrl(`/api/banners/${banner.id}/click`), { method: "POST" });
+                    } catch {}
+                    if (banner.link_url.startsWith("http")) {
+                      window.open(banner.link_url!, "_blank");
+                    } else {
+                      router.push(banner.link_url!);
+                    }
+                  }}
+                  className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${idx === bannerIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"}`}
+                >
+                  <Image
+                    src={banner.image_url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 864px"
+                  />
+                </button>
+              ))}
+            </div>
+            {dashboardBanners.length > 1 && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
+                {dashboardBanners.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setBannerIndex(idx)}
+                    className={`w-2 h-2 rounded-full transition-colors ${idx === bannerIndex ? "bg-secondary" : "bg-white/40 hover:bg-white/60"}`}
+                    aria-label={`Go to slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Recent Transactions */}
         <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl overflow-hidden border border-secondary/10">
@@ -1141,9 +1213,9 @@ export default function UserDashboard() {
                 <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
               </button>
 
-              <button
-                onClick={() => handleOfframpOptionClick("BASE")}
-                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
+              <div
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
+                aria-disabled="true"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
@@ -1152,7 +1224,7 @@ export default function UserDashboard() {
                       alt="BASE"
                       width={20}
                       height={20}
-                      className="w-5 h-5 object-contain"
+                      className="w-5 h-5 object-contain opacity-70"
                       unoptimized
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = "none";
@@ -1163,14 +1235,14 @@ export default function UserDashboard() {
                       }}
                     />
                   </div>
-                  <span className="font-semibold text-sm text-white uppercase tracking-wide">BASE</span>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">BASE</span>
                 </div>
-                <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
-              </button>
+                <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
+              </div>
 
-              <button
-                onClick={() => handleOfframpOptionClick("SOLANA")}
-                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
+              <div
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
+                aria-disabled="true"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
@@ -1179,7 +1251,7 @@ export default function UserDashboard() {
                       alt="SOLANA"
                       width={20}
                       height={20}
-                      className="w-5 h-5 object-contain"
+                      className="w-5 h-5 object-contain opacity-70"
                       unoptimized
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = "none";
@@ -1190,10 +1262,10 @@ export default function UserDashboard() {
                       }}
                     />
                   </div>
-                  <span className="font-semibold text-sm text-white uppercase tracking-wide">SOLANA</span>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">SOLANA</span>
                 </div>
-                <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
-              </button>
+                <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
+              </div>
             </div>
           </div>
         </div>

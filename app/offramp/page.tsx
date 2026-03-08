@@ -4,6 +4,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { getTokenLogo, getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
+import PoweredBySEND from "@/components/PoweredBySEND";
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -478,17 +479,9 @@ function OffRampPageContent() {
               </div>
               <p className="text-xs text-accent/70 mb-3">Choose the network you want to withdraw from</p>
               <div className="space-y-2">
-                {(["send", "base", "solana"] as const).map((net) => (
-                  <button
-                    key={net}
-                    type="button"
-                    onClick={() => {
-                      setSelectedNetwork(net);
-                      setShowNetworkSelectionCard(false);
-                      if (net === "send") setCryptoDropdownOpen(false);
-                    }}
-                    className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
-                  >
+                {(["send", "base", "solana"] as const).map((net) => {
+                  const isComingSoon = net === "base" || net === "solana";
+                  const content = (
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                         {net === "send" ? (
@@ -498,18 +491,44 @@ function OffRampPageContent() {
                             <span className="text-secondary font-bold text-sm">S</span>
                           )
                         ) : getChainLogo(net) ? (
-                          <img src={getChainLogo(net)} alt={net} className="w-5 h-5 object-contain" />
+                          <img src={getChainLogo(net)} alt={net} className={`w-5 h-5 object-contain ${isComingSoon ? "opacity-70" : ""}`} />
                         ) : (
                           <span className="text-secondary font-bold text-xs">{net === "base" ? "B" : "S"}</span>
                         )}
                       </div>
-                      <span className="font-semibold text-sm text-white uppercase tracking-wide">
-                        {net === "send" ? "SEND" : net === "base" ? "Base" : "Solana"}
+                      <span className={`font-semibold text-sm uppercase tracking-wide ${isComingSoon ? "text-accent/80" : "text-white"}`}>
+                        {net === "send" ? "SEND" : net === "base" ? "BASE" : "SOLANA"}
                       </span>
                     </div>
-                    <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
-                  </button>
-                ))}
+                  );
+                  if (isComingSoon) {
+                    return (
+                      <div
+                        key={net}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
+                        aria-disabled="true"
+                      >
+                        {content}
+                        <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <button
+                      key={net}
+                      type="button"
+                      onClick={() => {
+                        setSelectedNetwork(net);
+                        setShowNetworkSelectionCard(false);
+                        setCryptoDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 hover:bg-surface-highlight transition-all text-left group cursor-pointer"
+                    >
+                      {content}
+                      <span className="material-icons-outlined text-accent/60 text-lg group-hover:text-secondary transition-colors">arrow_forward</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -979,9 +998,7 @@ function OffRampPageContent() {
         </div>
         )}
 
-        <p className="text-center text-accent/40 text-xs mt-10">
-          Powered by Flippay • Licensed Financial Provider
-        </p>
+        <PoweredBySEND />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ interface Banner {
   is_active: boolean;
   display_order: number;
   click_count: number;
+  placement?: "dashboard" | "banners_page";
   created_at: string;
 }
 
@@ -22,12 +23,14 @@ export default function AdminBannersPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     image_url: "",
     link_url: "",
     display_order: 0,
     is_active: true,
+    placement: "banners_page" as "dashboard" | "banners_page",
   });
 
   useEffect(() => {
@@ -51,7 +54,11 @@ export default function AdminBannersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    if (!formData.image_url?.trim()) {
+      alert("Banner image URL is required");
+      return;
+    }
+    setIsPublishing(true);
     try {
       const url = getApiUrl(
         editingBanner ? `/api/banners/${editingBanner.id}` : "/api/banners"
@@ -65,10 +72,16 @@ export default function AdminBannersPage() {
           ...formData,
           link_url: formData.link_url || null,
           title: formData.title || null,
+          placement: formData.placement || "banners_page",
         }),
       });
 
-      const data = await response.json();
+      let data: { success?: boolean; error?: string };
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(response.ok ? "Invalid response from server" : `Request failed (${response.status})`);
+      }
 
       if (data.success) {
         setShowAddModal(false);
@@ -79,14 +92,17 @@ export default function AdminBannersPage() {
           link_url: "",
           display_order: 0,
           is_active: true,
+          placement: "banners_page",
         });
         fetchBanners();
       } else {
         alert(data.error || "Failed to save banner");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving banner:", error);
-      alert("Failed to save banner");
+      alert(error?.message || "Failed to save banner");
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -98,6 +114,7 @@ export default function AdminBannersPage() {
       link_url: banner.link_url || "",
       display_order: banner.display_order,
       is_active: banner.is_active,
+      placement: (banner.placement as "dashboard" | "banners_page") || "banners_page",
     });
     setShowAddModal(true);
   };
@@ -184,6 +201,7 @@ export default function AdminBannersPage() {
                   link_url: "",
                   display_order: banners.length,
                   is_active: true,
+                  placement: "banners_page",
                 });
                 setEditingBanner(null);
                 setShowAddModal(true);
@@ -247,7 +265,7 @@ export default function AdminBannersPage() {
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                       unoptimized
                     />
-                    <div className="absolute top-4 left-4">
+                    <div className="absolute top-4 left-4 flex flex-wrap gap-1.5">
                       <span
                         className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
                           banner.is_active
@@ -256,6 +274,9 @@ export default function AdminBannersPage() {
                         }`}
                       >
                         {banner.is_active ? "Active" : "Inactive"}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider bg-primary/60 text-accent/90 border border-accent/20">
+                        {banner.placement === "dashboard" ? "Dashboard" : "Banners Page"}
                       </span>
                     </div>
                     <div className={`absolute inset-0 bg-gradient-to-t from-background-dark to-transparent ${!banner.is_active ? "opacity-80" : "opacity-60"}`} />
@@ -397,14 +418,13 @@ export default function AdminBannersPage() {
                   <div className="border-2 border-dashed border-accent/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 bg-surface/50 hover:border-secondary/30 transition-colors">
                     <span className="material-icons-outlined text-4xl text-accent/60">upload_file</span>
                     <input
-                      type="url"
+                      type="text"
                       value={formData.image_url}
                       onChange={(e) =>
                         setFormData({ ...formData, image_url: e.target.value })
                       }
                       className="w-full bg-surface border border-accent/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-accent/40 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none"
                       placeholder="https://example.com/banner.jpg (1200x400px recommended)"
-                      required
                     />
                     {formData.image_url && (
                       <div className="mt-2 relative w-full aspect-video bg-surface rounded-xl overflow-hidden">
@@ -442,12 +462,41 @@ export default function AdminBannersPage() {
                   </p>
                 </div>
 
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-accent/70 uppercase tracking-wider">
+                    Where to show
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="placement"
+                        checked={formData.placement === "dashboard"}
+                        onChange={() => setFormData({ ...formData, placement: "dashboard" })}
+                        className="border-accent/30 bg-surface text-secondary focus:ring-secondary"
+                      />
+                      <span className="text-sm text-white">Dashboard (between Services & Recent Transactions)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="placement"
+                        checked={formData.placement === "banners_page"}
+                        onChange={() => setFormData({ ...formData, placement: "banners_page" })}
+                        className="border-accent/30 bg-surface text-secondary focus:ring-secondary"
+                      />
+                      <span className="text-sm text-white">Banners page (/banners)</span>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-accent/70 uppercase tracking-wider">
+                    <label htmlFor="display-order" className="block text-xs font-semibold text-accent/70 uppercase tracking-wider">
                       Display Order
                     </label>
                     <input
+                      id="display-order"
                       type="number"
                       value={formData.display_order}
                       onChange={(e) =>
@@ -484,9 +533,10 @@ export default function AdminBannersPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 bg-secondary text-primary py-4 rounded-xl font-bold hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)]"
+                    disabled={isPublishing}
+                    className="flex-1 bg-secondary text-primary py-4 rounded-xl font-bold hover:brightness-110 transition-all shadow-[0_0_15px_rgba(19,236,90,0.3)] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {editingBanner ? "Update Banner" : "Publish Banner"}
+                    {isPublishing ? "Publishing..." : editingBanner ? "Update Banner" : "Publish Banner"}
                   </button>
                   <button
                     type="button"

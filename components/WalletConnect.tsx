@@ -2,9 +2,8 @@
 
 import { getApiUrl } from "@/lib/apiBase";
 
-import { useState, useEffect } from "react";
-import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
-import { isAdminWallet } from "@/lib/supabase";
+import { useState, useEffect, useRef } from "react";
+import { useAccount, useConnect, useDisconnect, useSignMessage, useConnections } from "wagmi";
 import FSpinner from "@/components/FSpinner";
 
 interface WalletConnectProps {
@@ -12,25 +11,42 @@ interface WalletConnectProps {
 }
 
 export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, status } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
+  const { data: connections } = useConnections();
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const verifiedRef = useRef(false);
 
   useEffect(() => {
-    if (isConnected && address) {
-      verifyAdmin(address);
+    if (!isConnected || !address) {
+      verifiedRef.current = false;
+      return;
     }
   }, [isConnected, address]);
+
+  useEffect(() => {
+    // Only verify when fully connected (not reconnecting) and connector is valid.
+    // getChainId error occurs when connection is stale (e.g. tab inactive, useConnections empty).
+    if (!isConnected || !address || status !== "connected") return;
+    if (connections && connections.length === 0) {
+      disconnect();
+      return;
+    }
+    if (verifiedRef.current) return;
+    verifiedRef.current = true;
+    verifyAdmin(address);
+  }, [isConnected, address, status, connections, disconnect]);
 
   const verifyAdmin = async (walletAddress: string) => {
     setIsVerifying(true);
     setError(null);
 
     try {
-      // Sign a message for authentication
+      // Brief delay so connector is fully initialized (avoids getChainId timing errors)
+      await new Promise((r) => setTimeout(r, 300));
       const message = `Sign in to Send Admin Panel\n\nWallet: ${walletAddress}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
@@ -72,7 +88,12 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
       }
     } catch (err: any) {
       console.error("Admin verification error:", err);
-      setError(err.message || "Failed to verify admin access");
+      const isConnectorError = err?.message?.includes("getChainId is not a function");
+      setError(
+        isConnectorError
+          ? "Connection unstable. Please disconnect and reconnect your wallet."
+          : err.message || "Failed to verify admin access"
+      );
       disconnect();
     } finally {
       setIsVerifying(false);

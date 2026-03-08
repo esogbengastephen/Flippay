@@ -810,9 +810,9 @@ export default function InvoicePage() {
     const entries = Object.entries(byCurrency).filter(([, v]) => v > 0);
     if (entries.length === 0) return "—";
     return (
-      <span className="flex flex-col gap-0.5">
+      <span className="flex flex-col gap-0.5 min-w-0 break-words">
         {entries.map(([currency, amount]) => (
-          <span key={currency} className="font-bold text-white">
+          <span key={currency} className="font-bold text-white break-words">
             {formatCurrencyAmount(currency, amount)}
           </span>
         ))}
@@ -989,9 +989,9 @@ export default function InvoicePage() {
       </div>
 
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <header className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
+        {/* Header - compact on mobile */}
+        <header className="mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
             <button
               onClick={() => router.push("/")}
               className="hidden lg:flex items-center gap-2 text-accent/70 hover:text-white mb-4 transition-colors"
@@ -999,69 +999,69 @@ export default function InvoicePage() {
               <span className="material-icons-outlined text-lg">arrow_back</span>
               <span className="text-sm font-medium">Back</span>
             </button>
-            <h1 className="text-3xl font-bold text-white mb-2">Invoice Management</h1>
-            <p className="text-accent/70">Generate and manage your invoices</p>
+            <h1 className="text-xl sm:text-3xl font-bold text-white mb-0.5 sm:mb-2">Invoice Management</h1>
+            <p className="text-xs sm:text-base text-accent/70">Generate and manage your invoices</p>
           </div>
           <button
             onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 bg-secondary text-background-dark font-bold px-5 py-2.5 rounded-lg shadow-lg shadow-secondary/20 hover:opacity-90 transition-all"
+            className="flex items-center gap-1.5 sm:gap-2 bg-secondary text-background-dark font-bold px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg shadow-lg shadow-secondary/20 hover:opacity-90 transition-all text-sm sm:text-base flex-shrink-0"
           >
             <span className="material-icons-outlined text-sm">add</span>
             Create Invoice
           </button>
         </header>
 
-        {/* Statistics Cards - 5-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
-            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <span className="material-icons-outlined text-6xl text-white">trending_up</span>
+        {/* Statistics Cards - 2 cols mobile, 2 md, 5 lg; compact on mobile */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6 mb-4 sm:mb-8">
+          <div className="bg-surface rounded-xl p-3 sm:p-6 border border-white/5 shadow-lg relative overflow-hidden group min-w-0">
+            <div className="absolute right-0 top-0 p-1 sm:p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-3xl sm:text-6xl text-white">trending_up</span>
             </div>
-            <p className="text-sm font-medium text-accent/70 mb-1">Total Revenue</p>
-            <div className="text-2xl font-bold text-white mt-1">
+            <p className="text-xs sm:text-sm font-medium text-accent/70 mb-0.5 sm:mb-1">Total Revenue</p>
+            <div className="text-base sm:text-2xl font-bold text-white mt-0.5 sm:mt-1 min-w-0 break-words">
               {renderAmountsByCurrency(stats.totalRevenueByCurrency)}
             </div>
           </div>
-          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
-            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <span className="material-icons-outlined text-6xl text-white">schedule</span>
+          <div className="bg-surface rounded-xl p-3 sm:p-6 border border-white/5 shadow-lg relative overflow-hidden group min-w-0">
+            <div className="absolute right-0 top-0 p-1 sm:p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-3xl sm:text-6xl text-white">schedule</span>
             </div>
-            <p className="text-sm font-medium text-accent/70 mb-1">Pending</p>
-            <div className="text-2xl font-bold text-white mt-1">
+            <p className="text-xs sm:text-sm font-medium text-accent/70 mb-0.5 sm:mb-1">Pending</p>
+            <div className="text-base sm:text-2xl font-bold text-white mt-0.5 sm:mt-1 min-w-0 break-words">
               {renderAmountsByCurrency(stats.pendingByCurrency)}
             </div>
           </div>
-          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
-            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <span className="material-icons-outlined text-6xl text-white">calendar_today</span>
+          <div className="bg-surface rounded-xl p-3 sm:p-6 border border-white/5 shadow-lg relative overflow-hidden group min-w-0">
+            <div className="absolute right-0 top-0 p-1 sm:p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-3xl sm:text-6xl text-white">calendar_today</span>
             </div>
-            <p className="text-sm font-medium text-accent/70 mb-1">Paid This Month</p>
-            <div className="text-2xl font-bold text-white mt-1">
+            <p className="text-xs sm:text-sm font-medium text-accent/70 mb-0.5 sm:mb-1">Paid This Month</p>
+            <div className="text-base sm:text-2xl font-bold text-white mt-0.5 sm:mt-1 min-w-0 break-words">
               {renderAmountsByCurrency(stats.paidThisMonthByCurrency)}
             </div>
           </div>
-          <div className="bg-surface rounded-xl p-6 border border-white/5 shadow-lg relative overflow-hidden group">
-            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <span className="material-icons-outlined text-6xl text-white">warning</span>
+          <div className="bg-surface rounded-xl p-3 sm:p-6 border border-white/5 shadow-lg relative overflow-hidden group min-w-0">
+            <div className="absolute right-0 top-0 p-1 sm:p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <span className="material-icons-outlined text-3xl sm:text-6xl text-white">warning</span>
             </div>
-            <p className="text-sm font-medium text-accent/70 mb-1">Overdue</p>
-            <p className="text-2xl font-bold text-white mt-1">{stats.overdueCount}</p>
+            <p className="text-xs sm:text-sm font-medium text-accent/70 mb-0.5 sm:mb-1">Overdue</p>
+            <p className="text-base sm:text-2xl font-bold text-white mt-0.5 sm:mt-1">{stats.overdueCount}</p>
             {stats.overdueCount > 0 && (
-              <div className="mt-4 flex items-center text-xs font-medium text-rose-400">
-                <span className="material-icons-outlined text-xs mr-1">warning</span>
-                {stats.overdueCount} action {stats.overdueCount === 1 ? "item" : "items"}
+              <div className="mt-2 sm:mt-4 flex items-center text-[10px] sm:text-xs font-medium text-rose-400 flex-wrap">
+                <span className="material-icons-outlined text-[10px] sm:text-xs mr-0.5 sm:mr-1 flex-shrink-0">warning</span>
+                <span>{stats.overdueCount} action {stats.overdueCount === 1 ? "item" : "items"}</span>
               </div>
             )}
           </div>
-          <div className="bg-gradient-to-br from-surface to-background-dark border border-secondary/30 rounded-xl p-6 shadow-lg relative overflow-hidden flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-surface to-background-dark border border-secondary/30 rounded-xl p-3 sm:p-6 shadow-lg relative overflow-hidden flex flex-col justify-between min-w-0 col-span-2 lg:col-span-1">
             <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full border-[20px] border-secondary/10" />
-            <h3 className="text-lg font-bold relative z-10 text-secondary">Generate Report</h3>
-            <p className="text-sm text-white/70 relative z-10 mt-1 mb-4">Download PDF summary of monthly activity.</p>
+            <h3 className="text-sm sm:text-lg font-bold relative z-10 text-secondary">Generate Report</h3>
+            <p className="text-[10px] sm:text-sm text-white/70 relative z-10 mt-0.5 sm:mt-1 mb-2 sm:mb-4">Download PDF summary of monthly activity.</p>
             <button
               type="button"
               onClick={handleGenerateReport}
               disabled={isGeneratingReport}
-              className="w-full bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/50 py-2 rounded-lg text-sm font-bold transition-colors relative z-10 disabled:opacity-50"
+              className="w-full bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/50 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-colors relative z-10 disabled:opacity-50"
             >
               {isGeneratingReport ? "Generating..." : "Download"}
             </button>
@@ -1069,8 +1069,8 @@ export default function InvoicePage() {
         </div>
 
         {/* Filters and Search */}
-        <div id="invoices-list" className="mb-6 overflow-hidden">
-          <div className="flex flex-col gap-4">
+        <div id="invoices-list" className="mb-4 sm:mb-6 overflow-hidden">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {/* Row 1: Search + Sort - same baseline */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="relative flex-1 sm:max-w-[200px] min-w-0">
@@ -1105,8 +1105,8 @@ export default function InvoicePage() {
                 </div>
               </div>
             </div>
-            {/* Row 2: Filter tabs - compact, no green bleed */}
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
+            {/* Row 2: Filter tabs - wrap on mobile, no horizontal scroll */}
+            <div className="flex flex-wrap gap-2">
               {(["all", "pending", "paid", "expired", "cancelled", "draft"] as const).map((status) => (
                 <button
                   key={status}
@@ -1150,17 +1150,101 @@ export default function InvoicePage() {
           </div>
         ) : (
           <div className="bg-surface rounded-xl shadow-lg border border-white/5 overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse">
+            {/* Mobile: card layout (no horizontal scroll) */}
+            <div className="md:hidden divide-y divide-white/5">
+              {paginatedInvoices.map((invoice, idx) => {
+                const isOverdue = invoice.status === "pending" && invoice.due_date && new Date(invoice.due_date) < new Date();
+                const amountStr = FIAT_CODES.includes(invoice.currency)
+                  ? (invoice.currency === "NGN" ? "₦" : invoice.currency === "USD" ? "$" : invoice.currency === "EUR" ? "€" : invoice.currency === "GBP" ? "£" : "") + parseFloat(invoice.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (invoice.currency !== "NGN" ? ` ${invoice.currency}` : "")
+                  : `${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`;
+                const statusDisplay = isOverdue ? "Overdue" : invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1);
+                const statusClass = isOverdue ? "bg-rose-900/30 text-rose-300 border border-rose-800" : getStatusBadgeClass(invoice.status);
+                const initials = (invoice.customer_name || invoice.customer_email || "?")
+                  .split(/[\s@]/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((s) => s[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
+                return (
+                  <div
+                    key={invoice.id}
+                    className={`p-4 space-y-3 ${idx % 2 === 1 ? "bg-surface-highlight/20" : ""}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-white">{invoice.invoice_number}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="h-6 w-6 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm text-white truncate">{invoice.customer_name || "—"}</div>
+                            {invoice.customer_email && (
+                              <div className="text-xs text-accent/60 truncate">{invoice.customer_email}</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full flex-shrink-0 ${statusClass}`}>
+                        {statusDisplay}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-accent/70">
+                      <span>Issued: {new Date(invoice.created_at).toLocaleDateString()}</span>
+                      {invoice.due_date && (
+                        <span>Due: {new Date(invoice.due_date).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <span className="font-bold text-white">{amountStr}</span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {isOverdue && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemindInvoice(invoice); }}
+                            disabled={remindingInvoice === invoice.invoice_number}
+                            className="text-xs bg-secondary text-background-dark font-bold px-2 py-1 rounded shadow hover:opacity-90 disabled:opacity-50"
+                          >
+                            {remindingInvoice === invoice.invoice_number ? "..." : "Remind"}
+                          </button>
+                        )}
+                        <Link href={`/invoice/${invoice.invoice_number}`} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="View">
+                          <span className="material-icons-outlined text-lg">visibility</span>
+                        </Link>
+                        {(invoice.status === "pending" || invoice.status === "draft") && (
+                          <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditInvoice(invoice); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Edit">
+                            <span className="material-icons-outlined text-lg">edit</span>
+                          </button>
+                        )}
+                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShareInvoice(invoice.invoice_number); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Share">
+                          <span className="material-icons-outlined text-lg">share</span>
+                        </button>
+                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDownloadPDF(invoice.invoice_number); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="PDF">
+                          <span className="material-icons-outlined text-lg">download</span>
+                        </button>
+                        <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClick(invoice); }} className="p-2 rounded-lg text-accent/70 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                          <span className="material-icons-outlined text-lg">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Desktop: table - fixed layout so it fits without horizontal scroll */}
+            <div className="hidden md:block min-w-0">
+              <table className="w-full table-fixed text-left border-collapse">
                 <thead>
                   <tr className="bg-surface-highlight/50 text-accent/70 border-b border-white/10">
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white">Invoice ID</th>
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hidden md:table-cell">Client</th>
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hidden lg:table-cell">Date Issued</th>
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hidden lg:table-cell">Due Date</th>
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white">Amount</th>
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-white">Status</th>
-                    <th className="px-4 sm:px-6 py-4 text-xs font-bold uppercase tracking-wider text-right text-white">Actions</th>
+                    <th className="w-[11%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-white">Invoice ID</th>
+                    <th className="w-[20%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-white">Client</th>
+                    <th className="w-[10%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-white hidden lg:table-cell">Date Issued</th>
+                    <th className="w-[10%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-white hidden lg:table-cell">Due Date</th>
+                    <th className="w-[14%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-white">Amount</th>
+                    <th className="w-[10%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-white">Status</th>
+                    <th className="w-[25%] px-3 py-3 text-xs font-bold uppercase tracking-wider text-right text-white">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -1184,62 +1268,62 @@ export default function InvoicePage() {
                         key={invoice.id}
                         className={`hover:bg-secondary/10 transition-colors group ${idx % 2 === 1 ? "bg-surface-highlight/20" : ""}`}
                       >
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          <span className="font-bold text-white">{invoice.invoice_number}</span>
+                        <td className="px-3 py-3 min-w-0">
+                          <span className="font-bold text-white truncate block" title={invoice.invoice_number}>{invoice.invoice_number}</span>
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap hidden md:table-cell">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded bg-white/10 flex items-center justify-center text-xs font-bold text-white mr-3 flex-shrink-0">
+                        <td className="px-3 py-3 min-w-0">
+                          <div className="flex items-center min-w-0 gap-2">
+                            <div className="h-7 w-7 rounded bg-white/10 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
                               {initials}
                             </div>
-                            <div>
-                              <div className="text-sm font-semibold text-white">{invoice.customer_name || "—"}</div>
-                              <div className="text-xs text-accent/60">{invoice.customer_email || ""}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-semibold text-white truncate" title={invoice.customer_name || "—"}>{invoice.customer_name || "—"}</div>
+                              <div className="text-xs text-accent/60 truncate" title={invoice.customer_email || ""}>{invoice.customer_email || ""}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-accent/70 hidden lg:table-cell">
+                        <td className="px-3 py-3 text-sm text-accent/70 hidden lg:table-cell">
                           {new Date(invoice.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-accent/70 hidden lg:table-cell">
+                        <td className="px-3 py-3 text-sm text-accent/70 hidden lg:table-cell">
                           {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : "—"}
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          <span className="font-bold text-white">{amountStr}</span>
+                        <td className="px-3 py-3 min-w-0">
+                          <span className="font-bold text-white truncate block" title={amountStr}>{amountStr}</span>
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${statusClass}`}>
+                        <td className="px-3 py-3">
+                          <span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-full ${statusClass}`}>
                             {statusDisplay}
                           </span>
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex items-center justify-end gap-1">
+                        <td className="px-3 py-3 text-right">
+                          <div className="flex items-center justify-end gap-0.5 flex-shrink-0">
                             {isOverdue && (
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemindInvoice(invoice); }}
                                 disabled={remindingInvoice === invoice.invoice_number}
-                                className="text-xs bg-secondary text-background-dark font-bold px-2 py-1 rounded shadow hover:opacity-90 disabled:opacity-50"
+                                className="text-[10px] bg-secondary text-background-dark font-bold px-1.5 py-0.5 rounded shadow hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
                               >
                                 {remindingInvoice === invoice.invoice_number ? "..." : "Remind"}
                               </button>
                             )}
-                            <Link href={`/invoice/${invoice.invoice_number}`} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="View">
-                              <span className="material-icons-outlined text-lg">visibility</span>
+                            <Link href={`/invoice/${invoice.invoice_number}`} className="p-1.5 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="View">
+                              <span className="material-icons-outlined text-base">visibility</span>
                             </Link>
                             {(invoice.status === "pending" || invoice.status === "draft") && (
-                              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditInvoice(invoice); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Edit">
-                                <span className="material-icons-outlined text-lg">edit</span>
+                              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditInvoice(invoice); }} className="p-1.5 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Edit">
+                                <span className="material-icons-outlined text-base">edit</span>
                               </button>
                             )}
-                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShareInvoice(invoice.invoice_number); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Share">
-                              <span className="material-icons-outlined text-lg">share</span>
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShareInvoice(invoice.invoice_number); }} className="p-1.5 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="Share">
+                              <span className="material-icons-outlined text-base">share</span>
                             </button>
-                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDownloadPDF(invoice.invoice_number); }} className="p-2 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="PDF">
-                              <span className="material-icons-outlined text-lg">download</span>
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDownloadPDF(invoice.invoice_number); }} className="p-1.5 rounded-lg text-accent/70 hover:text-secondary hover:bg-secondary/10 transition-colors" title="PDF">
+                              <span className="material-icons-outlined text-base">download</span>
                             </button>
-                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClick(invoice); }} className="p-2 rounded-lg text-accent/70 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
-                              <span className="material-icons-outlined text-lg">delete</span>
+                            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClick(invoice); }} className="p-1.5 rounded-lg text-accent/70 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                              <span className="material-icons-outlined text-base">delete</span>
                             </button>
                           </div>
                         </td>

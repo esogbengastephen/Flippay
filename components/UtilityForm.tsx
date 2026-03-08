@@ -9,6 +9,7 @@ import { getUserFromStorage } from "@/lib/session";
 import { getBettingNetworkLogo, getTelecomNetworkLogo, getTVNetworkLogo, getGiftCardNetworkLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
+import PoweredBySEND from "@/components/PoweredBySEND";
 
 interface GiftCardProduct {
   id: number;
@@ -956,9 +957,9 @@ export default function UtilityForm({
           </form>
         </div>
 
-        <p className="text-center text-accent/40 text-xs mt-10">
-          Powered by Flippay • Quick and secure transactions
-        </p>
+        <div className="text-center text-accent/40 text-xs mt-10">
+          <PoweredBySEND />
+        </div>
       </div>
     </div>
   );

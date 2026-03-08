@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import PoweredBySEND from "@/components/PoweredBySEND";
 
 interface PaymentHubProps {
   onSelectBuy: () => void;
@@ -99,9 +100,7 @@ export default function PaymentHub({ onSelectBuy, onSelectWithdraw }: PaymentHub
           </div>
         </section>
 
-        <p className="text-center text-accent/40 text-sm pt-4">
-          Powered by Flippay Infrastructure • Licensed Financial Provider
-        </p>
+        <PoweredBySEND />
       </div>
     </div>
   );

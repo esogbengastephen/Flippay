@@ -31,7 +31,7 @@ function PaymentPageContent() {
 
   const handleSelectBuy = () => setView("buy");
   const handleSelectWithdraw = () => router.push("/offramp");
-  const handleBackToHub = () => setView("hub");
+  const handleBack = () => router.push("/");
 
   return (
     <DashboardLayout>
@@ -47,11 +47,11 @@ function PaymentPageContent() {
           ) : (
             <div className="space-y-4">
               <button
-                onClick={handleBackToHub}
+                onClick={handleBack}
                 className="hidden lg:flex items-center gap-2 text-accent/80 hover:text-white transition-colors"
               >
                 <span className="material-icons-outlined text-lg">arrow_back</span>
-                <span className="text-sm font-medium">Back to Payment</span>
+                <span className="text-sm font-medium">Back</span>
               </button>
               <PaymentForm network={validNetwork} />
             </div>
