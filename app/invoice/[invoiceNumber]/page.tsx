@@ -333,7 +333,7 @@ function InvoiceDetailContent() {
   };
 
   const handleDownloadInvoice = async () => {
-    if (!invoice || !invoiceRef.current) {
+    if (!invoice) {
       setToast({
         message: "Invoice data not available",
         type: "error",
@@ -349,132 +349,288 @@ function InvoiceDetailContent() {
         isVisible: true,
       });
 
-      // Dynamically import the libraries
-      const [{ default: jsPDF }, html2canvas] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ]);
+      const { default: jsPDF } = await import("jspdf");
 
-      // Get the invoice card element
-      const invoiceElement = invoiceRef.current;
-      
-      if (!invoiceElement) {
-        throw new Error("Invoice element not found");
-      }
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageW = 210;
+      const margin = 15;
+      const contentW = pageW - margin * 2;
+      let y = margin;
+      const lineH = 5;
+      const contentLineH = 5.5;
+      const sectionGap = 7;
 
-      // A4 dimensions in pixels (at 96 DPI)
-      // A4: 210mm x 297mm = 8.27" x 11.69" = 794px x 1123px (at 96 DPI)
-      const A4_WIDTH_PX = 794;
-      const A4_HEIGHT_PX = 1123;
-      
-      // Store original styles
-      const originalMaxWidth = invoiceElement.style.maxWidth;
-      const originalWidth = invoiceElement.style.width;
-      const originalBoxSizing = invoiceElement.style.boxSizing;
-      
-      // Temporarily constrain width for PDF generation
-      invoiceElement.style.maxWidth = `${A4_WIDTH_PX}px`;
-      invoiceElement.style.width = `${A4_WIDTH_PX}px`;
-      invoiceElement.style.boxSizing = 'border-box';
-      
-      // Also constrain all child elements to prevent overflow
-      const allChildren = invoiceElement.querySelectorAll('*');
-      const originalChildStyles: Array<{ element: HTMLElement; maxWidth: string; width: string; boxSizing: string }> = [];
-      
-      allChildren.forEach((child) => {
-        const htmlChild = child as HTMLElement;
-        originalChildStyles.push({
-          element: htmlChild,
-          maxWidth: htmlChild.style.maxWidth,
-          width: htmlChild.style.width,
-          boxSizing: htmlChild.style.boxSizing,
-        });
-        // Ensure no child exceeds parent width
-        htmlChild.style.maxWidth = '100%';
-        htmlChild.style.boxSizing = 'border-box';
-      });
-      
-      // Wait a moment for styles to apply
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
-      // Get the actual element dimensions after constraint
-      const elementWidth = Math.min(invoiceElement.scrollWidth, A4_WIDTH_PX);
-      const elementHeight = invoiceElement.scrollHeight;
-      
-      // Create canvas from the invoice element with proper scaling
-      const canvas = await html2canvas.default(invoiceElement, {
-        scale: 2, // High quality
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        width: elementWidth,
-        height: elementHeight,
-        windowWidth: elementWidth,
-        windowHeight: elementHeight,
-        allowTaint: false,
-        removeContainer: false,
-      });
-      
-      // Restore original styles
-      invoiceElement.style.maxWidth = originalMaxWidth;
-      invoiceElement.style.width = originalWidth;
-      invoiceElement.style.boxSizing = originalBoxSizing;
-      
-      // Restore child element styles
-      originalChildStyles.forEach(({ element, maxWidth, width, boxSizing }) => {
-        element.style.maxWidth = maxWidth;
-        element.style.width = width;
-        element.style.boxSizing = boxSizing;
-      });
-
-      // Calculate PDF dimensions (A4 size in mm)
-      const pdfWidth = 210; // A4 width in mm
-      const pdfHeight = 297; // A4 height in mm
-      
-      // Calculate the aspect ratio and scale to fit width
-      const canvasAspectRatio = canvas.width / canvas.height;
-      const pdfAspectRatio = pdfWidth / pdfHeight;
-      
-      let imgWidth = pdfWidth;
-      let imgHeight = pdfWidth / canvasAspectRatio;
-      
-      // If height exceeds page, scale to fit height instead
-      if (imgHeight > pdfHeight) {
-        imgHeight = pdfHeight;
-        imgWidth = pdfHeight * canvasAspectRatio;
-      }
-      
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      // If content fits on one page
-      if (imgHeight <= pdfHeight) {
-        // Center horizontally if width is less than page width
-        const xOffset = imgWidth < pdfWidth ? (pdfWidth - imgWidth) / 2 : 0;
-        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', xOffset, 0, imgWidth, imgHeight);
-      } else {
-        // Multi-page handling
-        let heightLeft = imgHeight;
-        let position = 0;
-        const xOffset = imgWidth < pdfWidth ? (pdfWidth - imgWidth) / 2 : 0;
-
-        // Add first page
-        pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', xOffset, position, imgWidth, pdfHeight);
-        heightLeft -= pdfHeight;
-
-        // Add additional pages if needed
-        while (heightLeft > 0) {
-          position = -heightLeft;
+      const ensureSpace = (needed: number) => {
+        if (y + needed > 297 - margin) {
           pdf.addPage();
-          const pageHeight = Math.min(pdfHeight, heightLeft);
-          pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', xOffset, position, imgWidth, imgHeight);
-          heightLeft -= pdfHeight;
+          y = margin;
         }
+      };
+
+      if (merchant) {
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        const fromName = (invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessName ? merchant.businessName : merchant.name;
+        const fromLines = pdf.splitTextToSize(fromName, 72);
+        pdf.text(fromLines, margin, y);
+        y += fromLines.length * 4 + 1;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(merchant.email, margin, y);
+        y += lineH + 4;
       }
 
-      // Download the PDF
-      const fileName = `Invoice-${invoice.invoice_number}.pdf`;
-      pdf.save(fileName);
+      const titleY = margin;
+      pdf.setFontSize(22);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("INVOICE", pageW - margin, titleY + 6, { align: "right" });
+
+      y = titleY + 12;
+      const metaTableW = 58;
+      const metaTableX = pageW - margin - metaTableW;
+      const metaColW = metaTableW / 2;
+      const metaRowH = 6;
+      const metaPad = 3;
+      const invNumLines = pdf.splitTextToSize(invoice.invoice_number, metaColW - metaPad * 2);
+      const metaValueRowH = Math.max(metaRowH, invNumLines.length * 4 + 2);
+      const metaTotalH = metaRowH + metaValueRowH;
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(metaTableX, y, metaColW, metaRowH, "F");
+      pdf.rect(metaTableX + metaColW, y, metaColW, metaRowH, "F");
+      pdf.setDrawColor(220, 220, 220);
+      pdf.rect(metaTableX, y, metaTableW, metaTotalH, "S");
+      pdf.line(metaTableX + metaColW, y, metaTableX + metaColW, y + metaTotalH);
+      pdf.line(metaTableX, y + metaRowH, metaTableX + metaTableW, y + metaRowH);
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("INVOICE #", metaTableX + metaPad, y + 4);
+      pdf.text("DATE", metaTableX + metaColW + metaPad, y + 4);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.text(invNumLines, metaTableX + metaPad, y + metaRowH + 4);
+      pdf.text(new Date(invoice.created_at).toLocaleDateString(), metaTableX + metaColW + metaPad, y + metaRowH + 4);
+      y += metaTotalH + 4;
+      const pillW = 22;
+      const pillH = 5;
+      pdf.setFillColor(253, 230, 138);
+      pdf.roundedRect(pageW - margin - pillW, y, pillW, pillH, 1, 1, "F");
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(50, 50, 50);
+      pdf.text(invoice.status.toUpperCase(), pageW - margin - pillW / 2, y + pillH / 2 + 0.8, { align: "center" });
+      pdf.setTextColor(0, 0, 0);
+      y += pillH + 4;
+
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(margin, y, pageW - margin, y);
+      y += sectionGap;
+
+      if (merchant) {
+        ensureSpace(25);
+        const barH = 7;
+        const sectionIndent = 4;
+        const afterBarGap = 4;
+        pdf.setFillColor(243, 244, 246);
+        pdf.rect(margin, y, contentW, barH, "F");
+        pdf.setDrawColor(229, 231, 235);
+        pdf.rect(margin, y, contentW, barH, "S");
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("FROM", margin + sectionIndent, y + barH / 2 + 1.2);
+        y += barH + afterBarGap;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        const fromName2 = (invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessName ? merchant.businessName : merchant.name;
+        const fromLines2 = pdf.splitTextToSize(fromName2, contentW - sectionIndent * 2);
+        pdf.text(fromLines2, margin + sectionIndent, y);
+        y += fromLines2.length * contentLineH;
+        if ((invoice?.invoice_type || merchant.invoiceType) === "business" && (merchant.businessAddress || merchant.businessCity || merchant.businessState || merchant.businessZip)) {
+          const addr = [merchant.businessAddress, [merchant.businessCity, merchant.businessState, merchant.businessZip].filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+          const addrLines = pdf.splitTextToSize(addr, contentW - sectionIndent * 2);
+          pdf.text(addrLines, margin + sectionIndent, y);
+          y += addrLines.length * contentLineH;
+        }
+        if ((invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessPhone) {
+          pdf.text(`Phone: ${merchant.businessPhone}`, margin + sectionIndent, y);
+          y += contentLineH;
+        }
+        pdf.text(merchant.email, margin + sectionIndent, y);
+        y += contentLineH + sectionGap;
+      }
+
+      if (invoice.customer_name || invoice.customer_email || invoice.customer_phone) {
+        ensureSpace(24);
+        const barH = 7;
+        const sectionIndent = 4;
+        const afterBarGap = 4;
+        pdf.setFillColor(243, 244, 246);
+        pdf.rect(margin, y, contentW, barH, "F");
+        pdf.setDrawColor(229, 231, 235);
+        pdf.rect(margin, y, contentW, barH, "S");
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("BILL TO", margin + sectionIndent, y + barH / 2 + 1.2);
+        y += barH + afterBarGap;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        if (invoice.customer_name) {
+          const lines = pdf.splitTextToSize(invoice.customer_name, contentW - sectionIndent * 2);
+          pdf.text(lines, margin + sectionIndent, y);
+          y += lines.length * contentLineH;
+        }
+        if (invoice.customer_email) {
+          pdf.text(invoice.customer_email, margin + sectionIndent, y);
+          y += contentLineH;
+        }
+        if (invoice.customer_phone) {
+          pdf.text(invoice.customer_phone, margin + sectionIndent, y);
+          y += contentLineH;
+        }
+        y += sectionGap;
+      }
+
+      ensureSpace(40);
+      const lineItems = (invoice as any).metadata?.lineItems || [];
+      const tableCol1 = margin;
+      const amountColW = 48;
+      const tableCol2 = pageW - margin - amountColW;
+      const descColW = tableCol2 - tableCol1;
+      const cellPadX = 4;
+      const rowH = 8;
+      const textBaseline = 5;
+
+      pdf.setFillColor(243, 244, 246);
+      pdf.rect(tableCol1, y, descColW, rowH, "F");
+      pdf.rect(tableCol2, y, amountColW, rowH, "F");
+      pdf.setDrawColor(229, 231, 235);
+      pdf.rect(tableCol1, y, descColW + amountColW, rowH, "S");
+      pdf.line(tableCol2, y, tableCol2, y + rowH);
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("DESCRIPTION", tableCol1 + cellPadX, y + textBaseline);
+      pdf.text("AMOUNT", tableCol2 + amountColW - cellPadX, y + textBaseline, { align: "right" });
+      y += rowH;
+
+      const fmtAmount = (amt: number) =>
+        invoice.currency === "NGN"
+          ? `₦${amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : `${amt.toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`;
+
+      pdf.setFont("helvetica", "normal");
+      if (lineItems.length > 0) {
+        for (const item of lineItems) {
+          const amt = parseFloat(String(item.amount));
+          const descLines = pdf.splitTextToSize(item.description || "—", descColW - cellPadX * 2);
+          const thisRowH = Math.max(rowH, descLines.length * 4 + 2);
+          pdf.rect(tableCol1, y, descColW + amountColW, thisRowH, "S");
+          pdf.line(tableCol2, y, tableCol2, y + thisRowH);
+          pdf.text(descLines, tableCol1 + cellPadX, y + textBaseline);
+          pdf.text(fmtAmount(amt), tableCol2 + amountColW - cellPadX, y + thisRowH / 2 - 1, { align: "right" });
+          y += thisRowH;
+        }
+      } else {
+        pdf.rect(tableCol1, y, descColW + amountColW, rowH, "S");
+        pdf.line(tableCol2, y, tableCol2, y + rowH);
+        pdf.text(invoice.description || "Service Payment", tableCol1 + cellPadX, y + textBaseline);
+        pdf.text(fmtAmount(Number(invoice.amount)), tableCol2 + amountColW - cellPadX, y + textBaseline, { align: "right" });
+        y += rowH;
+      }
+
+      pdf.setFont("helvetica", "bold");
+      pdf.rect(tableCol1, y, descColW + amountColW, rowH, "S");
+      pdf.line(tableCol2, y, tableCol2, y + rowH);
+      pdf.text("TOTAL", tableCol1 + cellPadX, y + textBaseline);
+      pdf.text(fmtAmount(Number(invoice.amount)), tableCol2 + amountColW - cellPadX, y + textBaseline, { align: "right" });
+      y += rowH + 6;
+
+      if (invoice.due_date) {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(`Due Date: ${new Date(invoice.due_date).toLocaleDateString()}`, margin, y);
+        y += contentLineH + sectionGap;
+      }
+
+      const bankDetails = (invoice as any).metadata?.bankDetails;
+      if (invoice.currency === "NGN" && bankDetails && (bankDetails.accountName || bankDetails.accountNumber || bankDetails.bank)) {
+        ensureSpace(28);
+        const boxPad = 5;
+        const boxY = y;
+        pdf.setFillColor(249, 250, 251);
+        pdf.setDrawColor(229, 231, 235);
+        pdf.rect(margin, boxY, contentW, 1, "F");
+        y += boxPad;
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(10);
+        pdf.text("Bank Transfer Details", margin + 2, y);
+        y += contentLineH + 1;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        if (bankDetails.accountName) {
+          pdf.text(`Account Name: ${bankDetails.accountName}`, margin + 2, y);
+          y += contentLineH;
+        }
+        if (bankDetails.accountNumber) {
+          pdf.text(`Account Number: ${bankDetails.accountNumber}`, margin + 2, y);
+          y += contentLineH;
+        }
+        if (bankDetails.bank) {
+          pdf.text(`Bank: ${bankDetails.bank}`, margin + 2, y);
+          y += contentLineH;
+        }
+        y += 3;
+        pdf.rect(margin, boxY, contentW, y - boxY + 2, "S");
+        y += sectionGap;
+      }
+
+      const effectiveAddress = invoice.crypto_chain_id
+        ? (invoice.crypto_address?.trim() ? invoice.crypto_address : merchantWalletAddresses[invoice.crypto_chain_id] || null)
+        : null;
+      if (invoice.crypto_chain_id && invoice.currency !== "NGN" && effectiveAddress) {
+        ensureSpace(38);
+        const boxPad = 5;
+        const boxIndent = 2;
+        const boxY = y;
+        pdf.setFillColor(249, 250, 251);
+        pdf.setDrawColor(229, 231, 235);
+        pdf.rect(margin, boxY, contentW, 1, "F");
+        y += boxPad;
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(10);
+        pdf.text("Payment Instructions", margin + boxIndent, y);
+        y += contentLineH + 1;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        const sendStr = `Send ${parseFloat(String(invoice.amount)).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency} to:`;
+        pdf.text(sendStr, margin + boxIndent, y);
+        y += contentLineH;
+        const addrLines = pdf.splitTextToSize(effectiveAddress, contentW - boxIndent * 2);
+        pdf.text(addrLines, margin + boxIndent, y);
+        y += addrLines.length * contentLineH + 3;
+        pdf.text(`Network: ${invoice.crypto_chain_id.toUpperCase()}`, margin + boxIndent, y);
+        y += contentLineH + 4;
+        pdf.rect(margin, boxY, contentW, y - boxY + 2, "S");
+        y += sectionGap;
+      }
+
+      ensureSpace(20);
+      pdf.setDrawColor(229, 231, 235);
+      pdf.line(margin, y, pageW - margin, y);
+      y += 8;
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", "normal");
+      const contact =
+        merchant &&
+        ((invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessPhone
+          ? `${merchant.businessName || merchant.name}, ${merchant.businessPhone}, ${merchant.email}`
+          : `${merchant.name || "the sender"}${merchant.email ? `, ${merchant.email}` : ""}`);
+      if (contact) {
+        const footerLines = pdf.splitTextToSize(`If you have any questions about this invoice, please contact ${contact}.`, contentW);
+        pdf.text(footerLines, margin, y);
+        y += footerLines.length * contentLineH + 4;
+      }
+      pdf.text(`Invoice Template © ${new Date().getFullYear()} FlipPay`, pageW / 2, y, { align: "center" });
+
+      pdf.save(`Invoice-${invoice.invoice_number}.pdf`);
 
       setToast({
         message: "Invoice downloaded successfully!",
@@ -483,47 +639,15 @@ function InvoiceDetailContent() {
       });
     } catch (error: any) {
       console.error("Error generating PDF:", error);
-      
-      // Check if it's a module not found error
-      if (error.message?.includes('Cannot find module') || error.code === 'MODULE_NOT_FOUND') {
-        setToast({
-          message: "PDF libraries not installed. Please run 'npm install' first.",
-          type: "error",
-          isVisible: true,
-        });
+      if (error?.message?.includes("Cannot find module") || error?.code === "MODULE_NOT_FOUND") {
+        setToast({ message: "PDF library not available. Please run npm install.", type: "error", isVisible: true });
         return;
       }
-
-      // Fallback to print dialog if libraries fail to load
-      try {
-        const invoiceUrl = window.location.href;
-        const printWindow = window.open(invoiceUrl, '_blank');
-        
-        if (printWindow) {
-          printWindow.onload = () => {
-            setTimeout(() => {
-              printWindow.print();
-            }, 500);
-          };
-          setToast({
-            message: "Opening print dialog as fallback...",
-            type: "info",
-            isVisible: true,
-          });
-        } else {
-          setToast({
-            message: "Failed to generate PDF. Please use your browser's print function (Ctrl+P / Cmd+P)",
-            type: "error",
-            isVisible: true,
-          });
-        }
-      } catch (fallbackError) {
-        setToast({
-          message: "Failed to generate PDF. Please try again or use browser print function.",
-          type: "error",
-          isVisible: true,
-        });
-      }
+      setToast({
+        message: "Failed to generate PDF. Try again or use browser print (Ctrl+P / Cmd+P).",
+        type: "error",
+        isVisible: true,
+      });
     }
   };
 
@@ -581,7 +705,7 @@ function InvoiceDetailContent() {
       case "cancelled":
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
       default:
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+        return "bg-amber-50 text-gray-900 dark:bg-amber-900/20 dark:text-gray-100";
     }
   };
 
@@ -671,10 +795,10 @@ function InvoiceDetailContent() {
           }
         }
       `}</style>
-      <div className="min-h-screen bg-background-light dark:bg-background-dark p-4 pb-24 overflow-x-hidden">
+      <div className="min-h-screen bg-background-light dark:bg-background-dark p-2 sm:p-4 pb-20 sm:pb-24 overflow-x-hidden">
         <div className="max-w-4xl mx-auto invoice-container min-w-0">
         {/* Header */}
-        <div className="mb-6 no-print">
+        <div className="mb-3 sm:mb-6 no-print">
           <button
             onClick={() => router.push("/invoice")}
             className="hidden lg:flex mb-2 text-primary hover:opacity-80 transition-opacity items-center gap-2"
@@ -683,7 +807,7 @@ function InvoiceDetailContent() {
             Back
           </button>
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Invoice Details</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">Invoice Details</h1>
             <button
               onClick={handleShareInvoice}
               className="bg-secondary/10 text-secondary font-semibold py-2 px-3 rounded-lg hover:bg-secondary/20 transition-colors flex items-center gap-2"
@@ -695,12 +819,12 @@ function InvoiceDetailContent() {
         </div>
 
         {/* Invoice Card - Professional Invoice Layout (Single Page Design) */}
-        <div ref={invoiceRef} className="invoice-card bg-white dark:bg-white rounded-lg shadow-lg border-2 border-blue-200 w-full max-w-full min-w-0 box-border px-4 py-6 sm:px-6 md:px-10 md:max-w-[794px]">
+        <div ref={invoiceRef} className="invoice-card bg-white dark:bg-white rounded-lg shadow-lg border border-gray-200 w-full max-w-full min-w-0 box-border px-3 py-3 sm:px-6 sm:py-6 md:px-10 md:max-w-[794px] overflow-hidden">
           {/* Header Section: Company/Logo (Left) and INVOICE Title (Right) - stacked on mobile */}
-          <div className="mb-8 pb-6 border-b-2 border-blue-300">
-            <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-              {/* Left: Company/Personal Info */}
-              <div className="flex-1 min-w-0">
+          <div className="mb-4 pb-3 sm:mb-8 sm:pb-6 border-b border-gray-200">
+            <div className="flex flex-col gap-3 sm:gap-6 md:flex-row md:items-start md:justify-between">
+              {/* Left: Company/Personal Info - prevent overflow into table */}
+              <div className="flex-1 min-w-0 overflow-hidden">
                 {merchant && (
                   <>
                     {(invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessLogoUrl ? (
@@ -715,7 +839,7 @@ function InvoiceDetailContent() {
                         />
                       </div>
                     ) : null}
-                    <p className="text-lg font-bold text-gray-900 mb-2">
+                    <p className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 break-words">
                       {(invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessName 
                         ? merchant.businessName 
                         : merchant.name}
@@ -742,32 +866,32 @@ function InvoiceDetailContent() {
                 )}
               </div>
               
-              {/* Right: INVOICE Title and Details Table - full width on mobile */}
-              <div className="w-full min-w-0 md:text-right flex flex-col md:items-end">
-                <h2 className="text-2xl sm:text-4xl font-bold text-blue-600 mb-4">INVOICE</h2>
+              {/* Right: INVOICE Title and Details Table - full width on mobile (relative z-10 so it never sits under left overflow) */}
+              <div className="relative z-10 w-full min-w-0 flex-shrink-0 md:text-right flex flex-col md:items-end overflow-hidden">
+                <h2 className="text-xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">INVOICE</h2>
                 {/* Mobile: stacked labels; Desktop/print: table */}
-                <div className="invoice-meta-mobile sm:hidden space-y-2 text-sm">
-                  <p><span className="font-semibold text-gray-700">INVOICE #</span> {invoice.invoice_number}</p>
-                  <p><span className="font-semibold text-gray-700">DATE</span> {new Date(invoice.created_at).toLocaleDateString()}</p>
+                <div className="invoice-meta-mobile sm:hidden space-y-2 text-sm text-gray-900">
+                  <p><span className="font-semibold text-gray-900">INVOICE #</span> <span className="text-gray-900">{invoice.invoice_number}</span></p>
+                  <p><span className="font-semibold text-gray-900">DATE</span> <span className="text-gray-900">{new Date(invoice.created_at).toLocaleDateString()}</span></p>
                 </div>
                 <div className="invoice-meta-table hidden sm:block overflow-x-auto w-full max-w-full">
-                  <table className="border-collapse border border-blue-300 text-sm min-w-[200px]">
+                  <table className="border-collapse border border-gray-200 text-sm min-w-[200px]">
                     <thead>
                       <tr>
-                        <th className="bg-blue-100 border border-blue-300 px-3 py-2 text-left font-semibold text-gray-900">INVOICE #</th>
-                        <th className="bg-blue-100 border border-blue-300 px-3 py-2 text-left font-semibold text-gray-900">DATE</th>
+                        <th className="bg-gray-100 border border-gray-200 px-3 py-2 text-left font-semibold text-gray-900">INVOICE #</th>
+                        <th className="bg-gray-100 border border-gray-200 px-3 py-2 text-left font-semibold text-gray-900">DATE</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="border border-blue-300 px-3 py-2 text-gray-900">{invoice.invoice_number}</td>
-                        <td className="border border-blue-300 px-3 py-2 text-gray-900">{new Date(invoice.created_at).toLocaleDateString()}</td>
+                        <td className="border border-gray-200 px-3 py-2 text-gray-900">{invoice.invoice_number}</td>
+                        <td className="border border-gray-200 px-3 py-2 text-gray-900">{new Date(invoice.created_at).toLocaleDateString()}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
                 <span
-                  className={`inline-block mt-3 px-3 py-1 rounded text-xs font-semibold ${getStatusColor(
+                  className={`inline-block mt-2 sm:mt-3 px-2 sm:px-3 py-0.5 sm:py-1 rounded text-xs font-semibold ${getStatusColor(
                     invoice.status
                   )}`}
                 >
@@ -777,10 +901,39 @@ function InvoiceDetailContent() {
             </div>
           </div>
 
+          {/* From (Sender) Section - always show when merchant is available */}
+          {merchant && (
+            <div className="mb-4 sm:mb-6">
+              <div className="bg-gray-100 px-2 sm:px-3 py-1.5 sm:py-2 mb-2 sm:mb-3">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  FROM
+                </p>
+              </div>
+              <div className="space-y-1 text-sm text-gray-900">
+                <p className="font-semibold">
+                  {(invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessName
+                    ? merchant.businessName
+                    : merchant.name}
+                </p>
+                {((invoice?.invoice_type || merchant.invoiceType) === "business" && (merchant.businessAddress || merchant.businessCity || merchant.businessState || merchant.businessZip)) ? (
+                  <p className="text-gray-700">
+                    {[merchant.businessAddress, [merchant.businessCity, merchant.businessState, merchant.businessZip].filter(Boolean).join(", ")]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                ) : null}
+                {((invoice?.invoice_type || merchant.invoiceType) === "business" && merchant.businessPhone) && (
+                  <p className="text-gray-700">Phone: {merchant.businessPhone}</p>
+                )}
+                <p className="text-gray-600">{merchant.email}</p>
+              </div>
+            </div>
+          )}
+
           {/* Bill To Section */}
           {(invoice.customer_name || invoice.customer_email || invoice.customer_phone) && (
             <div className="mb-6 pb-4">
-              <div className="bg-blue-100 px-3 py-2 mb-3">
+              <div className="bg-gray-100 px-2 sm:px-3 py-1.5 sm:py-2 mb-2 sm:mb-3">
                 <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
                   BILL TO
                 </p>
@@ -800,12 +953,12 @@ function InvoiceDetailContent() {
           )}
 
           {/* Line Items Table - scroll horizontally on narrow screens */}
-          <div className="mb-6 overflow-x-auto -mx-4 sm:mx-0 md:-mx-0">
-            <table className="w-full border-collapse border border-blue-300 text-sm min-w-[280px]">
+          <div className="mb-3 sm:mb-6 overflow-x-auto -mx-2 sm:mx-0 md:-mx-0">
+            <table className="w-full border-collapse border border-gray-200 text-sm min-w-[280px]">
               <thead>
                 <tr>
-                  <th className="bg-blue-100 border border-blue-300 px-4 py-3 text-left font-semibold text-gray-900">DESCRIPTION</th>
-                  <th className="bg-blue-100 border border-blue-300 px-4 py-3 text-right font-semibold text-gray-900">AMOUNT</th>
+                  <th className="bg-gray-100 border border-gray-200 px-2 py-1.5 sm:px-4 sm:py-3 text-left font-semibold text-gray-900 text-xs sm:text-sm">DESCRIPTION</th>
+                  <th className="bg-gray-100 border border-gray-200 px-2 py-1.5 sm:px-4 sm:py-3 text-right font-semibold text-gray-900 text-xs sm:text-sm">AMOUNT</th>
                 </tr>
               </thead>
               <tbody>
@@ -819,10 +972,10 @@ function InvoiceDetailContent() {
                       <>
                         {lineItems.map((item: any, index: number) => (
                           <tr key={index}>
-                            <td className="border border-blue-300 px-4 py-3 text-gray-900">
+                            <td className="border border-gray-200 px-4 py-3 text-gray-900">
                               <p className="font-semibold">{item.description}</p>
                             </td>
-                            <td className="border border-blue-300 px-4 py-3 text-right text-gray-900 font-semibold">
+                            <td className="border border-gray-200 px-4 py-3 text-right text-gray-900 font-semibold">
                               {invoice.currency === "NGN" 
                                 ? `₦${parseFloat(item.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                 : `${parseFloat(item.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`
@@ -837,10 +990,10 @@ function InvoiceDetailContent() {
                     return (
                       <>
                         <tr>
-                          <td className="border border-blue-300 px-4 py-3 text-gray-900">
-                            <p className="font-semibold">{invoice.description || "Service Payment"}</p>
+                          <td className="border border-gray-200 px-2 py-1.5 sm:px-4 sm:py-3 text-gray-900">
+                            <p className="font-semibold text-xs sm:text-sm">{invoice.description || "Service Payment"}</p>
                           </td>
-                          <td className="border border-blue-300 px-4 py-3 text-right text-gray-900 font-semibold">
+                          <td className="border border-gray-200 px-2 py-1.5 sm:px-4 sm:py-3 text-right text-gray-900 font-semibold text-xs sm:text-sm">
                             {invoice.currency === "NGN" 
                               ? `₦${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                               : `${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`
@@ -854,7 +1007,7 @@ function InvoiceDetailContent() {
                 {/* Additional Notes - full-width row (no columns) */}
                 {invoice.description && (
                   <tr>
-                    <td colSpan={2} className="border border-blue-300 px-4 py-3 text-gray-700 bg-gray-50">
+                    <td colSpan={2} className="border border-gray-200 px-4 py-3 text-gray-700 bg-gray-50">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Additional Notes</p>
                       <p className="text-sm italic">{invoice.description}</p>
                     </td>
@@ -862,8 +1015,8 @@ function InvoiceDetailContent() {
                 )}
                 {/* Total Row - TOTAL in first column, summed amount in second column */}
                 <tr>
-                  <td className="border border-blue-300 px-4 py-3 font-bold text-gray-900">TOTAL</td>
-                  <td className="border border-blue-300 px-4 py-3 text-right font-bold text-lg text-gray-900">
+                  <td className="border border-gray-200 px-4 py-3 font-bold text-gray-900">TOTAL</td>
+                  <td className="border border-gray-200 px-4 py-3 text-right font-bold text-lg text-gray-900">
                     {invoice.currency === "NGN" 
                       ? `₦${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       : `${parseFloat(invoice.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} ${invoice.currency}`
@@ -873,7 +1026,7 @@ function InvoiceDetailContent() {
               </tbody>
             </table>
             {invoice.due_date && (
-              <p className="text-xs text-gray-600 mt-2">
+              <p className="text-xs text-gray-600 mt-1 sm:mt-2">
                 Due Date: {new Date(invoice.due_date).toLocaleDateString()}
               </p>
             )}
@@ -884,8 +1037,8 @@ function InvoiceDetailContent() {
             const bankDetails = (invoice as any).metadata?.bankDetails;
             if (!bankDetails || (!bankDetails.accountName && !bankDetails.accountNumber && !bankDetails.bank)) return null;
             return (
-              <div className="mb-6 p-3 sm:p-4 bg-blue-50 rounded border border-blue-200 min-w-0">
-                <p className="text-sm font-semibold text-blue-900 mb-3">Bank Transfer Details</p>
+              <div className="mb-3 p-2 sm:mb-6 sm:p-4 bg-gray-50 rounded border border-gray-200 min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Bank Transfer Details</p>
                 <div className="space-y-2 text-sm text-gray-900 break-words">
                   {bankDetails.accountName && (
                     <p><span className="font-medium text-gray-700">Account Name:</span> {bankDetails.accountName}</p>
@@ -907,14 +1060,14 @@ function InvoiceDetailContent() {
             if (!effectiveAddress || effectiveAddress.trim() === "") return null;
             
             return (
-              <div className="mb-6 p-3 bg-blue-50 rounded border border-blue-200">
-                <p className="text-xs font-semibold text-blue-900 mb-2">Payment Instructions</p>
-                <p className="text-xs text-blue-800 mb-2">
+              <div className="mb-3 p-2 sm:mb-6 sm:p-3 bg-gray-50 rounded border border-gray-200">
+                <p className="text-xs font-semibold text-gray-900 mb-1.5 sm:mb-2">Payment Instructions</p>
+                <p className="text-xs text-gray-800 mb-2">
                   Send <span className="font-bold">{parseFloat(invoice.amount.toString()).toLocaleString(undefined, { maximumFractionDigits: 8 })} {invoice.currency}</span> to the wallet address below:
                 </p>
                 <div className="flex items-start gap-3">
                   {effectiveAddress && (
-                    <div className="bg-white p-2 rounded border border-blue-200 flex-shrink-0">
+                    <div className="bg-white p-2 rounded border border-gray-200 flex-shrink-0">
                       <QRCodeSVG
                         value={effectiveAddress}
                         size={100}
@@ -926,22 +1079,23 @@ function InvoiceDetailContent() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-700 mb-0.5">Wallet Address</p>
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="text-xs font-mono text-blue-900 break-all flex-1">{effectiveAddress}</p>
+                      <p className="text-xs font-mono text-gray-900 break-all flex-1">{effectiveAddress}</p>
                       <button
                         onClick={() => handleCopyWalletAddress(effectiveAddress)}
-                        className="flex-shrink-0 p-1.5 rounded hover:bg-blue-100 transition-colors"
+                        className="flex-shrink-0 p-1.5 rounded hover:bg-gray-100 transition-colors"
                         title="Copy wallet address"
                       >
                         <span className={`material-icons-outlined text-sm ${
-                          copiedAddress ? "text-green-600" : "text-blue-600"
+                          copiedAddress ? "text-green-600" : "text-gray-600"
                         }`}>
                           {copiedAddress ? "check" : "content_copy"}
                         </span>
                       </button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-blue-700">Network:</span>
+                      <span className="text-xs text-gray-700">Network:</span>
                       {getChainLogo(invoice.crypto_chain_id) && (
                         <img
                           src={getChainLogo(invoice.crypto_chain_id)}
@@ -952,7 +1106,7 @@ function InvoiceDetailContent() {
                           }}
                         />
                       )}
-                      <span className="text-xs font-semibold text-blue-700">{invoice.crypto_chain_id.toUpperCase()}</span>
+                      <span className="text-xs font-semibold text-gray-700">{invoice.crypto_chain_id.toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
@@ -961,8 +1115,8 @@ function InvoiceDetailContent() {
           })()}
 
           {/* Footer */}
-          <div className="mt-auto pt-6 border-t border-blue-200 text-xs text-gray-600">
-            <p className="mb-2">
+          <div className="mt-auto pt-3 sm:pt-6 border-t border-gray-200 text-xs text-gray-600">
+            <p className="mb-1 sm:mb-2">
               If you have any questions about this invoice, please contact{" "}
               {(invoice?.invoice_type || merchant?.invoiceType) === "business" && merchant?.businessPhone
                 ? `${merchant.businessName || merchant.name}, ${merchant.businessPhone}, ${merchant.email}`
@@ -977,32 +1131,32 @@ function InvoiceDetailContent() {
 
           {/* Action Buttons */}
           {invoice.status === "pending" && (
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-700 no-print">
+            <div className="pt-3 sm:pt-6 border-t border-gray-200 dark:border-gray-700 no-print">
               {isOwner ? (
                 // Sender/Owner buttons: Send Invoice and Download Invoice
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   <button
                     onClick={handleSendInvoice}
-                    className="w-full bg-primary text-secondary font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                    className="w-full bg-primary text-secondary font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
-                    <span className="material-icons-outlined">send</span>
+                    <span className="material-icons-outlined text-lg sm:text-xl">send</span>
                     Send Invoice
                   </button>
                   <button
                     onClick={handleDownloadInvoice}
-                    className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    className="w-full bg-gray-700 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
-                    <span className="material-icons-outlined">download</span>
+                    <span className="material-icons-outlined text-lg sm:text-xl">download</span>
                     Download Invoice
                   </button>
                 </div>
               ) : (
                 // Receiver buttons: I Paid button
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <button
                     onClick={handleMarkAsPaid}
                     disabled={isMarkingPaid}
-                    className="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full bg-green-500 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
                   >
                     {isMarkingPaid ? (
                       <>
@@ -1029,7 +1183,7 @@ function InvoiceDetailContent() {
             <div className="pt-6 border-t border-gray-200 dark:border-gray-700 no-print">
               <button
                 onClick={handleDownloadInvoice}
-                className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-gray-700 text-white font-bold py-2 sm:py-3 px-3 sm:px-4 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <span className="material-icons-outlined">download</span>
                 Download Invoice
@@ -1038,9 +1192,9 @@ function InvoiceDetailContent() {
           )}
 
           {invoice.status === "paid" && (
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
-                <span className="material-icons-outlined text-green-500 text-4xl mb-2">
+            <div className="pt-3 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 sm:p-4 text-center">
+                <span className="material-icons-outlined text-green-500 text-3xl sm:text-4xl mb-1 sm:mb-2">
                   check_circle
                 </span>
                 <p className="text-green-800 dark:text-green-400 font-semibold">
@@ -1051,9 +1205,9 @@ function InvoiceDetailContent() {
           )}
 
           {invoice.status === "expired" && (
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
-                <span className="material-icons-outlined text-red-500 text-4xl mb-2">
+            <div className="pt-3 sm:pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 sm:p-4 text-center">
+                <span className="material-icons-outlined text-red-500 text-3xl sm:text-4xl mb-1 sm:mb-2">
                   error
                 </span>
                 <p className="text-red-800 dark:text-red-400 font-semibold">

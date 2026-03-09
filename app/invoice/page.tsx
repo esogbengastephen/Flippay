@@ -23,20 +23,24 @@ const FIAT_CURRENCIES = [
 const FIAT_CODES = FIAT_CURRENCIES.map((c) => c.code) as readonly string[];
 
 const PHONE_COUNTRY_CODES = [
-  { code: "+234", country: "Nigeria", flag: "🇳🇬" },
-  { code: "+1", country: "US/Canada", flag: "🇺🇸" },
-  { code: "+44", country: "UK", flag: "🇬🇧" },
-  { code: "+233", country: "Ghana", flag: "🇬🇭" },
-  { code: "+254", country: "Kenya", flag: "🇰🇪" },
-  { code: "+27", country: "South Africa", flag: "🇿🇦" },
-  { code: "+33", country: "France", flag: "🇫🇷" },
-  { code: "+49", country: "Germany", flag: "🇩🇪" },
-  { code: "+91", country: "India", flag: "🇮🇳" },
-  { code: "+86", country: "China", flag: "🇨🇳" },
-  { code: "+81", country: "Japan", flag: "🇯🇵" },
-  { code: "+61", country: "Australia", flag: "🇦🇺" },
-  { code: "+971", country: "UAE", flag: "🇦🇪" },
+  { code: "+1", country: "US/Canada", flag: "🇺🇸", sample: "801 234 5678" },
+  { code: "+234", country: "Nigeria", flag: "🇳🇬", sample: "801 234 5678" },
+  { code: "+44", country: "UK", flag: "🇬🇧", sample: "7700 900123" },
+  { code: "+233", country: "Ghana", flag: "🇬🇭", sample: "20 123 4567" },
+  { code: "+254", country: "Kenya", flag: "🇰🇪", sample: "712 345678" },
+  { code: "+27", country: "South Africa", flag: "🇿🇦", sample: "82 123 4567" },
+  { code: "+33", country: "France", flag: "🇫🇷", sample: "6 12 34 56 78" },
+  { code: "+49", country: "Germany", flag: "🇩🇪", sample: "151 12345678" },
+  { code: "+91", country: "India", flag: "🇮🇳", sample: "98765 43210" },
+  { code: "+86", country: "China", flag: "🇨🇳", sample: "138 0000 0000" },
+  { code: "+81", country: "Japan", flag: "🇯🇵", sample: "90 1234 5678" },
+  { code: "+61", country: "Australia", flag: "🇦🇺", sample: "412 345 678" },
+  { code: "+971", country: "UAE", flag: "🇦🇪", sample: "50 123 4567" },
 ];
+
+function getPhonePlaceholder(countryCode: string): string {
+  return PHONE_COUNTRY_CODES.find((c) => c.code === countryCode)?.sample ?? "801 234 5678";
+}
 
 /** Parse full phone (e.g. +2348012345678) into country code and national number */
 function parsePhone(phone: string | null | undefined): { code: string; number: string } {
@@ -318,9 +322,7 @@ export default function InvoicePage() {
     }, 0);
   };
 
-  const handleCreateInvoice = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleCreateInvoice = async () => {
     // Validate line items
     const validItems = lineItems.filter(item => 
       item.description.trim() && item.amount && parseFloat(item.amount) > 0
@@ -1415,13 +1417,13 @@ export default function InvoicePage() {
                 </button>
               </div>
 
-              {/* Step progress */}
+              {/* Step progress - only allow going back, not jumping forward */}
               <div className="flex gap-1.5 px-2.5 pt-1.5 pb-0.5 flex-shrink-0">
                 {([1, 2, 3] as const).map((s) => (
                   <button
                     key={s}
                     type="button"
-                    onClick={() => setCreateStep(s)}
+                    onClick={() => { if (s <= createStep) setCreateStep(s); }}
                     className={`flex-1 h-1.5 rounded-full transition-colors ${
                       createStep === s ? "bg-secondary" : createStep > s ? "bg-secondary/40" : "bg-primary/60"
                     }`}
@@ -1435,7 +1437,7 @@ export default function InvoicePage() {
                 {createStep === 3 && "Who & when — Customer & due date"}
               </p>
 
-              <form onSubmit={handleCreateInvoice} className="flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col flex-1 min-h-0" role="group" aria-label="Create invoice wizard">
                 <div className="overflow-y-auto flex-1 p-2.5 pt-1.5 space-y-2">
                 {/* Step 1: What */}
                 {createStep === 1 && (
@@ -1970,7 +1972,7 @@ export default function InvoicePage() {
                       value={formData.customerPhone}
                       onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
                       className="flex-1 min-w-0 rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
-                      placeholder="801 234 5678"
+                      placeholder={getPhonePlaceholder(formData.customerPhoneCountryCode)}
                     />
                   </div>
                 </div>
@@ -2039,7 +2041,9 @@ export default function InvoicePage() {
                   {createStep < 3 ? (
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         const validItems = lineItems.filter(item =>
                           item.description.trim() && item.amount && parseFloat(item.amount) > 0
                         );
@@ -2067,8 +2071,9 @@ export default function InvoicePage() {
                     </button>
                   ) : (
                     <button
-                      type="submit"
+                      type="button"
                       disabled={isCreating}
+                      onClick={() => handleCreateInvoice()}
                       className="flex-1 bg-secondary text-primary font-bold py-2 px-3 rounded-lg hover:bg-secondary/90 transition-colors disabled:opacity-50 shadow-[0_0_15px_rgba(19,236,90,0.2)] text-sm"
                     >
                       {isCreating ? "Creating..." : "Create Invoice"}
@@ -2076,7 +2081,7 @@ export default function InvoicePage() {
                   )}
                 </div>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         )}
@@ -2661,7 +2666,7 @@ export default function InvoicePage() {
                       value={editFormData.customerPhone}
                       onChange={(e) => setEditFormData({ ...editFormData, customerPhone: e.target.value })}
                       className="flex-1 min-w-0 rounded-lg border border-accent/10 bg-primary/40 text-white px-3 py-2 focus:ring-2 focus:ring-secondary focus:border-secondary placeholder-accent/40"
-                      placeholder="801 234 5678"
+                      placeholder={getPhonePlaceholder(editFormData.customerPhoneCountryCode)}
                     />
                   </div>
                 </div>
