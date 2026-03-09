@@ -102,7 +102,7 @@ function CreateNGNAccountForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <p className="text-sm text-accent/70">
-        Create a ZainBank NGN account for sending and receiving Naira. One account per user.
+        Create a NGN account for sending and receiving Naira. One account per user.
       </p>
 
       {/* Progress bar */}
@@ -289,7 +289,7 @@ function CreateNGNAccountForm({
             disabled={loading}
             className={`${btnClass} bg-secondary hover:bg-secondary/90 text-primary shadow-[0_4px_14px_rgba(19,236,90,0.2)]`}
           >
-            {loading ? "Creating NGN account..." : "Create NGN account (ZainBank)"}
+            {loading ? "Creating NGN account..." : "Create NGN account"}
           </button>
         )}
       </div>
@@ -511,7 +511,7 @@ export default function SettingsPage() {
             <section id="phone-ngn" className="bg-surface/60 backdrop-blur-[24px] rounded-2xl border border-secondary/10 overflow-hidden shadow-xl">
               <div className="p-4 sm:p-6 border-b border-accent/10">
                 <h2 className="text-lg sm:text-xl font-semibold text-white">NGN Account</h2>
-                <p className="text-sm text-accent/60 mt-1">Your NGN account for send and receive (ZainBank)</p>
+                <p className="text-sm text-accent/60 mt-1">Your NGN account for send and receive</p>
               </div>
               <div className="p-4 sm:p-6 space-y-4">
                 {userProfile?.zainpayAccountNumber ? (
@@ -562,7 +562,7 @@ export default function SettingsPage() {
                           <p className="text-sm text-accent/60 mt-0.5">
                             {kycDone
                               ? "You have completed identity verification."
-                              : "Create your NGN account (ZainBank) above with BVN to complete verification."}
+                              : "Create your NGN account above with BVN to complete verification."}
                           </p>
                         </div>
                       </div>

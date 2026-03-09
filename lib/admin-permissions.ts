@@ -12,6 +12,8 @@ export const ADMIN_ROUTE_PERMISSION: Record<string, string> = {
   "/admin/transactions": "manage_transactions",
   "/admin/payments": "verify_payments",
   "/admin/invoices": "manage_invoices",
+  "/admin/crypto-transactions": "manage_transactions",
+  "/admin/ngn-transactions": "manage_transactions",
   "/admin/users": "manage_users",
   "/admin/referrals": "view_referrals",
   "/admin/token-distribution": "manage_token_distribution",
@@ -27,7 +29,7 @@ export const ADMIN_ROUTE_PERMISSION: Record<string, string> = {
 
 /** Legacy permissions: when an admin has these, they get the listed granular permissions too (for backward compatibility). */
 const LEGACY_PERMISSION_EXPANSION: Record<string, string[]> = {
-  manage_transactions: ["manage_onramp", "manage_transactions", "manage_invoices", "manage_offramp"],
+  manage_transactions: ["manage_onramp", "manage_transactions", "manage_invoices", "manage_offramp", "manage_crypto_transactions", "manage_ngn_transactions"],
   manage_settings: ["manage_utility", "manage_price_action", "manage_banners", "manage_settings"],
   manage_users: ["manage_users", "manage_kyc"],
 };
@@ -67,6 +69,8 @@ export const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/transactions": "All Transactions",
   "/admin/payments": "Payment Verification",
   "/admin/invoices": "Invoices",
+  "/admin/crypto-transactions": "Crypto Transactions",
+  "/admin/ngn-transactions": "NGN Transactions",
   "/admin/users": "User Management",
   "/admin/kyc": "KYC Management",
   "/admin/referrals": "Referrals",
@@ -92,6 +96,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/transactions", label: "All Transactions", icon: "receipt_long", permission: "manage_transactions", section: "operations" },
   { href: "/admin/payments", label: "Payments", icon: "payment", permission: "verify_payments", section: "operations" },
   { href: "/admin/invoices", label: "Invoices", icon: "description", permission: "manage_invoices", section: "operations" },
+  { href: "/admin/crypto-transactions", label: "Crypto Transactions", icon: "currency_bitcoin", permission: "manage_transactions", section: "operations" },
+  { href: "/admin/ngn-transactions",    label: "NGN Transactions",    icon: "payments",          permission: "manage_transactions", section: "operations" },
   { href: "/admin/users", label: "Users", icon: "people", permission: "manage_users", section: "management" },
   { href: "/admin/kyc", label: "KYC", icon: "verified_user", permission: "manage_kyc", section: "management" },
   { href: "/admin/referrals", label: "Referrals", icon: "group_add", permission: "view_referrals", section: "management" },

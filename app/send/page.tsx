@@ -7,12 +7,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { authenticateWithPasskey } from "@/lib/passkey";
-import { SUPPORTED_CHAINS } from "@/lib/chains";
+import { SUPPORTED_CHAINS, ChainType } from "@/lib/chains";
 import { getChainLogo, getTokenLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
+import { generateWalletFromSeed, decryptSeedPhrase } from "@/lib/wallet";
+import { ethers } from "ethers";
 
 interface NigerianBank {
   code: string;
@@ -32,6 +34,7 @@ function SendPageContent() {
   const [walletAddresses, setWalletAddresses] = useState<Record<string, string>>({});
   const [walletBalances, setWalletBalances] = useState<Record<string, Record<string, { balance: string; usdValue: number; symbol: string; name: string; address: string }>>>({});
   const [virtualAccount, setVirtualAccount] = useState<any>(null);
+  const [loadingVirtualAccount, setLoadingVirtualAccount] = useState(false);
   const [selectedChain, setSelectedChain] = useState("base");
   const [selectedToken, setSelectedToken] = useState<string>(""); // Token address
   const [recipient, setRecipient] = useState("");
@@ -40,6 +43,7 @@ function SendPageContent() {
   const [error, setError] = useState("");
   const [authenticating, setAuthenticating] = useState(false);
   const [loadingBalances, setLoadingBalances] = useState(false);
+  const [balancesError, setBalancesError] = useState<string | null>(null);
   const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
   const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
@@ -167,42 +171,70 @@ function SendPageContent() {
 
   const fetchWalletBalances = async () => {
     if (!user || !user.id) return;
-    
+
     setLoadingBalances(true);
+    setBalancesError(null);
+    const controller = new AbortController();
+    const timeoutMs = 30_000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      const response = await fetch(getApiUrl(`/api/wallet/balances?userId=${user.id}`));
+      const response = await fetch(getApiUrl(`/api/wallet/balances?userId=${user.id}`), {
+        signal: controller.signal,
+      });
       const data = await response.json();
 
+      if (!response.ok) {
+        setBalancesError(data.error || "Failed to load balances. Tap Retry.");
+        return;
+      }
+
       if (data.success && data.balances) {
+        setBalancesError(null);
         setWalletBalances(data.balances || {});
-        
-        // Auto-select first chain with balance if current selection has no balance
-        const currentBalance = data.balances[selectedChain];
-        if (!currentBalance || parseFloat(currentBalance.balance) === 0) {
-          // Find first chain with balance > 0
-          const availableChain = Object.entries(data.balances).find(
-            ([_, balance]: [string, any]) => balance && parseFloat(balance.balance) > 0
+
+        // data.balances is { chainId: { tokenAddress: { balance, usdValue, symbol, ... } } }
+        const chainHasBalance = (chainBalances: Record<string, { balance: string }>) =>
+          Object.values(chainBalances || {}).some((t) => parseFloat(t.balance) > 0);
+
+        const currentChainTokens = data.balances[selectedChain];
+        if (!currentChainTokens || !chainHasBalance(currentChainTokens)) {
+          const availableChain = Object.entries(data.balances).find(([, tokens]) =>
+            chainHasBalance(tokens as Record<string, { balance: string }>)
           );
           if (availableChain) {
             setSelectedChain(availableChain[0]);
           }
         }
+      } else if (data.success && (!data.balances || Object.keys(data.balances).length === 0)) {
+        // No wallet or no tokens
+        setBalancesError(null);
+        setWalletBalances({});
+      } else {
+        setBalancesError("Could not load token balances. Tap Retry.");
       }
-    } catch (error) {
-      console.error("Error fetching wallet balances:", error);
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        setBalancesError("Loading took too long. Tap Retry to try again.");
+      } else {
+        console.error("Error fetching wallet balances:", error);
+        setBalancesError("Failed to load balances. Tap Retry.");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoadingBalances(false);
     }
   };
 
   const fetchVirtualAccount = async () => {
     if (!user) return;
-    
+
+    setLoadingVirtualAccount(true);
     try {
       // Fetch dashboard data to get balance and account info
       const dashboardResponse = await fetch(getApiUrl(`/api/user/dashboard?userId=${user.id}`));
       const dashboardData = await dashboardResponse.json();
-      
+
       if (dashboardData.success && dashboardData.data) {
         setVirtualAccount({
           accountNumber: dashboardData.data.user.accountNumber,
@@ -223,6 +255,8 @@ function SendPageContent() {
       }
     } catch (error) {
       console.error("Error fetching virtual account:", error);
+    } finally {
+      setLoadingVirtualAccount(false);
     }
   };
 
@@ -254,7 +288,17 @@ function SendPageContent() {
               return;
             }
 
-        // Crypto send requires passkey authentication
+        // Validate recipient address format (basic EVM/Solana check)
+        const chainConfig = SUPPORTED_CHAINS[selectedChain];
+        if (chainConfig?.type === ChainType.EVM) {
+          if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
+            setError("Please enter a valid wallet address (0x...)");
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Passkey authentication
         setAuthenticating(true);
         const authResult = await authenticateWithPasskey(user.id);
         if (!authResult.success) {
@@ -265,8 +309,102 @@ function SendPageContent() {
         }
         setAuthenticating(false);
 
-        // TODO: Implement actual crypto transaction signing and sending
-        alert(`Send ${amount} ${SUPPORTED_CHAINS[selectedChain]?.nativeCurrency?.symbol || ""} to ${recipient}\n\nTransaction functionality coming soon!`);
+        // Fetch encrypted seed from backend (passkey already verified above)
+        const seedRes = await fetch(getApiUrl("/api/passkey/seed-phrase"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id, passkeyVerified: true }),
+        });
+        const seedData = await seedRes.json();
+        if (!seedData.success || !seedData.encryptedSeed) {
+          setError("Could not retrieve wallet. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Decrypt seed phrase client-side
+        let seedPhrase: string;
+        try {
+          seedPhrase = await decryptSeedPhrase(seedData.encryptedSeed, seedData.publicKey);
+        } catch {
+          setError("Failed to decrypt wallet. Please check your passkey and try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Derive private key from seed
+        const walletData = generateWalletFromSeed(seedPhrase);
+        const privateKey = walletData.privateKeys[selectedChain] ?? walletData.privateKeys["base"];
+        if (!privateKey) {
+          setError("No private key found for this chain.");
+          setLoading(false);
+          return;
+        }
+
+        // Build provider and signer for the selected chain
+        const rpcUrl = chainConfig?.rpcUrl || "https://base.llamarpc.com";
+        const chainIdNum = chainConfig?.chainId ?? 8453;
+        const provider = new ethers.JsonRpcProvider(rpcUrl, chainIdNum);
+        const signer = new ethers.Wallet(privateKey, provider);
+
+        let txHash: string;
+        const tokenIsNative = selectedToken === "native" || !selectedToken;
+
+        if (tokenIsNative) {
+          // Native token transfer (ETH, MATIC, etc.)
+          const tx = await signer.sendTransaction({
+            to: recipient,
+            value: ethers.parseEther(amount),
+          });
+          const receipt = await tx.wait();
+          if (!receipt || receipt.status !== 1) {
+            setError("Transaction failed on-chain. Please try again.");
+            setLoading(false);
+            return;
+          }
+          txHash = receipt.hash;
+        } else {
+          // ERC20 token transfer
+          const ERC20_ABI = [
+            "function transfer(address to, uint256 value) returns (bool)",
+            "function decimals() view returns (uint8)",
+          ];
+          const contract = new ethers.Contract(selectedToken, ERC20_ABI, signer);
+          const decimals: number = await contract.decimals();
+          const parsedAmount = ethers.parseUnits(amount, decimals);
+          const tx = await contract.transfer(recipient, parsedAmount);
+          const receipt = await tx.wait();
+          if (!receipt || receipt.status !== 1) {
+            setError("Transaction failed on-chain. Please try again.");
+            setLoading(false);
+            return;
+          }
+          txHash = receipt.hash;
+        }
+
+        // Record the send in the backend
+        await fetch(getApiUrl("/api/crypto/record-send"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            tokenSymbol: selectedTokenInfo && typeof selectedTokenInfo !== "string" ? selectedTokenInfo.symbol : (chainConfig?.nativeCurrency?.symbol || ""),
+            tokenAddress: tokenIsNative ? "native" : selectedToken,
+            chainId: selectedChain,
+            amount,
+            fromAddress: walletAddresses[selectedChain] || signer.address,
+            toAddress: recipient,
+            txHash,
+            status: "completed",
+          }),
+        });
+
+        alert(`Successfully sent ${amount} ${selectedTokenInfo && typeof selectedTokenInfo !== "string" ? selectedTokenInfo.symbol : ""} to ${recipient}\n\nTx: ${txHash.slice(0, 20)}...`);
+
+        // Clear form and go home
+        setRecipient("");
+        setAmount("");
+        setTimeout(() => router.push("/"), 1500);
       } else {
         // NGN send - either to user (phone) or bank account
         if (ngnRecipientType === "user") {
@@ -303,21 +441,21 @@ function SendPageContent() {
           return;
         }
 
-        // Call send-money API
-        const sendResponse = await fetch(getApiUrl("/api/flutterwave/send-money"), {
+        // Send NGN from user's Zainpay SVA wallet to a bank account
+        const sendResponse = await fetch(getApiUrl("/api/zainpay/send-from-wallet"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            recipientType: ngnRecipientType,
-            recipientPhoneNumber: ngnRecipientType === "user" ? recipient : undefined,
-            recipientAccountNumber: ngnRecipientType === "bank" ? recipient : undefined,
-            recipientBankCode: ngnRecipientType === "bank" ? selectedBank : undefined,
+            userId: user.id,
+            destinationAccountNumber: ngnRecipientType === "bank" ? recipient : undefined,
+            destinationBankCode: ngnRecipientType === "bank" ? selectedBank : undefined,
             amount: amountNum,
-              narration: ngnRecipientType === "user" 
-              ? `Transfer to ${recipient}` 
-              : `Transfer to ${availableBanks.find(b => b.code === selectedBank)?.name || "Bank"} account`,
+            narration:
+              ngnRecipientType === "user"
+                ? `Transfer to ${recipient}`
+                : `Transfer to ${availableBanks.find((b) => b.code === selectedBank)?.name || "Bank"} account`,
           }),
         });
 
@@ -520,6 +658,17 @@ function SendPageContent() {
                   <div className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/10 flex items-center justify-center gap-2 sm:gap-3">
                     <FSpinner size="sm" />
                     <span className="text-sm text-accent">Loading balances...</span>
+                  </div>
+                ) : balancesError ? (
+                  <div className="w-full p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-red-500/10 border border-red-500/20 flex flex-col items-center justify-center gap-3">
+                    <p className="text-sm text-red-400 text-center">{balancesError}</p>
+                    <button
+                      type="button"
+                      onClick={() => fetchWalletBalances()}
+                      className="px-4 py-2 rounded-xl bg-secondary text-primary font-semibold text-sm hover:bg-secondary/90 transition-colors"
+                    >
+                      Retry
+                    </button>
                   </div>
                 ) : (
                     <>
@@ -758,6 +907,11 @@ function SendPageContent() {
                 </>
               )}
               </>
+            ) : loadingVirtualAccount ? (
+              <div className="flex flex-col items-center justify-center py-8 sm:py-12 gap-4">
+                <FSpinner size="md" />
+                <p className="text-sm text-accent/80">Loading your NGN account...</p>
+              </div>
             ) : !virtualAccount?.accountNumber ? (
               <div className="text-center py-8 sm:py-12">
                 <span className="material-icons-outlined text-5xl sm:text-6xl text-accent/30 mb-4">account_balance</span>

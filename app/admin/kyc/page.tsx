@@ -11,6 +11,16 @@ interface User {
   flutterwave_kyc_tier: number | null;
   flutterwave_nin?: string;
   created_at: string;
+  kyc_first_name?: string;
+  kyc_surname?: string;
+  kyc_mobile_number?: string;
+  kyc_date_of_birth?: string;
+  kyc_gender?: string;
+  kyc_address?: string;
+  kyc_title?: string;
+  kyc_state?: string;
+  kyc_bvn_last4?: string;
+  kyc_submitted_at?: string;
   kycTierInfo?: any;
   hasBVN?: boolean;
   canUpgrade?: boolean;
@@ -273,14 +283,26 @@ export default function KYCManagementPage() {
                     <tr key={user.id} className="hover:bg-accent/5 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-surface-highlight flex items-center justify-center text-white font-bold text-xs border border-accent/10">
+                          <div className="h-10 w-10 rounded-full bg-surface-highlight flex items-center justify-center text-white font-bold text-xs border border-accent/10 shrink-0">
                             {getUserInitials(user)}
                           </div>
                           <div>
-                            <div className="font-medium text-white">{user.display_name || user.email}</div>
+                            <div className="font-medium text-white">
+                              {user.kyc_first_name && user.kyc_surname
+                                ? `${user.kyc_title ? user.kyc_title + " " : ""}${user.kyc_first_name} ${user.kyc_surname}`
+                                : user.display_name || user.email}
+                            </div>
                             <div className="text-xs text-accent/50">{user.email}</div>
-                            {user.flutterwave_nin && (
-                              <div className="text-xs text-accent/50 mt-0.5">NIN: {user.flutterwave_nin}</div>
+                            {user.kyc_mobile_number && (
+                              <div className="text-xs text-accent/50 mt-0.5">Mobile: {user.kyc_mobile_number}</div>
+                            )}
+                            {user.kyc_bvn_last4 && (
+                              <div className="text-xs text-accent/50 mt-0.5">BVN: ****{user.kyc_bvn_last4}</div>
+                            )}
+                            {user.kyc_submitted_at && (
+                              <div className="text-xs text-accent/40 mt-0.5">
+                                KYC submitted {new Date(user.kyc_submitted_at).toLocaleDateString()}
+                              </div>
                             )}
                           </div>
                         </div>

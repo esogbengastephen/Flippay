@@ -29,6 +29,7 @@ export default function ReceivePage() {
   const [receiveType, setReceiveType] = useState<ReceiveType>("ngn");
   const [walletAddresses, setWalletAddresses] = useState<Record<string, string>>({});
   const [virtualAccount, setVirtualAccount] = useState<any>(null);
+  const [loadingVirtualAccount, setLoadingVirtualAccount] = useState(false);
   const [selectedChain, setSelectedChain] = useState("base");
   const [copied, setCopied] = useState(false);
   const [hasPasskey, setHasPasskey] = useState(false);
@@ -71,7 +72,8 @@ export default function ReceivePage() {
 
   const fetchVirtualAccount = async () => {
     if (!user) return;
-    
+
+    setLoadingVirtualAccount(true);
     try {
       const response = await fetch(getApiUrl(`/api/user/virtual-account?userId=${user.id}`));
       const data = await response.json();
@@ -83,6 +85,8 @@ export default function ReceivePage() {
       }
     } catch (error) {
       console.error("Error fetching virtual account:", error);
+    } finally {
+      setLoadingVirtualAccount(false);
     }
   };
 
@@ -595,7 +599,12 @@ export default function ReceivePage() {
           ) : (
             <>
               {/* NGN Virtual Account Display */}
-              {virtualAccount?.accountNumber ? (
+              {loadingVirtualAccount ? (
+                <div className="flex flex-col items-center justify-center py-8 sm:py-12 gap-4">
+                  <FSpinner size="md" />
+                  <p className="text-sm text-accent/80">Loading your NGN account...</p>
+                </div>
+              ) : virtualAccount?.accountNumber ? (
                 <>
                   <div className="mb-4 sm:mb-6">
                     <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 sm:mb-3 px-1">

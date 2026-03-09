@@ -127,7 +127,7 @@ export default function UserDashboard() {
   const [bannerIndex, setBannerIndex] = useState(0);
 
   // Primary services (first 4 visible by default); secondary shown after "See more"
-  const PRIMARY_SERVICE_IDS = ["crypto-to-naira", "naira-to-crypto", "flip-lend", "generate-invoice"];
+  const PRIMARY_SERVICE_IDS = ["crypto-to-naira", "naira-to-crypto", "flip-lend", "generate-invoice", "create-prediction", "buy-data"];
   const primaryServices = services.filter((s) => PRIMARY_SERVICE_IDS.includes(s.id));
   const secondaryServices = services.filter((s) => !PRIMARY_SERVICE_IDS.includes(s.id));
 
@@ -783,7 +783,7 @@ export default function UserDashboard() {
             <span className="w-1 h-4 bg-secondary rounded-full"></span>
             Services
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
             {primaryServices.map((svc) => {
               const isComingSoon =
                 (svc.id === "crypto-to-naira" && !canUseCryptoToNaira) ||
