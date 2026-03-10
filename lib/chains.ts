@@ -116,6 +116,16 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
 };
 
 /**
+ * Chains visible in the UI (chain selector, wallet addresses, etc.)
+ * Only Base and Solana are shown to users. SUPPORTED_CHAINS remains intact
+ * for wallet generation and backend operations.
+ */
+export const VISIBLE_CHAINS: Record<string, ChainConfig> = {
+  base: SUPPORTED_CHAINS.base,
+  solana: SUPPORTED_CHAINS.solana,
+};
+
+/**
  * Get chain configuration by ID
  */
 export function getChainConfig(chainId: string): ChainConfig | undefined {

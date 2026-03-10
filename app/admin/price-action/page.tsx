@@ -886,7 +886,7 @@ export default function PriceActionPage() {
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min={activeTab === "sell" ? "-99999" : "0"}
                     value={activeTab === "buy" ? profitNgnSend : profitNgnSendSell}
                     onChange={(e) => (activeTab === "buy" ? setProfitNgnSend(e.target.value) : setProfitNgnSendSell(e.target.value))}
                     onBlur={undefined}
@@ -924,7 +924,7 @@ export default function PriceActionPage() {
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min={activeTab === "sell" ? "-99999" : "0"}
                     value={activeTab === "buy" ? profitNgnUsdc : profitNgnUsdcSell}
                     onChange={(e) => (activeTab === "buy" ? setProfitNgnUsdc(e.target.value) : setProfitNgnUsdcSell(e.target.value))}
                     onBlur={undefined}
@@ -962,7 +962,7 @@ export default function PriceActionPage() {
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min={activeTab === "sell" ? "-99999" : "0"}
                     value={activeTab === "buy" ? profitNgnUsdt : profitNgnUsdtSell}
                     onChange={(e) => (activeTab === "buy" ? setProfitNgnUsdt(e.target.value) : setProfitNgnUsdtSell(e.target.value))}
                     onBlur={undefined}

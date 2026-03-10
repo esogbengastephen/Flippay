@@ -7,11 +7,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { authenticateWithPasskey } from "@/lib/passkey";
-import { SUPPORTED_CHAINS, ChainType } from "@/lib/chains";
+import { SUPPORTED_CHAINS, VISIBLE_CHAINS, ChainType } from "@/lib/chains";
 import { getChainLogo, getTokenLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import DashboardLayout from "@/components/DashboardLayout";
+import TransactionSuccess, { TransactionSuccessProps } from "@/components/TransactionSuccess";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
 import { generateWalletFromSeed, decryptSeedPhrase } from "@/lib/wallet";
 import { ethers } from "ethers";
@@ -67,6 +68,7 @@ function SendPageContent() {
   const [verifiedAccount, setVerifiedAccount] = useState<{ accountName: string; accountNumber: string; bankCode: string } | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [successData, setSuccessData] = useState<TransactionSuccessProps | null>(null);
   const chainDropdownRef = useRef<HTMLDivElement>(null);
   const tokenDropdownRef = useRef<HTMLDivElement>(null);
   const bankDropdownRef = useRef<HTMLDivElement>(null);
@@ -463,12 +465,25 @@ function SendPageContent() {
           }),
         });
 
-        alert(`Successfully sent ${amount} ${selectedTokenInfo && typeof selectedTokenInfo !== "string" ? selectedTokenInfo.symbol : ""} to ${recipient}\n\nTx: ${txHash.slice(0, 20)}...`);
+        const tokenSymbol =
+          selectedTokenInfo && typeof selectedTokenInfo !== "string"
+            ? selectedTokenInfo.symbol
+            : chainConfig?.nativeCurrency?.symbol ?? "";
 
-        // Clear form and go home
-        setRecipient("");
-        setAmount("");
-        setTimeout(() => router.push("/"), 1500);
+        setSuccessData({
+          sendType: "crypto",
+          amount,
+          token: tokenSymbol,
+          chain: chainConfig?.name ?? selectedChain,
+          recipientAddress: recipient,
+          txHash,
+          explorerUrl: chainConfig?.explorerUrl ? `${chainConfig.explorerUrl}/tx/${txHash}` : undefined,
+          onSendAgain: () => {
+            setSuccessData(null);
+            setRecipient("");
+            setAmount("");
+          },
+        });
       } else {
         // NGN send - either to user (phone) or bank account
         if (ngnRecipientType === "user") {
@@ -531,24 +546,25 @@ function SendPageContent() {
           return;
         }
 
-        // Success - show message and redirect
-        const recipientDisplay = ngnRecipientType === "user" 
-          ? recipient 
-          : `${availableBanks.find(b => b.code === selectedBank)?.name || "Bank"} - ${recipient}`;
-        alert(`Successfully sent ₦${amountNum.toLocaleString()} to ${recipientDisplay}`);
-        
         // Refresh balance
         await fetchVirtualAccount();
-        
-        // Clear form
-        setRecipient("");
-        setAmount("");
-        setSelectedBank("");
-        
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          router.push("/");
-        }, 1500);
+
+        const matchedBank = availableBanks.find((b) => b.code === selectedBank);
+        setSuccessData({
+          sendType: "ngn",
+          amount: amountNum.toString(),
+          recipientName:
+            verifiedAccount?.accountName ||
+            (ngnRecipientType === "user" ? recipient : undefined),
+          bankName: matchedBank?.name,
+          accountNumber: ngnRecipientType === "bank" ? recipient : undefined,
+          onSendAgain: () => {
+            setSuccessData(null);
+            setRecipient("");
+            setAmount("");
+            setSelectedBank("");
+          },
+        });
       }
     } catch (err: any) {
       console.error("Error sending:", err);
@@ -562,10 +578,10 @@ function SendPageContent() {
   const chainConfig = SUPPORTED_CHAINS[selectedChain];
   const userAddress = walletAddresses[selectedChain];
   
-  // Get available chains with tokens that have balance > 0
+  // Get available chains with tokens that have balance > 0 (only visible chains)
   const availableChains = Object.entries(walletBalances)
-    .filter(([_, tokens]) => {
-      return Object.values(tokens).some(token => parseFloat(token.balance) > 0);
+    .filter(([chainId, tokens]) => {
+      return (chainId in VISIBLE_CHAINS) && Object.values(tokens).some(token => parseFloat(token.balance) > 0);
     })
     .map(([chainId]) => chainId);
   
@@ -653,6 +669,10 @@ function SendPageContent() {
       setVerificationError(null);
     }
   }, [recipient, selectedBank, ngnRecipientType]);
+
+  if (successData) {
+    return <TransactionSuccess {...successData} />;
+  }
 
   return (
     <div className="min-h-screen bg-background-dark relative flex flex-col items-center p-3 sm:p-4 pb-24 lg:pb-8">

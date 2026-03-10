@@ -224,12 +224,9 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type (only PNG, JPG, JPEG)
-    // Normalize MIME type - some systems use image/jpg instead of image/jpeg
-    const normalizedType = file.type.toLowerCase().replace('image/jpg', 'image/jpeg');
-    const allowedTypes = ["image/png", "image/jpeg"];
-    if (!allowedTypes.includes(normalizedType)) {
-      setError("Please select a PNG, JPG, or JPEG image");
+    // Validate file type — accept any image format
+    if (!file.type.toLowerCase().startsWith("image/")) {
+      setError("Please select a valid image file");
       return;
     }
 
@@ -257,10 +254,8 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const normalizedType = file.type.toLowerCase().replace('image/jpg', 'image/jpeg');
-    const allowedTypes = ["image/png", "image/jpeg"];
-    if (!allowedTypes.includes(normalizedType)) {
-      setError("Please select a PNG, JPG, or JPEG image");
+    if (!file.type.toLowerCase().startsWith("image/")) {
+      setError("Please select a valid image file");
       return;
     }
 
@@ -473,7 +468,7 @@ export default function ProfilePage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,.png,.jpg,.jpeg"
+                accept="image/*"
                 onChange={handleImageSelect}
                 className="hidden"
                 aria-label="Upload profile picture"
@@ -612,7 +607,7 @@ export default function ProfilePage() {
                   <input
                     ref={businessLogoInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg,.png,.jpg,.jpeg"
+                    accept="image/*"
                     onChange={handleBusinessLogoSelect}
                     className="hidden"
                     aria-label="Upload business logo"

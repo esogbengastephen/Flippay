@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
-import { SUPPORTED_CHAINS } from "@/lib/chains";
+import { SUPPORTED_CHAINS, VISIBLE_CHAINS } from "@/lib/chains";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { decryptSeedPhrase } from "@/lib/wallet";
 import { getChainLogo } from "@/lib/logos";
@@ -404,9 +404,9 @@ export default function ReceivePage() {
                       )}
                       <div className="text-left">
                         <div className="text-sm font-bold text-white">{chainConfig?.name || selectedChain}</div>
-                        {Object.keys(walletAddresses).length > 0 && (
+                        {Object.keys(VISIBLE_CHAINS).filter(c => walletAddresses[c]).length > 0 && (
                           <div className="text-[10px] text-secondary font-medium uppercase tracking-widest">
-                            {Object.keys(walletAddresses).length} chain{Object.keys(walletAddresses).length !== 1 ? "s" : ""} available
+                            {Object.keys(VISIBLE_CHAINS).filter(c => walletAddresses[c]).length} chain{Object.keys(VISIBLE_CHAINS).filter(c => walletAddresses[c]).length !== 1 ? "s" : ""} available
                           </div>
                         )}
                       </div>
@@ -416,7 +416,7 @@ export default function ReceivePage() {
 
                   {isDropdownOpen && (
                     <div className="absolute z-50 w-full mt-2 bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/20 shadow-xl max-h-64 overflow-y-auto">
-                      {Object.entries(SUPPORTED_CHAINS).map(([chainId, chain]) => (
+                      {Object.entries(VISIBLE_CHAINS).map(([chainId, chain]) => (
                         <button
                           key={chainId}
                           type="button"

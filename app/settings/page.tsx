@@ -9,7 +9,7 @@ import { getUserFromStorage } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { decryptSeedPhrase } from "@/lib/wallet";
-import { SUPPORTED_CHAINS } from "@/lib/chains";
+import { SUPPORTED_CHAINS, VISIBLE_CHAINS } from "@/lib/chains";
 import { getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
@@ -690,7 +690,7 @@ export default function SettingsPage() {
                 </p>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
-                  {Object.entries(walletAddresses).map(([chainId, address]) => {
+                  {Object.entries(walletAddresses).filter(([chainId]) => chainId in VISIBLE_CHAINS).map(([chainId, address]) => {
                     const chain = SUPPORTED_CHAINS[chainId];
                     return (
                       <div
