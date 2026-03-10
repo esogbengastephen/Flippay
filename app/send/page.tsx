@@ -364,12 +364,14 @@ function SendPageContent() {
         }
 
         let txHash: string;
+        let fromAddress: string;
         const tokenIsNative = selectedToken === "native" || !selectedToken;
 
         if (chainConfig?.type === ChainType.SOLANA) {
           // Solana send path
           const privateKeyBytes = Buffer.from(privateKey, "hex");
           const keypair = SolanaKeypair.fromSecretKey(privateKeyBytes);
+          fromAddress = keypair.publicKey.toBase58();
           const connection = new SolanaConnection(
             chainConfig.rpcUrl || "https://api.mainnet-beta.solana.com",
             "confirmed"
@@ -409,6 +411,7 @@ function SendPageContent() {
           const chainIdNum = chainConfig?.chainId ?? 8453;
           const provider = new ethers.JsonRpcProvider(rpcUrl, chainIdNum);
           const signer = new ethers.Wallet(privateKey, provider);
+          fromAddress = signer.address;
 
           if (tokenIsNative) {
             // Native token transfer (ETH, MATIC, etc.)
@@ -453,7 +456,7 @@ function SendPageContent() {
             tokenAddress: tokenIsNative ? "native" : selectedToken,
             chainId: selectedChain,
             amount,
-            fromAddress: walletAddresses[selectedChain] || signer.address,
+            fromAddress: walletAddresses[selectedChain] || fromAddress,
             toAddress: recipient,
             txHash,
             status: "completed",
