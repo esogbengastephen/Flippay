@@ -56,6 +56,8 @@ export default function PriceActionPage() {
   const lastAutoPublishRef = useRef<number>(0);
   const lastAutoPublishSellRef = useRef<number>(0);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // Track whether the profit_margins table values have been loaded
+  const [profitMarginsLoaded, setProfitMarginsLoaded] = useState(false);
 
   // Exchange rates (admin-set) – BUY (onramp)
   const [exchangeRate, setExchangeRate] = useState<string>(""); // 1 NGN = X $SEND
@@ -159,6 +161,63 @@ export default function PriceActionPage() {
     }
   };
 
+  /** Load all six profit margins from the dedicated profit_margins table. */
+  const fetchProfitMargins = async () => {
+    if (!address) return;
+    try {
+      const res = await fetch(getApiUrl("/api/admin/profit-margins"), {
+        headers: { Authorization: `Bearer ${address}` },
+      });
+      const data = await res.json();
+      if (data.success && data.profits) {
+        setProfitNgnSend(String(data.profits.buy.SEND ?? 0));
+        setProfitNgnUsdc(String(data.profits.buy.USDC ?? 0));
+        setProfitNgnUsdt(String(data.profits.buy.USDT ?? 0));
+        setProfitNgnSendSell(String(data.profits.sell.SEND ?? 0));
+        setProfitNgnUsdcSell(String(data.profits.sell.USDC ?? 0));
+        setProfitNgnUsdtSell(String(data.profits.sell.USDT ?? 0));
+      }
+    } catch (err) {
+      console.error("Failed to fetch profit margins:", err);
+    } finally {
+      setProfitMarginsLoaded(true);
+    }
+  };
+
+  /** Save BUY profit margins to profit_margins table (debounced). */
+  const saveBuyProfitMargins = async (send: number, usdc: number, usdt: number) => {
+    if (!address) return;
+    setSavingProfit(true);
+    try {
+      await fetch(getApiUrl("/api/admin/profit-margins"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${address}` },
+        body: JSON.stringify({ direction: "buy", SEND: send, USDC: usdc, USDT: usdt, walletAddress: address }),
+      });
+    } catch (err) {
+      console.error("Failed to save buy profit margins:", err);
+    } finally {
+      setSavingProfit(false);
+    }
+  };
+
+  /** Save SELL profit margins to profit_margins table (debounced). */
+  const saveSellProfitMargins = async (send: number, usdc: number, usdt: number) => {
+    if (!address) return;
+    setSavingProfit(true);
+    try {
+      await fetch(getApiUrl("/api/admin/profit-margins"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${address}` },
+        body: JSON.stringify({ direction: "sell", SEND: send, USDC: usdc, USDT: usdt, walletAddress: address }),
+      });
+    } catch (err) {
+      console.error("Failed to save sell profit margins:", err);
+    } finally {
+      setSavingProfit(false);
+    }
+  };
+
   const fetchAdminTokenPrices = async () => {
     if (!address) return;
     try {
@@ -197,6 +256,7 @@ export default function PriceActionPage() {
       fetchCoingeckoPrice();
       fetchAdminTokenPrices();
       fetchSellTokenPrices();
+      fetchProfitMargins();
     }
   }, [address]);
 
@@ -207,107 +267,41 @@ export default function PriceActionPage() {
     return () => clearInterval(interval);
   }, [address]);
 
-  // Debounced save of profit margins to DB (1s after last change); only after settings loaded so we don't overwrite with 0,0,0
+  // Debounced save of BUY profit margins to profit_margins table (1s after last change)
+  // Only fires after initial load to avoid overwriting DB values with 0 on mount
   useEffect(() => {
-    if (!address || !settingsLoaded) return;
+    if (!address || !profitMarginsLoaded) return;
     if (profitSaveTimeoutRef.current) clearTimeout(profitSaveTimeoutRef.current);
-    profitSaveTimeoutRef.current = setTimeout(async () => {
+    profitSaveTimeoutRef.current = setTimeout(() => {
       profitSaveTimeoutRef.current = null;
-      const send = parseFloat(profitNgnSend) || 0;
-      const usdc = parseFloat(profitNgnUsdc) || 0;
-      const usdt = parseFloat(profitNgnUsdt) || 0;
-      setSavingProfit(true);
-      try {
-        await fetch(getApiUrl("/api/admin/settings"), {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profitNgnSend: send,
-            profitNgnUsdc: usdc,
-            profitNgnUsdt: usdt,
-            walletAddress: address,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to save profit margins:", err);
-      } finally {
-        setSavingProfit(false);
-      }
+      saveBuyProfitMargins(
+        parseFloat(profitNgnSend) || 0,
+        parseFloat(profitNgnUsdc) || 0,
+        parseFloat(profitNgnUsdt) || 0,
+      );
     }, 1000);
     return () => {
       if (profitSaveTimeoutRef.current) clearTimeout(profitSaveTimeoutRef.current);
     };
-  }, [address, settingsLoaded, profitNgnSend, profitNgnUsdc, profitNgnUsdt]);
+  }, [address, profitMarginsLoaded, profitNgnSend, profitNgnUsdc, profitNgnUsdt]);
 
-  /** Persist sell profit margins to DB (call on blur or from debounce) */
-  const saveProfitMarginsSell = async () => {
-    if (!address) return;
-    const send = parseFloat(profitNgnSendSell) || 0;
-    const usdc = parseFloat(profitNgnUsdcSell) || 0;
-    const usdt = parseFloat(profitNgnUsdtSell) || 0;
-    setSavingProfit(true);
-    setError(null);
-    try {
-      const res = await fetch(getApiUrl("/api/admin/settings"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profitNgnSendSell: send,
-          profitNgnUsdcSell: usdc,
-          profitNgnUsdtSell: usdt,
-          walletAddress: address,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 2000);
-      } else {
-        setError(data.error || "Failed to save sell profit");
-      }
-    } catch (err) {
-      console.error("Failed to save sell profit margins:", err);
-      setError("Failed to save sell profit");
-    } finally {
-      setSavingProfit(false);
-    }
-  };
-
-  // Debounced save of sell profit margins to DB (500ms after last change)
+  // Debounced save of SELL profit margins to profit_margins table (800ms after last change)
+  // Only fires after initial load to avoid overwriting DB values with 0 on mount
   useEffect(() => {
-    if (!address || !settingsLoaded) return;
+    if (!address || !profitMarginsLoaded) return;
     if (profitSellSaveTimeoutRef.current) clearTimeout(profitSellSaveTimeoutRef.current);
-    const send = parseFloat(profitNgnSendSell) || 0;
-    const usdc = parseFloat(profitNgnUsdcSell) || 0;
-    const usdt = parseFloat(profitNgnUsdtSell) || 0;
-    profitSellSaveTimeoutRef.current = setTimeout(async () => {
+    profitSellSaveTimeoutRef.current = setTimeout(() => {
       profitSellSaveTimeoutRef.current = null;
-      setSavingProfit(true);
-      setError(null);
-      try {
-        const res = await fetch(getApiUrl("/api/admin/settings"), {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profitNgnSendSell: send, profitNgnUsdcSell: usdc, profitNgnUsdtSell: usdt, walletAddress: address }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setSuccess(true);
-          setTimeout(() => setSuccess(false), 2000);
-        } else {
-          setError(data.error || "Failed to save sell profit");
-        }
-      } catch (err) {
-        console.error("Failed to save sell profit margins:", err);
-        setError("Failed to save sell profit");
-      } finally {
-        setSavingProfit(false);
-      }
-    }, 500);
+      saveSellProfitMargins(
+        parseFloat(profitNgnSendSell) || 0,
+        parseFloat(profitNgnUsdcSell) || 0,
+        parseFloat(profitNgnUsdtSell) || 0,
+      );
+    }, 800);
     return () => {
       if (profitSellSaveTimeoutRef.current) clearTimeout(profitSellSaveTimeoutRef.current);
     };
-  }, [address, settingsLoaded, profitNgnSendSell, profitNgnUsdcSell, profitNgnUsdtSell]);
+  }, [address, profitMarginsLoaded, profitNgnSendSell, profitNgnUsdcSell, profitNgnUsdtSell]);
 
   // Auto-publish buy: every 30s when coingeckoAutoPublish is on
   useEffect(() => {
@@ -341,7 +335,28 @@ export default function PriceActionPage() {
     setError(null);
     setSuccess(false);
     try {
-      const profitSend = parseFloat(profitNgnSend) || 0;
+      // Always read profit fresh from DB so auto-publish stays accurate even after page reload
+      let profitSend = parseFloat(profitNgnSend) || 0;
+      let profitUsdc = parseFloat(profitNgnUsdc) || 0;
+      let profitUsdt = parseFloat(profitNgnUsdt) || 0;
+      try {
+        const pmRes = await fetch(getApiUrl("/api/admin/profit-margins"), {
+          headers: { Authorization: `Bearer ${address}` },
+        });
+        const pmData = await pmRes.json();
+        if (pmData.success && pmData.profits) {
+          profitSend = Number(pmData.profits.buy.SEND) || 0;
+          profitUsdc = Number(pmData.profits.buy.USDC) || 0;
+          profitUsdt = Number(pmData.profits.buy.USDT) || 0;
+          // Sync UI inputs to match DB values
+          setProfitNgnSend(String(profitSend));
+          setProfitNgnUsdc(String(profitUsdc));
+          setProfitNgnUsdt(String(profitUsdt));
+        }
+      } catch {
+        // Non-fatal: fall back to UI values already set above
+      }
+
       const baseSendToNgn = coingeckoPrice.ngn ?? coingeckoPrice.usd * 1500;
       const sendToNgn = baseSendToNgn + profitSend;
       const ngnToSend = 1 / sendToNgn;
@@ -362,14 +377,8 @@ export default function PriceActionPage() {
         window.dispatchEvent(new CustomEvent("exchangeRateUpdated", { detail: { rate: ngnToSend } }));
       }
       const prices: Record<string, number> = {};
-      if (coingeckoPrice.USDC?.ngn != null) {
-        const profitUsdc = parseFloat(profitNgnUsdc) || 0;
-        prices.USDC = coingeckoPrice.USDC.ngn + profitUsdc;
-      }
-      if (coingeckoPrice.USDT?.ngn != null) {
-        const profitUsdt = parseFloat(profitNgnUsdt) || 0;
-        prices.USDT = coingeckoPrice.USDT.ngn + profitUsdt;
-      }
+      if (coingeckoPrice.USDC?.ngn != null) prices.USDC = coingeckoPrice.USDC.ngn + profitUsdc;
+      if (coingeckoPrice.USDT?.ngn != null) prices.USDT = coingeckoPrice.USDT.ngn + profitUsdt;
       if (Object.keys(prices).length > 0) {
         const tokenRes = await fetch(getApiUrl("/api/admin/token-prices"), {
           method: "PUT",
@@ -401,21 +410,34 @@ export default function PriceActionPage() {
     setError(null);
     setSuccess(false);
     try {
-      const profitSend = parseFloat(profitNgnSendSell) || 0;
+      // Always read profit fresh from DB so auto-publish stays accurate even after page reload
+      let profitSend = parseFloat(profitNgnSendSell) || 0;
+      let profitUsdc = parseFloat(profitNgnUsdcSell) || 0;
+      let profitUsdt = parseFloat(profitNgnUsdtSell) || 0;
+      try {
+        const pmRes = await fetch(getApiUrl("/api/admin/profit-margins"), {
+          headers: { Authorization: `Bearer ${address}` },
+        });
+        const pmData = await pmRes.json();
+        if (pmData.success && pmData.profits) {
+          profitSend = Number(pmData.profits.sell.SEND) || 0;
+          profitUsdc = Number(pmData.profits.sell.USDC) || 0;
+          profitUsdt = Number(pmData.profits.sell.USDT) || 0;
+          // Sync UI inputs to match DB values
+          setProfitNgnSendSell(String(profitSend));
+          setProfitNgnUsdcSell(String(profitUsdc));
+          setProfitNgnUsdtSell(String(profitUsdt));
+        }
+      } catch {
+        // Non-fatal: fall back to UI values already set above
+      }
+
       const baseSendToNgn = coingeckoPrice.ngn ?? coingeckoPrice.usd * 1500;
       const sendToNgnSell = baseSendToNgn + profitSend;
-      const profitUsdc = parseFloat(profitNgnUsdcSell) || 0;
-      const profitUsdt = parseFloat(profitNgnUsdtSell) || 0;
       const res = await fetch(getApiUrl("/api/admin/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sendToNgnSell,
-          profitNgnSendSell: profitSend,
-          profitNgnUsdcSell: profitUsdc,
-          profitNgnUsdtSell: profitUsdt,
-          walletAddress: address,
-        }),
+        body: JSON.stringify({ sendToNgnSell, walletAddress: address }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -867,7 +889,7 @@ export default function PriceActionPage() {
                     min="0"
                     value={activeTab === "buy" ? profitNgnSend : profitNgnSendSell}
                     onChange={(e) => (activeTab === "buy" ? setProfitNgnSend(e.target.value) : setProfitNgnSendSell(e.target.value))}
-                    onBlur={activeTab === "sell" ? saveProfitMarginsSell : undefined}
+                    onBlur={undefined}
                     placeholder="0"
                     disabled={saving}
                     className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -905,7 +927,7 @@ export default function PriceActionPage() {
                     min="0"
                     value={activeTab === "buy" ? profitNgnUsdc : profitNgnUsdcSell}
                     onChange={(e) => (activeTab === "buy" ? setProfitNgnUsdc(e.target.value) : setProfitNgnUsdcSell(e.target.value))}
-                    onBlur={activeTab === "sell" ? saveProfitMarginsSell : undefined}
+                    onBlur={undefined}
                     placeholder="0"
                     disabled={saving}
                     className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
@@ -943,7 +965,7 @@ export default function PriceActionPage() {
                     min="0"
                     value={activeTab === "buy" ? profitNgnUsdt : profitNgnUsdtSell}
                     onChange={(e) => (activeTab === "buy" ? setProfitNgnUsdt(e.target.value) : setProfitNgnUsdtSell(e.target.value))}
-                    onBlur={activeTab === "sell" ? saveProfitMarginsSell : undefined}
+                    onBlur={undefined}
                     placeholder="0"
                     disabled={saving}
                     className="w-full rounded-xl border border-accent/10 bg-primary text-white px-4 py-2 focus:ring-1 focus:ring-secondary focus:border-secondary focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
