@@ -15,6 +15,20 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
 import { generateWalletFromSeed, decryptSeedPhrase } from "@/lib/wallet";
 import { ethers } from "ethers";
+import {
+  Connection as SolanaConnection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+  sendAndConfirmTransaction,
+  Keypair as SolanaKeypair,
+} from "@solana/web3.js";
+import {
+  getOrCreateAssociatedTokenAccount,
+  createTransferInstruction,
+  getMint,
+} from "@solana/spl-token";
 
 interface NigerianBank {
   code: string;
@@ -288,11 +302,19 @@ function SendPageContent() {
               return;
             }
 
-        // Validate recipient address format (basic EVM/Solana check)
+        // Validate recipient address format
         const chainConfig = SUPPORTED_CHAINS[selectedChain];
         if (chainConfig?.type === ChainType.EVM) {
           if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
             setError("Please enter a valid wallet address (0x...)");
+            setLoading(false);
+            return;
+          }
+        } else if (chainConfig?.type === ChainType.SOLANA) {
+          try {
+            new PublicKey(recipient);
+          } catch {
+            setError("Please enter a valid Solana address");
             setLoading(false);
             return;
           }
@@ -341,45 +363,84 @@ function SendPageContent() {
           return;
         }
 
-        // Build provider and signer for the selected chain
-        const rpcUrl = chainConfig?.rpcUrl || "https://base.llamarpc.com";
-        const chainIdNum = chainConfig?.chainId ?? 8453;
-        const provider = new ethers.JsonRpcProvider(rpcUrl, chainIdNum);
-        const signer = new ethers.Wallet(privateKey, provider);
-
         let txHash: string;
         const tokenIsNative = selectedToken === "native" || !selectedToken;
 
-        if (tokenIsNative) {
-          // Native token transfer (ETH, MATIC, etc.)
-          const tx = await signer.sendTransaction({
-            to: recipient,
-            value: ethers.parseEther(amount),
-          });
-          const receipt = await tx.wait();
-          if (!receipt || receipt.status !== 1) {
-            setError("Transaction failed on-chain. Please try again.");
-            setLoading(false);
-            return;
+        if (chainConfig?.type === ChainType.SOLANA) {
+          // Solana send path
+          const privateKeyBytes = Buffer.from(privateKey, "hex");
+          const keypair = SolanaKeypair.fromSecretKey(privateKeyBytes);
+          const connection = new SolanaConnection(
+            chainConfig.rpcUrl || "https://api.mainnet-beta.solana.com",
+            "confirmed"
+          );
+          const recipientPubkey = new PublicKey(recipient);
+
+          if (tokenIsNative) {
+            const transaction = new Transaction().add(
+              SystemProgram.transfer({
+                fromPubkey: keypair.publicKey,
+                toPubkey: recipientPubkey,
+                lamports: BigInt(Math.round(parseFloat(amount) * LAMPORTS_PER_SOL)),
+              })
+            );
+            txHash = await sendAndConfirmTransaction(connection, transaction, [keypair]);
+          } else {
+            // SPL token transfer
+            const mintPubkey = new PublicKey(selectedToken);
+            const mintInfo = await getMint(connection, mintPubkey);
+            const fromATA = await getOrCreateAssociatedTokenAccount(
+              connection, keypair, mintPubkey, keypair.publicKey
+            );
+            const toATA = await getOrCreateAssociatedTokenAccount(
+              connection, keypair, mintPubkey, recipientPubkey
+            );
+            const parsedAmount = BigInt(
+              Math.round(parseFloat(amount) * Math.pow(10, mintInfo.decimals))
+            );
+            const transaction = new Transaction().add(
+              createTransferInstruction(fromATA.address, toATA.address, keypair.publicKey, parsedAmount)
+            );
+            txHash = await sendAndConfirmTransaction(connection, transaction, [keypair]);
           }
-          txHash = receipt.hash;
         } else {
-          // ERC20 token transfer
-          const ERC20_ABI = [
-            "function transfer(address to, uint256 value) returns (bool)",
-            "function decimals() view returns (uint8)",
-          ];
-          const contract = new ethers.Contract(selectedToken, ERC20_ABI, signer);
-          const decimals: number = await contract.decimals();
-          const parsedAmount = ethers.parseUnits(amount, decimals);
-          const tx = await contract.transfer(recipient, parsedAmount);
-          const receipt = await tx.wait();
-          if (!receipt || receipt.status !== 1) {
-            setError("Transaction failed on-chain. Please try again.");
-            setLoading(false);
-            return;
+          // EVM send path
+          const rpcUrl = chainConfig?.rpcUrl || "https://base.llamarpc.com";
+          const chainIdNum = chainConfig?.chainId ?? 8453;
+          const provider = new ethers.JsonRpcProvider(rpcUrl, chainIdNum);
+          const signer = new ethers.Wallet(privateKey, provider);
+
+          if (tokenIsNative) {
+            // Native token transfer (ETH, MATIC, etc.)
+            const tx = await signer.sendTransaction({
+              to: recipient,
+              value: ethers.parseEther(amount),
+            });
+            const receipt = await tx.wait();
+            if (!receipt || receipt.status !== 1) {
+              setError("Transaction failed on-chain. Please try again.");
+              setLoading(false);
+              return;
+            }
+            txHash = receipt.hash;
+          } else {
+            // ERC20 token transfer
+            const ERC20_ABI = [
+              "function transfer(address to, uint256 value) returns (bool)",
+              "function decimals() view returns (uint8)",
+            ];
+            const contract = new ethers.Contract(selectedToken, ERC20_ABI, signer);
+            const decimals: number = await contract.decimals();
+            const parsedAmount = ethers.parseUnits(amount, decimals);
+            const tx = await contract.transfer(recipient, parsedAmount);
+            const receipt = await tx.wait();
+            if (!receipt || receipt.status !== 1) {
+              setError("Transaction failed on-chain. Please try again.");
+              setLoading(false);
+              return;
+            }
+            txHash = receipt.hash;
           }
-          txHash = receipt.hash;
         }
 
         // Record the send in the backend

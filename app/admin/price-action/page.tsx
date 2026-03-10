@@ -423,6 +423,7 @@ export default function PriceActionPage() {
         setSaving(false);
         return;
       }
+      setSendToNgnSellRate(sendToNgnSell.toFixed(2));
       const prices: Record<string, number> = {};
       if (coingeckoPrice.USDC?.ngn != null) prices.USDC = coingeckoPrice.USDC.ngn + profitUsdc;
       if (coingeckoPrice.USDT?.ngn != null) prices.USDT = coingeckoPrice.USDT.ngn + profitUsdt;
