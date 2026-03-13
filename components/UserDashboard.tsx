@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+import { apiFetch } from "@/lib/api-client";
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -327,7 +328,7 @@ export default function UserDashboard() {
 
   const fetchDashboardData = async (userId: string) => {
     try {
-      const response = await fetch(getApiUrl(`/api/user/dashboard?userId=${userId}`));
+      const response = await apiFetch(getApiUrl(`/api/user/dashboard?userId=${userId}`));
       const data = await response.json();
 
       if (data.success) {
@@ -343,7 +344,7 @@ export default function UserDashboard() {
   const fetchAllTransactions = async (userId: string) => {
     setLoadingTransactions(true);
     try {
-      const response = await fetch(getApiUrl(`/api/user/transactions?userId=${userId}&limit=10`));
+      const response = await apiFetch(getApiUrl(`/api/user/transactions?userId=${userId}&limit=10`));
       const data = await response.json();
 
       if (data.success) {
@@ -363,7 +364,7 @@ export default function UserDashboard() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), WALLET_BALANCES_TIMEOUT_MS);
     try {
-      const response = await fetch(getApiUrl(`/api/wallet/balances?userId=${userId}`), {
+      const response = await apiFetch(getApiUrl(`/api/wallet/balances?userId=${userId}`), {
         signal: controller.signal,
       });
       const data = await response.json();
@@ -412,7 +413,7 @@ export default function UserDashboard() {
     }
     
     try {
-      const response = await fetch(getApiUrl(`/api/user/profile?userId=${userId}`));
+      const response = await apiFetch(getApiUrl(`/api/user/profile?userId=${userId}`));
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

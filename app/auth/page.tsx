@@ -170,6 +170,7 @@ export default function AuthPage() {
         // User exists - store session and redirect to passkey setup
         setMessage("Login successful! Redirecting...");
         localStorage.setItem("user", JSON.stringify(data.user));
+        if (data.sessionToken) localStorage.setItem("session_token", data.sessionToken);
         // Store email for next time
         localStorage.setItem("last_email", email);
         setTimeout(() => router.push("/passkey-setup"), 1500);
@@ -302,11 +303,10 @@ export default function AuthPage() {
       }
 
       setMessage("Account created successfully! Redirecting...");
-      // Store user in localStorage
       localStorage.setItem("user", JSON.stringify(data.user));
-      // Store email for next time
+      if (data.sessionToken) localStorage.setItem("session_token", data.sessionToken);
       localStorage.setItem("last_email", email);
-      
+
       // New users must set up passkey before accessing dashboard
       setTimeout(() => router.push("/passkey-setup"), 1500);
     } catch (err: any) {

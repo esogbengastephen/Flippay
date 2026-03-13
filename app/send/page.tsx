@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+import { apiFetch } from "@/lib/api-client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -166,7 +167,7 @@ function SendPageContent() {
     }
     
     try {
-      const response = await fetch(getApiUrl(`/api/user/profile?userId=${user.id}`));
+      const response = await apiFetch(getApiUrl(`/api/user/profile?userId=${user.id}`));
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -195,7 +196,7 @@ function SendPageContent() {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(getApiUrl(`/api/wallet/balances?userId=${user.id}`), {
+      const response = await apiFetch(getApiUrl(`/api/wallet/balances?userId=${user.id}`), {
         signal: controller.signal,
       });
       const data = await response.json();
@@ -449,7 +450,7 @@ function SendPageContent() {
         }
 
         // Record the send in the backend
-        await fetch(getApiUrl("/api/crypto/record-send"), {
+        await apiFetch(getApiUrl("/api/crypto/record-send"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -521,7 +522,7 @@ function SendPageContent() {
         }
 
         // Send NGN from user's Zainpay SVA wallet to a bank account
-        const sendResponse = await fetch(getApiUrl("/api/zainpay/send-from-wallet"), {
+        const sendResponse = await apiFetch(getApiUrl("/api/zainpay/send-from-wallet"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

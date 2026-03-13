@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+import { apiFetch } from "@/lib/api-client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -66,7 +67,7 @@ export default function ProfilePage() {
     
     setLoading(true);
     try {
-      const response = await fetch(getApiUrl(`/api/user/profile?userId=${user.id}`));
+      const response = await apiFetch(getApiUrl(`/api/user/profile?userId=${user.id}`));
       const data = await response.json();
       
       if (data.success && data.profile) {
@@ -188,7 +189,7 @@ export default function ProfilePage() {
         const base64String = reader.result as string;
 
         // Upload to API
-        const uploadResponse = await fetch(getApiUrl("/api/user/upload-photo"), {
+        const uploadResponse = await apiFetch(getApiUrl("/api/user/upload-photo"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -308,7 +309,7 @@ export default function ProfilePage() {
       reader.onloadend = async () => {
         const base64String = reader.result as string;
 
-        const uploadResponse = await fetch(getApiUrl("/api/user/upload-photo"), {
+        const uploadResponse = await apiFetch(getApiUrl("/api/user/upload-photo"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -346,7 +347,7 @@ export default function ProfilePage() {
     setSuccess("");
 
     try {
-      const response = await fetch(getApiUrl("/api/user/profile"), {
+      const response = await apiFetch(getApiUrl("/api/user/profile"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
