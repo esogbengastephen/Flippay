@@ -64,19 +64,6 @@ export default function AuthPage() {
     }
   }, [mode]);
 
-  // Check for passkey when email changes (debounced)
-  useEffect(() => {
-    if (!email || mode !== "login") return;
-
-    const timeoutId = setTimeout(() => {
-      if (email.includes("@")) {
-        checkPasskeyForEmail(email);
-      }
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [email, mode]);
-
   // Function to check if user has passkey
   const checkPasskeyForEmail = async (emailToCheck: string) => {
     if (!emailToCheck || !emailToCheck.includes("@")) return;

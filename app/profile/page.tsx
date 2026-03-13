@@ -314,14 +314,14 @@ export default function ProfilePage() {
           body: JSON.stringify({
             userId: user.id,
             image: base64String,
-            filename: "business-logo.jpg",
+            type: "business",
           }),
         });
 
         const uploadData = await uploadResponse.json();
 
-        if (uploadData.success && uploadData.url) {
-          setBusinessLogoUrl(uploadData.url);
+        if (uploadData.success && uploadData.photoUrl) {
+          setBusinessLogoUrl(uploadData.photoUrl);
           setShowBusinessLogoCrop(false);
           setBusinessImageSrc("");
           setSuccess("Business logo uploaded successfully!");

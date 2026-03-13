@@ -559,7 +559,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       // Payment not found yet
       setModalData({
         title: "Payment Not Confirmed Yet",
-        message: "We haven't received your transfer yet. Please wait a moment and try again, or keep waiting — we'll detect it automatically.",
+        message: "We haven't received your transfer yet. Confirmation can take up to 15 minutes. Please wait and try again, or keep waiting — we'll detect it automatically.",
         type: "info",
       });
       setShowModal(true);

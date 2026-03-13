@@ -474,8 +474,8 @@ export default function UserDashboard() {
   const handleDepositOptionClick = (option: "send" | "receive") => {
     setShowDepositOptions(false);
     if (option === "send") {
-      // Send Naira to buy crypto (Naira to Crypto flow)
-      setShowCryptoOptions(true);
+      // Go straight to Send page
+      router.push("/send");
     } else {
       // Receive crypto - get wallet address
       router.push("/receive");
@@ -705,16 +705,14 @@ export default function UserDashboard() {
                 className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
               >
                 <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">send</span>
-                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">Send</span>
-                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Send Crypto</span>
+                <span className="text-[9px] font-bold text-accent leading-tight truncate max-w-full">Send</span>
               </button>
               <button
                 onClick={() => router.push("/receive")}
                 className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
               >
                 <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">call_received</span>
-                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">Receive</span>
-                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Get Address</span>
+                <span className="text-[9px] font-bold text-accent leading-tight truncate max-w-full">Receive</span>
               </button>
               <button
                 onClick={() => canUseCryptoToNaira && handleServiceClick(services[0])}
@@ -722,16 +720,14 @@ export default function UserDashboard() {
                 disabled={!canUseCryptoToNaira}
               >
                 <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">account_balance</span>
-                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">To Naira</span>
-                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Withdraw</span>
+                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">Withdraw</span>
               </button>
               <button
                 onClick={() => handleServiceClick(services[1])}
                 className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0 py-1.5 rounded-lg bg-primary/40 border border-accent/10 hover:border-secondary/30 transition-all group cursor-pointer"
               >
                 <span className="material-icons-outlined text-sm text-white group-hover:scale-110 transition-transform">swap_vert</span>
-                <span className="text-[9px] font-semibold text-accent leading-tight truncate max-w-full">To Crypto</span>
-                <span className="text-[7px] text-secondary/80 leading-tight truncate max-w-full">Buy</span>
+                <span className="text-[9px] font-bold text-accent leading-tight truncate max-w-full">Buy</span>
               </button>
             </div>
           </div>

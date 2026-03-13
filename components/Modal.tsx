@@ -39,13 +39,13 @@ function Modal({
   const typeStyles = {
     success: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
     error: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
-    info: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
+    info: "bg-secondary/10 dark:bg-secondary/20 border-secondary/30 dark:border-secondary/40",
   };
 
   const iconStyles = {
     success: "text-green-600 dark:text-green-400",
     error: "text-red-600 dark:text-red-400",
-    info: "text-blue-600 dark:text-blue-400",
+    info: "text-secondary",
   };
 
   return (
@@ -94,7 +94,7 @@ function Modal({
         
         <button
           onClick={onClose}
-          className="w-full bg-primary text-slate-900 font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity"
+          className="w-full bg-secondary text-primary font-bold py-2 px-4 rounded-md hover:opacity-90 transition-opacity"
         >
           OK
         </button>

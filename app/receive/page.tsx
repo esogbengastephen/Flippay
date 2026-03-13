@@ -80,6 +80,7 @@ export default function ReceivePage() {
       if (data.success && data.data) {
         setVirtualAccount({
           accountNumber: data.data.accountNumber,
+          accountName: data.data.accountName ?? null,
           bankName: data.data.bankName,
         });
       }
@@ -624,19 +625,27 @@ export default function ReceivePage() {
                             setCopied(true);
                             setTimeout(() => setCopied(false), 2000);
                           }}
-                          className={`p-3 rounded-2xl transition-colors ${
+                          className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-colors shrink-0 ${
                             copied ? "bg-secondary/80" : "bg-primary hover:bg-primary/80 border border-accent/10"
                           }`}
                         >
-                          <span className="material-icons-outlined text-secondary">
+                          <span className="material-icons-outlined text-secondary text-lg sm:text-xl">
                             {copied ? "check" : "content_copy"}
                           </span>
                         </button>
                       </div>
-                      <div className="pt-4 border-t border-accent/10">
-                        <p className="text-xs text-accent/60 mb-1 font-medium">Bank Name</p>
-                        <p className="text-sm font-semibold text-white">
-                          {virtualAccount.bankName || "Wema Bank"}
+                      {virtualAccount.accountName && (
+                        <div className="pt-3 sm:pt-4 border-t border-accent/10">
+                          <p className="text-xs text-accent/60 mb-0.5 sm:mb-1 font-medium">Account Name</p>
+                          <p className="text-sm sm:text-base font-semibold text-white break-words min-w-0">
+                            {virtualAccount.accountName}
+                          </p>
+                        </div>
+                      )}
+                      <div className="pt-3 sm:pt-4 border-t border-accent/10">
+                        <p className="text-xs text-accent/60 mb-0.5 sm:mb-1 font-medium">Bank Name</p>
+                        <p className="text-sm sm:text-base font-semibold text-white min-w-0">
+                          {virtualAccount.bankName || "ZainBank"}
                         </p>
                       </div>
                     </div>
@@ -669,7 +678,7 @@ export default function ReceivePage() {
                     <div className="mt-4 sm:mt-6 p-4 sm:p-8 rounded-xl sm:rounded-2xl bg-primary/40 border border-accent/10 flex flex-col items-center justify-center">
                       <div className="w-36 h-36 sm:w-48 sm:h-48 bg-white rounded-lg sm:rounded-xl flex items-center justify-center mb-3 sm:mb-4 p-2 sm:p-4">
                         <QRCodeSVG
-                          value={`${virtualAccount.accountNumber}|${virtualAccount.bankName || "Wema Bank"}`}
+                          value={`${virtualAccount.accountNumber}|${virtualAccount.bankName || "ZainBank"}`}
                           size={qrSize}
                           level="H"
                           includeMargin={true}
@@ -684,7 +693,7 @@ export default function ReceivePage() {
                         {virtualAccount.accountNumber}
                       </p>
                       <p className="text-xs text-accent/60 text-center mt-0.5 sm:mt-1">
-                        {virtualAccount.bankName || "Wema Bank"}
+                        {virtualAccount.bankName || "ZainBank"}
                       </p>
                     </div>
                   )}

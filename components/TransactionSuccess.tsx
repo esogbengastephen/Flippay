@@ -110,15 +110,15 @@ export default function TransactionSuccess({
         }}
       />
 
-      <div className="w-full max-w-sm flex flex-col items-center py-12 relative">
+      <div className="w-full max-w-sm flex flex-col items-center py-8 sm:py-12 relative">
         {/* ── Success Icon ── */}
-        <div className="relative mb-7">
+        <div className="relative mb-5 sm:mb-7">
           <div
             className="absolute inset-0 rounded-full animate-ping opacity-40"
             style={{ background: "rgba(19,236,90,0.2)" }}
           />
           <div
-            className="relative w-24 h-24 rounded-full flex items-center justify-center"
+            className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center"
             style={{
               background: "rgba(19,236,90,0.1)",
               border: "1.5px solid rgba(19,236,90,0.45)",
@@ -127,8 +127,7 @@ export default function TransactionSuccess({
             }}
           >
             <span
-              className="material-icons-outlined"
-              style={{ fontSize: "52px", color: "#13EC5A" }}
+              className="material-icons-outlined text-[40px] sm:text-[52px] text-[#13EC5A]"
             >
               check_circle
             </span>
@@ -136,16 +135,16 @@ export default function TransactionSuccess({
         </div>
 
         {/* ── Headline ── */}
-        <h1 className="text-2xl font-bold tracking-tight mb-1" style={{ color: "#E2E8F0" }}>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1" style={{ color: "#E2E8F0" }}>
           Transaction Successful
         </h1>
-        <p className="text-sm mb-7" style={{ color: "rgba(226,232,240,0.5)" }}>
+        <p className="text-sm mb-5 sm:mb-7" style={{ color: "rgba(226,232,240,0.5)" }}>
           Your transfer has been processed
         </p>
 
         {/* ── Amount ── */}
         <div
-          className="text-4xl font-extrabold mb-8 tracking-tight"
+          className="text-3xl sm:text-4xl font-extrabold mb-6 sm:mb-8 tracking-tight"
           style={{ color: "#13EC5A" }}
         >
           {formattedAmount}
@@ -153,7 +152,7 @@ export default function TransactionSuccess({
 
         {/* ── Detail Card ── */}
         <div
-          className="w-full rounded-2xl px-5 mb-8"
+          className="w-full rounded-2xl px-5 mb-6 sm:mb-8"
           style={{
             background: "rgba(14,35,22,0.75)",
             backdropFilter: "blur(16px)",
@@ -224,7 +223,7 @@ export default function TransactionSuccess({
         <div className="w-full flex flex-col gap-3">
           <button
             onClick={() => router.push("/")}
-            className="w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-[0.97]"
+            className="w-full py-3 sm:py-4 rounded-2xl font-bold text-base transition-all active:scale-[0.97]"
             style={{
               background: "#13EC5A",
               color: "#05110B",
@@ -236,7 +235,7 @@ export default function TransactionSuccess({
 
           <button
             onClick={onSendAgain}
-            className="w-full py-4 rounded-2xl font-bold text-base transition-all active:scale-[0.97]"
+            className="w-full py-3 sm:py-4 rounded-2xl font-bold text-base transition-all active:scale-[0.97]"
             style={{
               background: "rgba(19,236,90,0.07)",
               color: "#13EC5A",
