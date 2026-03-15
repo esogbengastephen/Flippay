@@ -137,19 +137,19 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+      <h3 className="text-lg font-bold text-white">
         Connect Wallet to Access Admin Panel
       </h3>
-      <p className="text-sm text-slate-600 dark:text-slate-400">
+      <p className="text-sm text-white/70">
         Please connect your wallet to verify admin access
       </p>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {connectors.map((connector) => (
           <button
             key={connector.id}
             onClick={() => connect({ connector })}
             disabled={isPending}
-            className="w-full bg-primary text-slate-900 font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-secondary text-background-dark font-bold py-3 px-4 rounded-lg border border-secondary/50 hover:bg-secondary/90 hover:border-secondary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(19,236,90,0.2)]"
           >
             {isPending ? (
               <>
@@ -158,7 +158,7 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
               </>
             ) : (
               <>
-                <span className="material-icons-outlined">account_balance_wallet</span>
+                <span className="material-icons-outlined text-background-dark">account_balance_wallet</span>
                 Connect {connector.name}
               </>
             )}

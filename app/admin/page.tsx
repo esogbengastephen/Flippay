@@ -348,7 +348,7 @@ export default function AdminDashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-surface">
       {/* Header controls */}
-      <header className="h-20 flex items-center justify-between gap-4 px-6 lg:px-8 border-b border-accent/10 bg-surface/95 backdrop-blur z-10">
+      <header className="h-14 sm:h-20 flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 lg:px-8 border-b border-accent/10 bg-surface/95 backdrop-blur z-10">
         <div className="relative hidden sm:block flex-1 min-w-0 max-w-xs">
             <span className="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white">search</span>
             <input
@@ -365,7 +365,7 @@ export default function AdminDashboard() {
         </button>
       </header>
 
-      <div className="flex-1 overflow-auto pt-6 px-6 lg:px-8 pb-6 lg:pb-8">
+      <div className="flex-1 overflow-auto pt-4 sm:pt-6 px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 overflow-x-hidden">
         {/* Top 3 Stats - Flippay card style */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {topStats.map((stat, index) => (
@@ -481,14 +481,14 @@ export default function AdminDashboard() {
             <Link href="/admin/transactions" className="text-xs text-secondary hover:underline">View All</Link>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-accent/70">
+            <table className="w-full min-w-[500px] text-left text-sm text-accent/70">
               <thead className="bg-accent/5 text-xs uppercase font-medium text-white">
                 <tr>
-                  <th className="px-6 py-4">Event Type</th>
-                  <th className="px-6 py-4">User / ID</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Timestamp</th>
-                  <th className="px-6 py-4 text-right">Action</th>
+                  <th className="px-4 sm:px-6 py-3 sm:py-4">Event Type</th>
+                  <th className="px-4 sm:px-6 py-3 sm:py-4">User / ID</th>
+                  <th className="px-4 sm:px-6 py-3 sm:py-4">Status</th>
+                  <th className="px-4 sm:px-6 py-3 sm:py-4">Timestamp</th>
+                  <th className="px-4 sm:px-6 py-3 sm:py-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-accent/10">
@@ -503,7 +503,7 @@ export default function AdminDashboard() {
                 ) : (
                   recentActivities.slice(0, 5).map((activity, i) => (
                     <tr key={i} className="hover:bg-accent/5 transition-colors">
-                      <td className="px-6 py-4 flex items-center gap-3">
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
                         <span className={`w-2 h-2 rounded-full ${
                           activity.type === "completed" ? "bg-secondary shadow-[0_0_5px_rgba(19,236,90,0.8)]" :
                           activity.type === "failed" ? "bg-red-500" : "bg-yellow-500"
@@ -520,8 +520,8 @@ export default function AdminDashboard() {
                           {activity.type === "completed" ? "Completed" : activity.type === "failed" ? "Failed" : "Pending"}
                         </span>
                       </td>
-                      <td className="px-6 py-4">{activity.time}</td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-nowrap">{activity.time}</td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-right">
                         {activity.txHash ? (
                           <a href={`https://basescan.org/tx/${activity.txHash}`} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline">
                             Details

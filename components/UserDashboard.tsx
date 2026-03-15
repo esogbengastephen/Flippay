@@ -138,6 +138,11 @@ export default function UserDashboard() {
   // Generate Invoice: available to all users
   const canUseGenerateInvoice = true;
 
+  // Buy Airtime: allow access for specific emails
+  const BUY_AIRTIME_ALLOWED_EMAILS = ["esogbengastephen@gmail.com"];
+  const userEmail = (user?.email ?? userProfile?.email ?? dashboardData?.user?.email ?? "").toString().toLowerCase();
+  const canUseBuyAirtime = BUY_AIRTIME_ALLOWED_EMAILS.includes(userEmail);
+
   // Helper function to extract first name from email
   const getFirstNameFromEmail = (email: string | undefined | null): string => {
     if (!email) return "User";
@@ -799,7 +804,9 @@ export default function UserDashboard() {
             })}
             {servicesExpanded &&
               secondaryServices.map((svc) => {
-                const isComingSoon = ["buy-data", "buy-airtime", "pay-betting", "tv-sub", "buy-electricity", "gift-card-redeem"].includes(svc.id);
+                const isComingSoon =
+                  (svc.id === "buy-airtime" && !canUseBuyAirtime) ||
+                  ["buy-data", "pay-betting", "tv-sub", "buy-electricity", "gift-card-redeem"].includes(svc.id);
                 return (
                   <ServiceButton
                     key={svc.id}

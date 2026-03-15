@@ -24,6 +24,10 @@ interface User {
   kycTierInfo?: any;
   hasBVN?: boolean;
   canUpgrade?: boolean;
+  zainpay_virtual_account_number?: string | null;
+  zainpay_virtual_account_bank?: string | null;
+  zainpay_virtual_account_name?: string | null;
+  zainpay_virtual_account_created_at?: string | null;
 }
 
 interface Pagination {
@@ -269,11 +273,11 @@ export default function KYCManagementPage() {
             <tbody className="divide-y divide-accent/10">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-accent/60">Loading...</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-accent/60">Loading...</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-accent/60">No users found</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-accent/60">No users found</td>
                 </tr>
               ) : (
                 users.map((user) => {
@@ -325,6 +329,20 @@ export default function KYCManagementPage() {
                           <span className="text-secondary text-xs font-bold">✓ Verified</span>
                         ) : (
                           <span className="text-amber-500 text-xs font-bold">Not Verified</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {user.zainpay_virtual_account_number ? (
+                          <div className="text-xs">
+                            <p className="font-mono text-white font-medium">
+                              {user.zainpay_virtual_account_number}
+                            </p>
+                            <p className="text-accent/50">
+                              {user.zainpay_virtual_account_bank || "ZainBank"}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-accent/50">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-accent/80 text-xs">

@@ -23,6 +23,7 @@ export default function BuyAirtimePage() {
         icon="phone_android"
         networks={["MTN", "Airtel", "Glo", "9mobile"]}
         placeholder="Enter phone number"
+        allowMultipleNumbers={true}
       />
     </DashboardLayout>
   );

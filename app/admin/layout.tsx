@@ -100,7 +100,7 @@ function AdminLayoutContent({
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-primary p-2 rounded-lg border border-accent/10"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-50 lg:hidden bg-primary p-2.5 rounded-lg border border-accent/10 touch-manipulation"
         aria-label="Toggle menu"
       >
         <span className="material-icons-outlined text-white">
@@ -189,13 +189,13 @@ function AdminLayoutContent({
 
         <div className="p-4 border-t border-accent/10 flex-shrink-0">
           {address ? (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="h-9 w-9 rounded-full bg-primary border border-accent/20 flex items-center justify-center text-white text-xs font-mono">
                 {address.slice(2, 6)}
               </div>
-              <div className="text-sm min-w-0">
+              <div className="text-sm min-w-0 flex-1">
                 <p className="font-bold text-white truncate">{role === "super_admin" ? "Super Admin" : "Admin"}</p>
-                <p className="text-xs text-secondary truncate">{address.slice(0, 10)}...</p>
+                <p className="text-xs text-secondary truncate font-mono">{address.slice(0, 12)}...{address.slice(-6)}</p>
               </div>
               <button
                 onClick={() => {
@@ -225,7 +225,7 @@ function AdminLayoutContent({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden pt-16 lg:pt-0 lg:ml-64">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden pt-14 sm:pt-16 lg:pt-0 lg:ml-64">
         {!loadingMe && pathname && !canAccessCurrentPage ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
             <span className="material-icons-outlined text-6xl text-white mb-4">lock</span>
@@ -243,13 +243,13 @@ function AdminLayoutContent({
         ) : (
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
             {/* Sticky Top Bar - page title (h-20 matches sidebar header for aligned divider) */}
-            <header className="sticky top-0 z-20 flex-shrink-0 h-20 flex items-center bg-surface/95 backdrop-blur-md border-b border-accent/10 px-6 lg:px-8">
-              <h1 className="text-xl font-bold text-white tracking-tight">
+            <header className="sticky top-0 z-20 flex-shrink-0 h-14 sm:h-20 flex items-center bg-surface/95 backdrop-blur-md border-b border-accent/10 px-4 sm:px-6 lg:px-8">
+              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight truncate">
                 {pathname ? getAdminPageTitle(pathname) : "Admin"}
               </h1>
             </header>
             {/* Content */}
-            <div className="flex-1 pt-4 px-6 lg:px-8 pb-6 lg:pb-8">
+            <div className="flex-1 pt-4 px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 overflow-x-hidden">
               {children}
             </div>
           </div>

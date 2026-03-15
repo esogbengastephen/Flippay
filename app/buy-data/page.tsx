@@ -24,6 +24,7 @@ export default function BuyDataPage() {
         networks={["MTN", "Airtel", "Glo", "9mobile"]}
         placeholder="Enter phone number"
         showPackageDropdown={true}
+        allowMultipleNumbers={true}
       />
     </DashboardLayout>
   );

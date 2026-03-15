@@ -26,6 +26,7 @@ interface UtilityFormProps {
   placeholder?: string;
   showPackageDropdown?: boolean; // For TV subscriptions
   productMap?: Record<string, GiftCardProduct>; // For gift card products from Reloadly
+  allowMultipleNumbers?: boolean; // For airtime/data: comma/space separated, auto-detect network per number
 }
 
 export default function UtilityForm({
@@ -36,6 +37,7 @@ export default function UtilityForm({
   placeholder = "Enter phone number",
   showPackageDropdown = false,
   productMap = {},
+  allowMultipleNumbers = false,
 }: UtilityFormProps) {
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -89,18 +91,26 @@ export default function UtilityForm({
     fetchServiceSettings();
   }, [serviceId]);
 
+  // For data multi-number: default to MTN for package list (backend maps mtn-1gb -> glo-1gb etc.)
+  useEffect(() => {
+    if (allowMultipleNumbers && serviceId === "data" && networks.includes("MTN")) {
+      setSelectedNetwork("MTN");
+    }
+  }, [allowMultipleNumbers, serviceId]);
+
   // Fetch packages when network is selected (for TV, Data, or Betting)
   useEffect(() => {
-    if (showPackageDropdown && selectedNetwork && (serviceId === "tv" || serviceId === "data" || serviceId === "betting")) {
+    const effectiveNetwork = allowMultipleNumbers && serviceId === "data" ? (selectedNetwork || "MTN") : selectedNetwork;
+    if (showPackageDropdown && effectiveNetwork && (serviceId === "tv" || serviceId === "data" || serviceId === "betting")) {
       if (serviceId === "tv") {
-        fetchTVPackages(selectedNetwork);
+        fetchTVPackages(effectiveNetwork);
       } else if (serviceId === "data") {
-        fetchDataPackages(selectedNetwork);
+        fetchDataPackages(effectiveNetwork);
       } else if (serviceId === "betting") {
-        fetchBettingPackages(selectedNetwork);
+        fetchBettingPackages(effectiveNetwork);
       }
     }
-  }, [selectedNetwork, showPackageDropdown, serviceId]);
+  }, [selectedNetwork, showPackageDropdown, serviceId, allowMultipleNumbers]);
 
   // Update amount when package is selected
   useEffect(() => {
@@ -117,7 +127,17 @@ export default function UtilityForm({
       const amountNum = parseFloat(amount);
       if (!isNaN(amountNum) && amountNum > 0) {
         const markup = serviceSettings.markup || 0;
-        const total = amountNum + (amountNum * markup / 100);
+        let count = 1;
+        if (allowMultipleNumbers && phoneNumber.trim()) {
+          const parts = phoneNumber.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+          const valid = parts.filter((p) => {
+            const d = p.replace(/\D/g, "");
+            const n = d.startsWith("234") ? "0" + d.slice(3) : (d.length === 10 ? "0" + d : d);
+            return /^0[789][01]\d{8}$/.test(n);
+          });
+          count = Math.max(1, valid.length);
+        }
+        const total = (amountNum + (amountNum * markup / 100)) * count;
         setCalculatedTotal(total);
       } else {
         setCalculatedTotal(0);
@@ -125,7 +145,7 @@ export default function UtilityForm({
     } else {
       setCalculatedTotal(0);
     }
-  }, [amount, serviceSettings]);
+  }, [amount, serviceSettings, allowMultipleNumbers, phoneNumber]);
 
   const fetchServiceSettings = async () => {
     setLoadingSettings(true);
@@ -278,8 +298,22 @@ export default function UtilityForm({
         setError("Please enter a valid meter number (10-15 alphanumeric characters)");
         return false;
       }
+    } else if (allowMultipleNumbers) {
+      const parts = phoneNumber.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+      if (parts.length === 0) {
+        setError("Please enter at least one phone number");
+        return false;
+      }
+      const phoneRegex = /^(0|\+234)?[789][01]\d{8}$/;
+      for (const p of parts) {
+        const cleaned = p.replace(/\D/g, "");
+        const normalized = cleaned.startsWith("234") ? "0" + cleaned.slice(3) : (cleaned.length === 10 ? "0" + cleaned : cleaned);
+        if (!/^0[789][01]\d{8}$/.test(normalized)) {
+          setError(`Invalid number: ${p}. Use Nigerian format (e.g. 08012345678)`);
+          return false;
+        }
+      }
     } else {
-      // Basic phone number validation (Nigerian format)
       const phoneRegex = /^(0|\+234)[789][01]\d{8}$/;
       const cleanedPhone = phoneNumber.replace(/\s/g, "");
       if (!phoneRegex.test(cleanedPhone)) {
@@ -305,7 +339,7 @@ export default function UtilityForm({
       }
     }
 
-    if (networks.length > 0 && !selectedNetwork) {
+    if (networks.length > 0 && !allowMultipleNumbers && !selectedNetwork) {
       setError("Please select a network");
       return false;
     }
@@ -343,10 +377,11 @@ export default function UtilityForm({
         },
         body: JSON.stringify({
           serviceId,
-          phoneNumber: phoneNumber.replace(/\s/g, ""),
-          network: selectedNetwork || null,
+          phoneNumber: allowMultipleNumbers ? undefined : phoneNumber.replace(/\s/g, ""),
+          phoneNumbers: allowMultipleNumbers ? phoneNumber.trim() : undefined,
+          network: allowMultipleNumbers ? undefined : (selectedNetwork || null),
           packageId: selectedPackage || null,
-          amount: serviceId === "gift-card-redeem" ? 0 : parseFloat(amount), // Amount will be determined from gift card code
+          amount: serviceId === "gift-card-redeem" ? 0 : parseFloat(amount),
           userId: user.id,
         }),
       });
@@ -615,8 +650,8 @@ export default function UtilityForm({
         {/* Form Card - glass style like offramp */}
         <div className="bg-surface/60 backdrop-blur-[24px] rounded-[2.5rem] p-6 sm:p-8 border border-secondary/10 shadow-2xl relative overflow-hidden">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Network Selection */}
-            {networks.length > 0 && (
+            {/* Network Selection - hidden when allowMultipleNumbers (auto-detect per number) */}
+            {networks.length > 0 && !allowMultipleNumbers && (
               <div ref={networkDropdownRef} className="relative">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
                   Select Network
@@ -826,7 +861,7 @@ export default function UtilityForm({
             {/* Phone Number / Gift Card Code */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
-                {placeholder}
+                {allowMultipleNumbers ? "Phone numbers (comma or space separated)" : placeholder}
               </label>
               <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
                 <span className="material-icons-outlined text-accent/40">
@@ -836,7 +871,7 @@ export default function UtilityForm({
                   type="text"
                   value={phoneNumber}
                   onChange={(e) => {
-                    if (serviceId === "gift-card-redeem" || serviceId === "electricity") {
+                    if (serviceId === "gift-card-redeem" || serviceId === "electricity" || allowMultipleNumbers) {
                       setPhoneNumber(e.target.value);
                     } else {
                       setPhoneNumber(formatPhoneNumber(e.target.value));
@@ -847,9 +882,11 @@ export default function UtilityForm({
                       ? "Enter gift card code"
                       : serviceId === "electricity"
                       ? "Enter meter number"
-                      : placeholder || "08012345678 or +2348012345678"
+                      : allowMultipleNumbers
+                      ? "08012345678, 08087654321, 08123456789"
+                      : (placeholder || "08012345678 or +2348012345678")
                   }
-                  maxLength={serviceId === "gift-card-redeem" ? 50 : serviceId === "electricity" ? 15 : 14}
+                  maxLength={serviceId === "gift-card-redeem" ? 50 : serviceId === "electricity" ? 15 : (allowMultipleNumbers ? 500 : 14)}
                   className="flex-1 bg-transparent border-none p-0 text-white placeholder-white/30 focus:ring-0 outline-none"
                   required
                 />
