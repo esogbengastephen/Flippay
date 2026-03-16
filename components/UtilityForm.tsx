@@ -44,6 +44,8 @@ export default function UtilityForm({
   const [selectedNetwork, setSelectedNetwork] = useState(networks[0] || "");
   const [selectedPackage, setSelectedPackage] = useState("");
   const [packages, setPackages] = useState<any[]>([]);
+  const [durations, setDurations] = useState<Array<{ days: number; label: string }>>([]);
+  const [selectedDurationDays, setSelectedDurationDays] = useState<number | null>(null);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -55,6 +57,11 @@ export default function UtilityForm({
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const networkDropdownRef = useRef<HTMLDivElement>(null);
   const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
+  const [couponCode, setCouponCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponValid, setCouponValid] = useState<{ code: string; amount: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const couponTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -91,6 +98,36 @@ export default function UtilityForm({
     fetchServiceSettings();
   }, [serviceId]);
 
+  // Live coupon validation — debounced 600ms after user stops typing
+  useEffect(() => {
+    if (couponTimerRef.current) clearTimeout(couponTimerRef.current);
+    const trimmed = couponCode.trim();
+    if (!trimmed) {
+      setCouponValid(null);
+      setCouponError(null);
+      return;
+    }
+    couponTimerRef.current = setTimeout(async () => {
+      setCouponLoading(true);
+      setCouponValid(null);
+      setCouponError(null);
+      try {
+        const res = await fetch(getApiUrl(`/api/coupons/validate?code=${encodeURIComponent(trimmed)}`));
+        const data = await res.json();
+        if (data.valid) {
+          setCouponValid({ code: data.code, amount: data.amount });
+        } else {
+          setCouponError(data.error || "Invalid coupon");
+        }
+      } catch {
+        setCouponError("Could not validate coupon");
+      } finally {
+        setCouponLoading(false);
+      }
+    }, 600);
+    return () => { if (couponTimerRef.current) clearTimeout(couponTimerRef.current); };
+  }, [couponCode]);
+
   // For data multi-number: default to MTN for package list (backend maps mtn-1gb -> glo-1gb etc.)
   useEffect(() => {
     if (allowMultipleNumbers && serviceId === "data" && networks.includes("MTN")) {
@@ -121,6 +158,17 @@ export default function UtilityForm({
       }
     }
   }, [selectedPackage, packages]);
+
+  // When duration tab changes, clear selection if current package is not in filtered list (data only)
+  useEffect(() => {
+    if (serviceId !== "data" || !selectedPackage || selectedDurationDays == null) return;
+    const filtered = packages.filter((p: any) => p.durationDays === selectedDurationDays);
+    const stillInList = filtered.some((p: any) => p.id === selectedPackage || p.name === selectedPackage);
+    if (!stillInList) {
+      setSelectedPackage("");
+      setAmount("");
+    }
+  }, [selectedDurationDays, serviceId, packages, selectedPackage]);
 
   useEffect(() => {
     if (amount && serviceSettings) {
@@ -383,6 +431,7 @@ export default function UtilityForm({
           packageId: selectedPackage || null,
           amount: serviceId === "gift-card-redeem" ? 0 : parseFloat(amount),
           userId: user.id,
+          couponCode: couponCode.trim() || undefined,
         }),
       });
 
@@ -468,6 +517,8 @@ export default function UtilityForm({
     setLoadingPackages(true);
     setSelectedPackage("");
     setAmount("");
+    setDurations([]);
+    setSelectedDurationDays(null);
     
     try {
       const response = await fetch(getApiUrl(`/api/utility/data-packages?network=${encodeURIComponent(network)}`));
@@ -475,6 +526,9 @@ export default function UtilityForm({
       
       if (data.success && data.packages) {
         setPackages(data.packages);
+        const dur = data.durations || [];
+        setDurations(dur);
+        setSelectedDurationDays(dur.length > 0 ? dur[0].days : null);
       } else {
         setError("Failed to load data packages. Please try again.");
         setPackages([]);
@@ -824,41 +878,7 @@ export default function UtilityForm({
               </div>
             )}
 
-            {/* Package Selection */}
-            {showPackageDropdown && selectedNetwork && (
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
-                  Select Package
-                </label>
-                {loadingPackages ? (
-                  <div className="w-full rounded-3xl border border-accent/10 bg-primary/40 px-5 py-4 flex items-center gap-2">
-                    <FSpinner size="xs" />
-                    <span className="text-sm text-accent/70">Loading packages...</span>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedPackage}
-                    onChange={(e) => setSelectedPackage(e.target.value)}
-                    className="w-full rounded-3xl border border-accent/10 bg-primary/40 text-white px-5 py-4 focus:border-secondary/30 focus:ring-0 outline-none"
-                    required
-                  >
-                    <option value="" className="bg-primary text-white">Select a package</option>
-                    {packages.map((pkg) => (
-                      <option key={pkg.id || pkg.name} value={pkg.id || pkg.name} className="bg-primary text-white">
-                        {pkg.name} {pkg.amount ? `- ₦${pkg.amount.toLocaleString()}` : ""} {pkg.data ? `(${pkg.data})` : ""} {pkg.validity ? `- ${pkg.validity}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {packages.length === 0 && !loadingPackages && selectedNetwork && (
-                  <p className="text-xs text-accent/50 mt-1">
-                    No packages available for {selectedNetwork}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Phone Number / Gift Card Code */}
+            {/* Phone Number / Gift Card Code - above Data Plans when data service */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
                 {allowMultipleNumbers ? "Phone numbers (comma or space separated)" : placeholder}
@@ -893,11 +913,184 @@ export default function UtilityForm({
               </div>
             </div>
 
-            {/* Amount */}
+            {/* Package Selection - after phone number (data plans in app colors, no cashback) */}
+            {showPackageDropdown && selectedNetwork && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                  {serviceId === "data" ? "Data Plans" : "Select Package"}
+                </label>
+                {loadingPackages ? (
+                  <div className="w-full rounded-3xl border border-accent/10 bg-primary/40 px-5 py-4 flex items-center gap-2">
+                    <FSpinner size="xs" />
+                    <span className="text-sm text-accent/70">Loading packages...</span>
+                  </div>
+                ) : serviceId === "data" && packages.length > 0 ? (
+                  <>
+                    {durations.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3 border-b border-surface-highlight/30 pb-3">
+                        {durations.map((d) => {
+                          const isActive = selectedDurationDays === d.days;
+                          return (
+                            <button
+                              key={d.days}
+                              type="button"
+                              onClick={() => setSelectedDurationDays(d.days)}
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                                isActive
+                                  ? "bg-secondary text-primary border-b-2 border-secondary"
+                                  : "bg-primary/40 text-accent/80 hover:bg-primary/60 border-b-2 border-transparent"
+                              }`}
+                            >
+                              {d.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {(selectedDurationDays != null
+                      ? packages.filter((p: any) => p.durationDays === selectedDurationDays)
+                      : packages
+                    ).map((pkg) => {
+                      const pkgId = pkg.id || pkg.name;
+                      const isSelected = selectedPackage === pkgId;
+                      return (
+                        <button
+                          key={pkgId}
+                          type="button"
+                          onClick={() => setSelectedPackage(pkgId)}
+                          className={`text-left rounded-2xl overflow-hidden bg-primary/80 border-2 transition-all shadow-md hover:shadow-lg border-surface-highlight hover:border-secondary/40 ${
+                            isSelected ? "border-secondary ring-2 ring-secondary/30" : "border-accent/10"
+                          }`}
+                        >
+                          <div className="p-3 pb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-lg font-bold text-white">
+                                {pkg.data || pkg.name?.split(" ")[0] || "—"}
+                              </span>
+                            </div>
+                            <p className="text-xs text-accent/80 mt-1 line-clamp-2">
+                              {pkg.name || `${pkg.data || ""} valid for ${pkg.validity || ""}`}
+                            </p>
+                          </div>
+                          <div className="flex bg-secondary/20 border-t border-secondary/20 px-3 py-2">
+                            <div className="flex-1">
+                              <p className="text-[10px] uppercase tracking-wide text-accent/70">Price</p>
+                              <p className="text-sm font-bold text-white">
+                                ₦{pkg.amount != null ? Number(pkg.amount).toLocaleString() : "—"}
+                              </p>
+                            </div>
+                            <div className="flex-1 text-right">
+                              <p className="text-[10px] uppercase tracking-wide text-accent/70">Validity</p>
+                              <p className="text-sm font-bold text-white">
+                                {pkg.validity || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  </>
+                ) : serviceId !== "data" ? (
+                  <select
+                    value={selectedPackage}
+                    onChange={(e) => setSelectedPackage(e.target.value)}
+                    className="w-full rounded-3xl border border-accent/10 bg-primary/40 text-white px-5 py-4 focus:border-secondary/30 focus:ring-0 outline-none"
+                    required
+                  >
+                    <option value="" className="bg-primary text-white">Select a package</option>
+                    {packages.map((pkg) => (
+                      <option key={pkg.id || pkg.name} value={pkg.id || pkg.name} className="bg-primary text-white">
+                        {pkg.name} {pkg.amount ? `- ₦${pkg.amount.toLocaleString()}` : ""} {pkg.data ? `(${pkg.data})` : ""} {pkg.validity ? `- ${pkg.validity}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {packages.length === 0 && !loadingPackages && selectedNetwork && (
+                  <p className="text-xs text-accent/50 mt-1">
+                    No packages available for {selectedNetwork}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Coupon code — before amount so discount shows in breakdown below */}
             {serviceId !== "gift-card-redeem" && (
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
-                  Amount (₦)
+                  Coupon Code <span className="normal-case font-normal text-accent/40">(optional)</span>
+                </label>
+                <div className={`flex items-center gap-3 p-4 rounded-3xl border bg-primary/40 transition-all focus-within:bg-primary/60 ${
+                  couponValid ? "border-secondary/60" : couponError ? "border-red-500/40" : "border-accent/10 focus-within:border-secondary/30"
+                }`}>
+                  <span className={`material-icons-outlined text-lg ${couponValid ? "text-secondary" : couponError ? "text-red-400" : "text-accent/40"}`}>
+                    confirmation_number
+                  </span>
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. FP-XXXX-XXXX"
+                    className="flex-1 bg-transparent border-none p-0 text-white font-mono placeholder-white/30 focus:ring-0 outline-none text-sm"
+                    aria-label="Coupon code"
+                  />
+                  {couponLoading && <FSpinner size="xs" />}
+                  {couponValid && !couponLoading && (
+                    <span className="material-icons-outlined text-secondary text-lg">check_circle</span>
+                  )}
+                </div>
+                {couponValid && (
+                  <p className="text-xs text-secondary mt-1 font-semibold">
+                    ✓ Coupon applied — ₦{couponValid.amount.toLocaleString()} discount
+                  </p>
+                )}
+                {couponError && !couponLoading && couponCode.trim() && (
+                  <p className="text-xs text-red-400 mt-1">{couponError}</p>
+                )}
+              </div>
+            )}
+
+            {/* Airtime: preset amount cards (same style as data plans) */}
+            {serviceId === "airtime" && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                  Select amount
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[50, 100, 200, 500, 1000, 2000].map((preset) => {
+                    const isSelected = amount === String(preset);
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setAmount(String(preset))}
+                        className={`text-left rounded-2xl overflow-hidden bg-primary/80 border-2 transition-all shadow-md hover:shadow-lg border-surface-highlight hover:border-secondary/40 ${
+                          isSelected ? "border-secondary ring-2 ring-secondary/30" : "border-accent/10"
+                        }`}
+                      >
+                        <div className="p-3 pb-2">
+                          <span className="text-lg font-bold text-white">₦{preset.toLocaleString()}</span>
+                          <p className="text-xs text-accent/80 mt-1">Airtime top-up</p>
+                        </div>
+                        <div className="flex bg-secondary/20 border-t border-secondary/20 px-3 py-2">
+                          <div className="flex-1">
+                            <p className="text-[10px] uppercase tracking-wide text-accent/70">Price</p>
+                            <p className="text-sm font-bold text-white">₦{preset.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Amount — for non-airtime or custom amount on airtime */}
+            {serviceId !== "gift-card-redeem" && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-accent/60 mb-2 px-1">
+                  {serviceId === "airtime" ? "Or enter custom amount (₦)" : "Amount (₦)"}
                 </label>
                 <div className="flex items-center gap-3 p-5 rounded-3xl bg-primary/40 border border-accent/10 focus-within:border-secondary/30 focus-within:bg-primary/60 transition-all">
                   <span className="material-icons-outlined text-accent/40">payments</span>
@@ -905,7 +1098,7 @@ export default function UtilityForm({
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder={showPackageDropdown ? "Select a package or enter amount" : "Enter amount"}
+                    placeholder={serviceId === "airtime" ? "e.g. 250" : (showPackageDropdown ? "Select a package or enter amount" : "Enter amount")}
                     min={serviceSettings.minAmount || 1}
                     max={serviceSettings.maxAmount || 1000000}
                     step="1"
@@ -950,10 +1143,23 @@ export default function UtilityForm({
                     </span>
                   </div>
                 )}
+                {couponValid && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-secondary font-semibold">Coupon ({couponValid.code}):</span>
+                    <span className="text-secondary font-semibold">
+                      −₦{Math.min(couponValid.amount, calculatedTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm pt-2 border-t border-accent/10">
-                  <span className="text-white font-bold">Total:</span>
-                  <span className="text-secondary font-bold text-lg">
-                    ₦{calculatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="text-white font-bold">You pay:</span>
+                  <span className={`font-bold text-lg ${couponValid ? "text-secondary" : "text-secondary"}`}>
+                    {couponValid
+                      ? (Math.max(0, calculatedTotal - couponValid.amount) === 0
+                        ? <span className="text-secondary">FREE 🎉</span>
+                        : `₦${Math.max(0, calculatedTotal - couponValid.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                      : `₦${calculatedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    }
                   </span>
                 </div>
               </div>

@@ -330,7 +330,7 @@ export default function PriceActionPage() {
   }, [address, coingeckoAutoPublishSell, coingeckoPrice, saving, profitNgnSendSell, profitNgnUsdcSell, profitNgnUsdtSell]);
 
   const publishCoingeckoPrice = async () => {
-    if (!address || !coingeckoPrice) return;
+    if (!address) return;
     setSaving(true);
     setError(null);
     setSuccess(false);
@@ -357,7 +357,28 @@ export default function PriceActionPage() {
         // Non-fatal: fall back to UI values already set above
       }
 
-      const baseSendToNgn = coingeckoPrice.ngn ?? coingeckoPrice.usd * 1500;
+      // Always fetch a fresh CoinGecko price at publish time so auto-publish uses current market price
+      let livePrice = coingeckoPrice;
+      try {
+        const cgRes = await fetch(getApiUrl("/api/admin/coingecko-price"), {
+          headers: { Authorization: `Bearer ${address}` },
+        });
+        const cgData = await cgRes.json();
+        if (cgData.success && cgData.price) {
+          livePrice = cgData.price;
+          setCoingeckoPrice(livePrice);
+        }
+      } catch {
+        // Non-fatal: fall back to cached state price
+      }
+
+      if (!livePrice) {
+        setError("CoinGecko price unavailable. Please try again.");
+        setSaving(false);
+        return;
+      }
+
+      const baseSendToNgn = livePrice.ngn ?? livePrice.usd * 1500;
       const sendToNgn = baseSendToNgn + profitSend;
       const ngnToSend = 1 / sendToNgn;
       const settingsRes = await fetch(getApiUrl("/api/admin/settings"), {
@@ -377,8 +398,8 @@ export default function PriceActionPage() {
         window.dispatchEvent(new CustomEvent("exchangeRateUpdated", { detail: { rate: ngnToSend } }));
       }
       const prices: Record<string, number> = {};
-      if (coingeckoPrice.USDC?.ngn != null) prices.USDC = coingeckoPrice.USDC.ngn + profitUsdc;
-      if (coingeckoPrice.USDT?.ngn != null) prices.USDT = coingeckoPrice.USDT.ngn + profitUsdt;
+      if (livePrice.USDC?.ngn != null) prices.USDC = livePrice.USDC.ngn + profitUsdc;
+      if (livePrice.USDT?.ngn != null) prices.USDT = livePrice.USDT.ngn + profitUsdt;
       if (Object.keys(prices).length > 0) {
         const tokenRes = await fetch(getApiUrl("/api/admin/token-prices"), {
           method: "PUT",
@@ -405,7 +426,7 @@ export default function PriceActionPage() {
 
   /** Publish CoinGecko + sell profit → update sell rates (SEND in settings, USDC/USDT in token_sell_prices). */
   const publishCoingeckoPriceSell = async () => {
-    if (!address || !coingeckoPrice) return;
+    if (!address) return;
     setSaving(true);
     setError(null);
     setSuccess(false);
@@ -432,7 +453,28 @@ export default function PriceActionPage() {
         // Non-fatal: fall back to UI values already set above
       }
 
-      const baseSendToNgn = coingeckoPrice.ngn ?? coingeckoPrice.usd * 1500;
+      // Always fetch a fresh CoinGecko price at publish time so auto-publish uses current market price
+      let livePrice = coingeckoPrice;
+      try {
+        const cgRes = await fetch(getApiUrl("/api/admin/coingecko-price"), {
+          headers: { Authorization: `Bearer ${address}` },
+        });
+        const cgData = await cgRes.json();
+        if (cgData.success && cgData.price) {
+          livePrice = cgData.price;
+          setCoingeckoPrice(livePrice);
+        }
+      } catch {
+        // Non-fatal: fall back to cached state price
+      }
+
+      if (!livePrice) {
+        setError("CoinGecko price unavailable. Please try again.");
+        setSaving(false);
+        return;
+      }
+
+      const baseSendToNgn = livePrice.ngn ?? livePrice.usd * 1500;
       const sendToNgnSell = baseSendToNgn + profitSend;
       const res = await fetch(getApiUrl("/api/admin/settings"), {
         method: "PUT",
@@ -447,8 +489,8 @@ export default function PriceActionPage() {
       }
       setSendToNgnSellRate(sendToNgnSell.toFixed(2));
       const prices: Record<string, number> = {};
-      if (coingeckoPrice.USDC?.ngn != null) prices.USDC = coingeckoPrice.USDC.ngn + profitUsdc;
-      if (coingeckoPrice.USDT?.ngn != null) prices.USDT = coingeckoPrice.USDT.ngn + profitUsdt;
+      if (livePrice.USDC?.ngn != null) prices.USDC = livePrice.USDC.ngn + profitUsdc;
+      if (livePrice.USDT?.ngn != null) prices.USDT = livePrice.USDT.ngn + profitUsdt;
       if (Object.keys(prices).length > 0) {
         const tokenRes = await fetch(getApiUrl("/api/admin/token-sell-prices"), {
           method: "PUT",

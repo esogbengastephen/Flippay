@@ -63,6 +63,7 @@ const services: Service[] = [
   { id: "tv-sub", name: "TV\nSub", icon: "tv", route: "/tv-sub" },
   { id: "buy-electricity", name: "Electricity", icon: "bolt", route: "/buy-electricity" },
   { id: "gift-card-redeem", name: "Gift Card\nRedeem", icon: "card_giftcard", route: "/gift-card-redeem" },
+  { id: "coupons", name: "Coupon", icon: "confirmation_number", route: "/coupons" },
 ];
 
 /** Token icon for price banner: round, compact; fallback when image fails */
@@ -127,8 +128,11 @@ export default function UserDashboard() {
   const [dashboardBanners, setDashboardBanners] = useState<{ id: string; title?: string | null; image_url: string; link_url: string | null }[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
 
-  // Primary services (first 4 visible by default); secondary shown after "See more"
-  const PRIMARY_SERVICE_IDS = ["crypto-to-naira", "naira-to-crypto", "flip-lend", "generate-invoice", "create-prediction", "buy-data"];
+  // Primary services: first 8 shown on PC (2 rows of 4); rest after "See more"
+  const PRIMARY_SERVICE_IDS = [
+    "crypto-to-naira", "naira-to-crypto", "flip-lend", "generate-invoice",
+    "create-prediction", "buy-data", "buy-airtime", "pay-betting",
+  ];
   const primaryServices = services.filter((s) => PRIMARY_SERVICE_IDS.includes(s.id));
   const secondaryServices = services.filter((s) => !PRIMARY_SERVICE_IDS.includes(s.id));
 
@@ -138,10 +142,9 @@ export default function UserDashboard() {
   // Generate Invoice: available to all users
   const canUseGenerateInvoice = true;
 
-  // Buy Airtime: allow access for specific emails
-  const BUY_AIRTIME_ALLOWED_EMAILS = ["esogbengastephen@gmail.com"];
   const userEmail = (user?.email ?? userProfile?.email ?? dashboardData?.user?.email ?? "").toString().toLowerCase();
-  const canUseBuyAirtime = BUY_AIRTIME_ALLOWED_EMAILS.includes(userEmail);
+  const canUseBuyAirtime = true; // Buy Airtime available to all users
+  const canUsePayBetting = userEmail === "esogbengastephen@gmail.com";
 
   // Helper function to extract first name from email
   const getFirstNameFromEmail = (email: string | undefined | null): string => {
@@ -805,8 +808,7 @@ export default function UserDashboard() {
             {servicesExpanded &&
               secondaryServices.map((svc) => {
                 const isComingSoon =
-                  (svc.id === "buy-airtime" && !canUseBuyAirtime) ||
-                  ["buy-data", "pay-betting", "tv-sub", "buy-electricity", "gift-card-redeem"].includes(svc.id);
+                  (svc.id === "pay-betting" ? !canUsePayBetting : ["buy-data", "gift-card-redeem"].includes(svc.id));
                 return (
                   <ServiceButton
                     key={svc.id}

@@ -40,6 +40,9 @@ export default function UtilityPage() {
   const [editingService, setEditingService] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState<{ balance: string; date?: string | null; id?: string | null; phoneno?: string | null } | null>(null);
 
   // Utility services with default prices
   const [utilityServices, setUtilityServices] = useState<UtilityService[]>([
@@ -148,6 +151,11 @@ export default function UtilityPage() {
     }
   }, [address]);
 
+  // Fetch wallet balance when admin is connected (optional; user can also click Refresh)
+  useEffect(() => {
+    if (address) fetchWalletBalance();
+  }, [address]);
+
   const fetchUtilitySettings = async () => {
     if (!address) return;
     
@@ -166,6 +174,33 @@ export default function UtilityPage() {
       console.error("Error fetching utility settings:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWalletBalance = async () => {
+    if (!address) return;
+    setBalanceLoading(true);
+    setBalanceError(null);
+    try {
+      const response = await fetch(getApiUrl(`/api/admin/utility/balance?adminWallet=${address}`));
+      const data = await response.json();
+      if (data.success) {
+        setWalletBalance({
+          balance: data.balance,
+          date: data.date ?? null,
+          id: data.id ?? null,
+          phoneno: data.phoneno ?? null,
+        });
+      } else {
+        setBalanceError(data.error || "Failed to load balance");
+        setWalletBalance(null);
+      }
+    } catch (err) {
+      console.error("Error fetching wallet balance:", err);
+      setBalanceError("Failed to fetch balance");
+      setWalletBalance(null);
+    } finally {
+      setBalanceLoading(false);
     }
   };
 
@@ -348,6 +383,52 @@ export default function UtilityPage() {
             Visit Website →
           </a>
         </div>
+      </div>
+
+      {/* Check Wallet Balance API (ClubKonnect / Nellobytes) */}
+      <div className="bg-surface/60 backdrop-blur-[16px] p-6 rounded-2xl border border-accent/10">
+        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <span className="material-icons-outlined text-secondary">account_balance_wallet</span>
+          Check Wallet Balance API
+        </h2>
+        <p className="text-sm text-accent/70 mb-4">
+          ClubKonnect / Nellobytes wallet balance (APIWalletBalanceV1). Credentials are used server-side only.
+        </p>
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={() => address && fetchWalletBalance()}
+            disabled={!address || balanceLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-xl font-bold text-sm hover:brightness-110 transition-all disabled:opacity-50"
+          >
+            {balanceLoading ? (
+              <>
+                <span className="material-icons-outlined animate-spin text-lg">refresh</span>
+                Loading…
+              </>
+            ) : (
+              <>
+                <span className="material-icons-outlined text-lg">refresh</span>
+                Refresh balance
+              </>
+            )}
+          </button>
+          {walletBalance && (
+            <div className="flex flex-wrap items-baseline gap-6 text-sm">
+              <span className="text-accent/70">Balance:</span>
+              <span className="text-xl font-bold text-secondary">₦{Number(walletBalance.balance).toLocaleString()}</span>
+              {walletBalance.date && <span className="text-accent/60">Date: {walletBalance.date}</span>}
+              {walletBalance.id && <span className="text-accent/60">ID: {walletBalance.id}</span>}
+              {walletBalance.phoneno && <span className="text-accent/60">Phone: {walletBalance.phoneno}</span>}
+            </div>
+          )}
+        </div>
+        {balanceError && (
+          <p className="mt-3 text-sm text-red-400 flex items-center gap-2">
+            <span className="material-icons-outlined text-lg">error</span>
+            {balanceError}
+          </p>
+        )}
       </div>
 
       {/* Category Filter */}
