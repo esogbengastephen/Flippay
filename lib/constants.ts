@@ -1,10 +1,13 @@
 // Base Network Configuration
 export const BASE_CHAIN_ID = 8453;
-// Use public RPC endpoints with better rate limits. Avoid mainnet.base.org (strict 429 limits).
-// Priority: Custom RPC > LlamaRPC. Set NEXT_PUBLIC_BASE_RPC_URL to base.llamarpc.com or Alchemy/QuickNode if you see "over rate limit".
+// Avoid mainnet.base.org — it enforces strict 429 rate limits which cause "Failed to fetch" in ethers.js.
+// Priority: custom RPC → llamarpc fallback (override with NEXT_PUBLIC_BASE_RPC_URL if needed).
+const _configuredRpc = process.env.NEXT_PUBLIC_BASE_RPC_URL || "";
 export const BASE_RPC_URL =
-  process.env.NEXT_PUBLIC_BASE_RPC_URL ||
-  "https://base.llamarpc.com"; // LlamaRPC (better limits than mainnet.base.org)
+  // If the configured URL is the strict official node, swap it out for a more permissive public RPC.
+  _configuredRpc && _configuredRpc !== "https://mainnet.base.org"
+    ? _configuredRpc
+    : "https://base.llamarpc.com";
 
 // $SEND Token Contract Address
 export const SEND_TOKEN_ADDRESS =

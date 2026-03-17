@@ -15,22 +15,8 @@ import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import DashboardLayout from "@/components/DashboardLayout";
 import TransactionSuccess, { TransactionSuccessProps } from "@/components/TransactionSuccess";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
-import { generateWalletFromSeed, decryptSeedPhrase } from "@/lib/wallet";
-import { ethers } from "ethers";
-import {
-  Connection as SolanaConnection,
-  PublicKey,
-  Transaction,
-  SystemProgram,
-  LAMPORTS_PER_SOL,
-  sendAndConfirmTransaction,
-  Keypair as SolanaKeypair,
-} from "@solana/web3.js";
-import {
-  getOrCreateAssociatedTokenAccount,
-  createTransferInstruction,
-  getMint,
-} from "@solana/spl-token";
+// Heavy crypto libs loaded dynamically only when user actually sends crypto
+// to keep the initial bundle small for NGN (most common) send path
 
 interface NigerianBank {
   code: string;
@@ -131,22 +117,37 @@ function SendPageContent() {
     }
   }, [user]);
 
+  const BANKS_CACHE_KEY = "flippay_banks_cache";
+  const BANKS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
   const fetchBanksList = async () => {
+    // Serve from localStorage cache if fresh (banks rarely change)
+    try {
+      const cached = localStorage.getItem(BANKS_CACHE_KEY);
+      if (cached) {
+        const { banks, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < BANKS_CACHE_TTL_MS && Array.isArray(banks) && banks.length > 0) {
+          setAvailableBanks(banks);
+          return;
+        }
+      }
+    } catch {}
+
     setLoadingBanks(true);
     try {
-      // Fetch from our API endpoint which calls Flutterwave API
       const response = await fetch(getApiUrl("/api/flutterwave/banks"));
       const data = await response.json();
       
       if (data.success && data.data.banks) {
         setAvailableBanks(data.data.banks);
+        try {
+          localStorage.setItem(BANKS_CACHE_KEY, JSON.stringify({ banks: data.data.banks, timestamp: Date.now() }));
+        } catch {}
       } else {
-        // Fallback to static list
         setAvailableBanks(NIGERIAN_BANKS);
       }
     } catch (error) {
       console.error("Error fetching banks list:", error);
-      // Keep static list as fallback
       setAvailableBanks(NIGERIAN_BANKS);
     } finally {
       setLoadingBanks(false);
@@ -315,6 +316,7 @@ function SendPageContent() {
           }
         } else if (chainConfig?.type === ChainType.SOLANA) {
           try {
+            const { PublicKey } = await import("@solana/web3.js");
             new PublicKey(recipient);
           } catch {
             setError("Please enter a valid Solana address");
@@ -347,7 +349,8 @@ function SendPageContent() {
           return;
         }
 
-        // Decrypt seed phrase client-side
+        // Decrypt seed phrase client-side (dynamically import heavy wallet libs)
+        const { decryptSeedPhrase, generateWalletFromSeed } = await import("@/lib/wallet");
         let seedPhrase: string;
         try {
           seedPhrase = await decryptSeedPhrase(seedData.encryptedSeed, seedData.publicKey);
@@ -366,12 +369,45 @@ function SendPageContent() {
           return;
         }
 
+        // Safety check: derived address must match the stored wallet address.
+        // A mismatch means the seed doesn't control the displayed address — sending would
+        // always fail with InsufficientBalance because the tokens are on the stored address.
+        const derivedAddress = walletData.addresses[selectedChain] ?? walletData.addresses["base"];
+        const storedAddress = walletAddresses[selectedChain];
+        if (
+          derivedAddress && storedAddress &&
+          derivedAddress.toLowerCase() !== storedAddress.toLowerCase()
+        ) {
+          console.error(
+            "[Send] Wallet address mismatch — derived:",
+            derivedAddress,
+            "stored:",
+            storedAddress
+          );
+          setError(
+            "Wallet address mismatch detected. Your passkey wallet may need to be re-linked. " +
+            "Please contact support."
+          );
+          setLoading(false);
+          return;
+        }
+
         let txHash: string;
         let fromAddress: string;
         const tokenIsNative = selectedToken === "native" || !selectedToken;
 
         if (chainConfig?.type === ChainType.SOLANA) {
-          // Solana send path
+          // Solana send path — dynamically import to keep NGN send bundle lean
+          const {
+            Connection: SolanaConnection,
+            PublicKey,
+            Transaction,
+            SystemProgram,
+            LAMPORTS_PER_SOL,
+            sendAndConfirmTransaction,
+            Keypair: SolanaKeypair,
+          } = await import("@solana/web3.js");
+
           const privateKeyBytes = Buffer.from(privateKey, "hex");
           const keypair = SolanaKeypair.fromSecretKey(privateKeyBytes);
           fromAddress = keypair.publicKey.toBase58();
@@ -392,6 +428,7 @@ function SendPageContent() {
             txHash = await sendAndConfirmTransaction(connection, transaction, [keypair]);
           } else {
             // SPL token transfer
+            const { getOrCreateAssociatedTokenAccount, createTransferInstruction, getMint } = await import("@solana/spl-token");
             const mintPubkey = new PublicKey(selectedToken);
             const mintInfo = await getMint(connection, mintPubkey);
             const fromATA = await getOrCreateAssociatedTokenAccount(
@@ -409,10 +446,44 @@ function SendPageContent() {
             txHash = await sendAndConfirmTransaction(connection, transaction, [keypair]);
           }
         } else {
-          // EVM send path
-          const rpcUrl = chainConfig?.rpcUrl || "https://base.llamarpc.com";
+          // EVM send path — dynamically import ethers to keep NGN send bundle lean
+          const { ethers } = await import("ethers");
+
+          const primaryRpc = chainConfig?.rpcUrl || "https://base.llamarpc.com";
           const chainIdNum = chainConfig?.chainId ?? 8453;
-          const provider = new ethers.JsonRpcProvider(rpcUrl, chainIdNum);
+
+          // Deduplicated list of RPCs to try (primary first, then well-known public nodes)
+          const rpcFallbacks = [
+            primaryRpc,
+            "https://base.llamarpc.com",
+            "https://base.publicnode.com",
+            "https://base-rpc.publicnode.com",
+          ].filter((u, i, arr) => u && arr.indexOf(u) === i);
+
+          // Helper: create a provider for one URL and test it's alive
+          const tryProvider = async (url: string) => {
+            const p = new ethers.JsonRpcProvider(url, chainIdNum, { staticNetwork: true });
+            await p.getBlockNumber(); // throws if the RPC is unreachable / rate-limited
+            return p;
+          };
+
+          let activeProvider: ethers.JsonRpcProvider | null = null;
+          for (const url of rpcFallbacks) {
+            try {
+              activeProvider = await tryProvider(url);
+              break;
+            } catch {
+              // Try next
+            }
+          }
+
+          if (!activeProvider) {
+            setError("All RPC endpoints are currently unavailable. Please try again in a moment.");
+            setLoading(false);
+            return;
+          }
+
+          const provider = activeProvider;
           const signer = new ethers.Wallet(privateKey, provider);
           fromAddress = signer.address;
 
@@ -465,6 +536,13 @@ function SendPageContent() {
             status: "completed",
           }),
         });
+
+        // Update wallet balance cache in background so dashboard shows fresh balance when user returns
+        apiFetch(getApiUrl("/api/wallet/balances/sync"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id }),
+        }).catch(() => {});
 
         const tokenSymbol =
           selectedTokenInfo && typeof selectedTokenInfo !== "string"

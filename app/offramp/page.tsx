@@ -10,7 +10,12 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isUserLoggedIn, getUserFromStorage } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
-import { QRCodeSVG } from "qrcode.react";
+import dynamic from "next/dynamic";
+
+const QRCodeSVG = dynamic(() => import("qrcode.react").then(mod => ({ default: mod.QRCodeSVG })), {
+  ssr: false,
+  loading: () => <div className="w-full aspect-square bg-surface/40 rounded-xl animate-pulse" />,
+});
 import { NIGERIAN_BANKS } from "@/lib/nigerian-banks";
 
 interface BankOption {

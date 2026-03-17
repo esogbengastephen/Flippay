@@ -124,10 +124,10 @@ export default function RootLayout({
         </Script>
         
         <link rel="manifest" href="/manifest.json" />
-        {/* Flutterwave Inline - payment modal (no redirect to checkout URL); load early so Pay now works reliably */}
+        {/* Flutterwave Inline - payment modal; afterInteractive so it doesn't block HTML parsing */}
         <Script
           src="https://checkout.flutterwave.com/v3.js"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
         />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="mobile-web-app-capable" content="yes" />

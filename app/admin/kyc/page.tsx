@@ -266,6 +266,7 @@ export default function KYCManagementPage() {
                 <th className="px-6 py-4">User</th>
                 <th className="px-6 py-4">KYC Tier</th>
                 <th className="px-6 py-4">BVN Status</th>
+                <th className="px-6 py-4">Zainpay KYC</th>
                 <th className="px-6 py-4">Limits</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -332,14 +333,33 @@ export default function KYCManagementPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {user.zainpay_virtual_account_number ? (
-                          <div className="text-xs">
-                            <p className="font-mono text-white font-medium">
-                              {user.zainpay_virtual_account_number}
-                            </p>
-                            <p className="text-accent/50">
-                              {user.zainpay_virtual_account_bank || "ZainBank"}
-                            </p>
+                        {user.kyc_submitted_at || user.zainpay_virtual_account_number ? (
+                          <div className="text-xs space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 font-medium">
+                              <span className="material-icons-outlined text-sm">account_balance</span>
+                              Zainpay
+                            </span>
+                            {user.zainpay_virtual_account_number && (
+                              <>
+                                <p className="font-mono text-white font-medium mt-1">
+                                  {user.zainpay_virtual_account_number}
+                                </p>
+                                <p className="text-accent/50">
+                                  {user.zainpay_virtual_account_bank || "ZainBank"}
+                                  {user.zainpay_virtual_account_name && ` · ${user.zainpay_virtual_account_name}`}
+                                </p>
+                              </>
+                            )}
+                            {user.kyc_submitted_at && (
+                              <p className="text-accent/40">
+                                Submitted {new Date(user.kyc_submitted_at).toLocaleDateString()}
+                              </p>
+                            )}
+                            {(user.kyc_date_of_birth || user.kyc_state) && (
+                              <p className="text-accent/40 truncate max-w-[180px]" title={[user.kyc_date_of_birth, user.kyc_state, user.kyc_address].filter(Boolean).join(" · ")}>
+                                {[user.kyc_date_of_birth, user.kyc_state].filter(Boolean).join(" · ")}
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <span className="text-accent/50">—</span>

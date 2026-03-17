@@ -77,16 +77,17 @@ function deriveBitcoinAddress(seed: Buffer): { address: string; privateKey: stri
 function deriveEVMAddress(seedPhrase: string): { address: string; privateKey: string } {
   try {
     console.log("[Wallet] Creating EVM wallet from seed phrase...");
-    
-    // In ethers v6, use fromPhrase() with the derivation path directly
-    // This creates the wallet at the specified path in one step
-    // The standard Ethereum path is: m/44'/60'/0'/0/0
+
+    // ethers v6 API: HDNodeWallet.fromPhrase(phrase, password?, path?)
+    // The SECOND argument is the BIP-39 passphrase (password), NOT the derivation path.
+    // The THIRD argument is the HD derivation path.
+    // Passing the path as the second arg treats it as a BIP-39 password, producing a
+    // non-standard address different from what was stored at wallet creation.
     const derivationPath = "m/44'/60'/0'/0/0";
     console.log("[Wallet] Using derivation path:", derivationPath);
-    
-    // Use fromPhrase() with path - this is the correct ethers v6 API
-    // It creates the wallet at the specified path directly
-    const evmWallet = ethers.HDNodeWallet.fromPhrase(seedPhrase, derivationPath);
+
+    // Correct call: empty BIP-39 password, explicit path as third argument.
+    const evmWallet = ethers.HDNodeWallet.fromPhrase(seedPhrase, undefined, derivationPath);
     console.log("[Wallet] ✅ EVM wallet created successfully");
     console.log("[Wallet] Wallet address:", evmWallet.address);
     console.log("[Wallet] Wallet path:", evmWallet.path);

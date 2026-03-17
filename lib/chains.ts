@@ -56,7 +56,10 @@ export const SUPPORTED_CHAINS: Record<string, ChainConfig> = {
     type: ChainType.EVM,
     chainId: 8453,
     derivationPath: "m/44'/60'/0'/0/0", // Same as Ethereum (EVM-compatible)
-    rpcUrl: process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://base.llamarpc.com",
+    // Avoid mainnet.base.org (strict 429 rate limits) — prefer llamarpc unless a non-official URL is configured.
+    rpcUrl: (process.env.NEXT_PUBLIC_BASE_RPC_URL && process.env.NEXT_PUBLIC_BASE_RPC_URL !== "https://mainnet.base.org")
+      ? process.env.NEXT_PUBLIC_BASE_RPC_URL
+      : "https://base.llamarpc.com",
     explorerUrl: "https://basescan.org",
     nativeCurrency: {
       symbol: "ETH",

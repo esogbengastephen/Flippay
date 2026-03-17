@@ -14,6 +14,7 @@ import { SUPPORTED_CHAINS } from "@/lib/chains";
 import { WalletCard } from "./WalletCard";
 import { ServiceButton } from "./ServiceButton";
 import NotificationsFilter from "./ui/notifications-filter";
+import Toast from "./Toast";
 import {
   Dropdown,
   DropdownContent,
@@ -127,6 +128,13 @@ export default function UserDashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
   const [dashboardBanners, setDashboardBanners] = useState<{ id: string; title?: string | null; image_url: string; link_url: string | null }[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+
+  const showToastMsg = (msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+  };
 
   // Primary services: first 8 shown on PC (2 rows of 4); rest after "See more"
   const PRIMARY_SERVICE_IDS = [
@@ -135,6 +143,15 @@ export default function UserDashboard() {
   ];
   const primaryServices = services.filter((s) => PRIMARY_SERVICE_IDS.includes(s.id));
   const secondaryServices = services.filter((s) => !PRIMARY_SERVICE_IDS.includes(s.id));
+
+  const isServiceComingSoon = (svc: Service) => {
+    if (svc.id === "crypto-to-naira") return !canUseCryptoToNaira;
+    if (svc.id === "generate-invoice") return !canUseGenerateInvoice;
+    if (svc.id === "create-prediction" || svc.id === "flip-lend") return true;
+    if (svc.id === "pay-betting") return !canUsePayBetting;
+    if (["buy-data", "gift-card-redeem"].includes(svc.id)) return true;
+    return false;
+  };
 
   // Crypto to Naira: available to all users
   const canUseCryptoToNaira = true;
@@ -367,40 +384,26 @@ export default function UserDashboard() {
 
   const WALLET_BALANCES_TIMEOUT_MS = 25_000;
 
-  const fetchWalletBalances = async (userId: string) => {
+  const fetchWalletBalances = async (userId: string, options?: { fresh?: boolean }) => {
     setLoadingBalances(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), WALLET_BALANCES_TIMEOUT_MS);
+    const fresh = options?.fresh ? "&fresh=true" : "";
     try {
-      const response = await apiFetch(getApiUrl(`/api/wallet/balances?userId=${userId}`), {
-        signal: controller.signal,
-      });
+      const response = await apiFetch(
+        getApiUrl(`/api/wallet/balances?userId=${userId}${fresh}`),
+        { signal: controller.signal }
+      );
       const data = await response.json();
 
       if (data.success) {
-        console.log("[Frontend] Wallet balances response:", data);
-        console.log("[Frontend] Balances structure:", data.balances);
-        console.log("[Frontend] Total USD:", data.totalUSD);
-        
         const newTotalUSD = data.totalUSD || 0;
         setWalletBalances(data.balances || {});
         setTotalCryptoUSD(newTotalUSD);
-        
-        // Save to cache (last balance for next visit / show while loading)
         saveCachedBalance(userId, newTotalUSD);
         setCachedTotalCryptoUSD(newTotalUSD);
-        
-        // Log individual tokens for debugging
-        if (data.balances) {
-          Object.entries(data.balances).forEach(([chainId, chainBalances]: [string, any]) => {
-            console.log(`[Frontend] Chain ${chainId} has ${Object.keys(chainBalances).length} tokens`);
-            Object.entries(chainBalances).forEach(([tokenAddress, tokenInfo]: [string, any]) => {
-              console.log(`[Frontend]   Token: ${tokenInfo.symbol} - Balance: ${tokenInfo.balance}, USD: $${tokenInfo.usdValue}`);
-            });
-          });
-        }
       } else {
-        console.error("[Frontend] API returned success: false", data);
+        console.error("[Frontend] Wallet balances API returned success: false", data);
       }
     } catch (error) {
       if ((error as Error)?.name === "AbortError") {
@@ -452,8 +455,7 @@ export default function UserDashboard() {
       // Navigate to the service route
       router.push(service.route);
     } else {
-      // For other services without routes, show coming soon
-      alert(`${service.name} coming soon!`);
+      showToastMsg(`${service.name} coming soon!`);
     }
   };
 
@@ -494,7 +496,7 @@ export default function UserDashboard() {
   const copyAccountNumber = () => {
     if (dashboardData?.user.accountNumber) {
       navigator.clipboard.writeText(dashboardData.user.accountNumber);
-      alert("Account number copied!");
+      showToastMsg("Account number copied!");
     }
   };
 
@@ -519,7 +521,43 @@ export default function UserDashboard() {
   };
 
   if (loading) {
-    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
+    return (
+      <div className="min-h-screen flex flex-col relative overflow-x-hidden bg-background-dark pb-24 animate-pulse">
+        {/* Header skeleton */}
+        <div className="sticky top-0 z-10 px-4 sm:px-6 lg:px-8 py-2.5 flex justify-between items-center backdrop-blur-md bg-primary/90 border-b border-white/5">
+          <div>
+            <div className="h-5 w-24 bg-white/10 rounded mb-1" />
+            <div className="h-3 w-32 bg-white/5 rounded" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/10" />
+            <div className="w-8 h-8 rounded-full bg-white/10" />
+            <div className="w-8 h-8 rounded-full bg-white/10" />
+          </div>
+        </div>
+        <div className="flex-1 px-4 sm:px-6 lg:px-8 pt-3 pb-6 max-w-7xl mx-auto w-full space-y-4">
+          {/* Token price banner skeleton */}
+          <div className="h-10 rounded-2xl bg-surface/40 border border-secondary/10" />
+          {/* Balance cards skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="h-32 rounded-2xl bg-surface/40 border border-secondary/10" />
+            <div className="h-32 rounded-2xl bg-surface/40 border border-secondary/10" />
+          </div>
+          {/* Action buttons skeleton */}
+          <div className="flex gap-3">
+            {[1,2,3,4].map(i => <div key={i} className="flex-1 h-14 rounded-xl bg-surface/40" />)}
+          </div>
+          {/* Services skeleton */}
+          <div className="grid grid-cols-4 gap-3">
+            {[1,2,3,4,5,6,7,8].map(i => <div key={i} className="h-16 rounded-xl bg-surface/40" />)}
+          </div>
+          {/* Transactions skeleton */}
+          <div className="space-y-2">
+            {[1,2,3].map(i => <div key={i} className="h-14 rounded-xl bg-surface/40" />)}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -788,13 +826,25 @@ export default function UserDashboard() {
             <span className="w-1 h-4 bg-secondary rounded-full"></span>
             Services
           </h3>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+          {/* Mobile: show first 6 services by default, then expand to show all */}
+          <div className="grid grid-cols-3 gap-4 sm:hidden">
+            {(servicesExpanded ? services : services.slice(0, 6)).map((svc) => {
+              const isComingSoon = isServiceComingSoon(svc);
+              return (
+                <ServiceButton
+                  key={svc.id}
+                  icon={svc.icon}
+                  label={svc.name}
+                  comingSoon={isComingSoon}
+                  onClick={!isComingSoon ? () => handleServiceClick(svc) : undefined}
+                />
+              );
+            })}
+          </div>
+          {/* Desktop / tablet: keep existing primary/secondary layout */}
+          <div className="hidden sm:grid grid-cols-4 gap-4">
             {primaryServices.map((svc) => {
-              const isComingSoon =
-                (svc.id === "crypto-to-naira" && !canUseCryptoToNaira) ||
-                (svc.id === "generate-invoice" && !canUseGenerateInvoice) ||
-                svc.id === "create-prediction" ||
-                svc.id === "flip-lend";
+              const isComingSoon = isServiceComingSoon(svc);
               return (
                 <ServiceButton
                   key={svc.id}
@@ -807,8 +857,7 @@ export default function UserDashboard() {
             })}
             {servicesExpanded &&
               secondaryServices.map((svc) => {
-                const isComingSoon =
-                  (svc.id === "pay-betting" ? !canUsePayBetting : ["buy-data", "gift-card-redeem"].includes(svc.id));
+                const isComingSoon = isServiceComingSoon(svc);
                 return (
                   <ServiceButton
                     key={svc.id}
@@ -1530,6 +1579,13 @@ export default function UserDashboard() {
         </div>
       )}
 
+      <Toast
+        message={toastMessage}
+        type="success"
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        duration={2500}
+      />
     </div>
   );
 }

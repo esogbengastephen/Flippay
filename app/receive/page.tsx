@@ -14,6 +14,7 @@ import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import dynamic from "next/dynamic";
 import DashboardLayout from "@/components/DashboardLayout";
+import Toast from "@/components/Toast";
 
 // Lazy load QRCode component to reduce initial bundle
 const QRCodeSVG = dynamic(() => import("qrcode.react").then(mod => ({ default: mod.QRCodeSVG })), {
@@ -39,6 +40,9 @@ export default function ReceivePage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [qrSize, setQrSize] = useState(192);
+  const [toastMsg, setToastMsg] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const showToastMessage = (msg: string) => { setToastMsg(msg); setShowToast(true); };
 
   useEffect(() => {
     if (!isUserLoggedIn()) {
@@ -65,8 +69,8 @@ export default function ReceivePage() {
 
   useEffect(() => {
     if (user) {
-      fetchWalletAddresses();
-      fetchVirtualAccount();
+      // Run both fetches in parallel — they are independent
+      Promise.all([fetchWalletAddresses(), fetchVirtualAccount()]).catch(() => {});
     }
   }, [user]);
 
@@ -111,16 +115,8 @@ export default function ReceivePage() {
       const data = await response.json();
       
       if (data.success && data.profile) {
-        console.log("[Receive] Fetched addresses:", {
-          addresses: data.profile.addresses,
-          keys: data.profile.addresses ? Object.keys(data.profile.addresses) : [],
-          selectedChain,
-          hasSelected: data.profile.addresses?.[selectedChain]
-        });
-        
         if (data.profile.addresses) {
           setWalletAddresses(data.profile.addresses);
-          console.log("[Receive] State updated with addresses:", Object.keys(data.profile.addresses));
         }
         setHasPasskey(data.profile.hasPasskey || false);
       } else {
@@ -141,16 +137,6 @@ export default function ReceivePage() {
   const missingSelectedChain = hasAnyAddress && !currentAddress && hasPasskey;
   const availableChains = Object.keys(walletAddresses).filter(chain => walletAddresses[chain]);
   
-  // Debug: Log when addresses or selected chain changes
-  useEffect(() => {
-    console.log("[Receive] Address state:", {
-      selectedChain,
-      currentAddress: currentAddress || "NONE",
-      allAddresses: walletAddresses,
-      addressKeys: Object.keys(walletAddresses),
-      hasAddressForSelected: !!walletAddresses[selectedChain]
-    });
-  }, [selectedChain, walletAddresses, currentAddress]);
 
   const copyAddress = () => {
     if (currentAddress) {
@@ -173,7 +159,6 @@ export default function ReceivePage() {
     
     try {
       // Step 1: Authenticate with passkey
-      console.log("[Receive] Starting passkey authentication...");
       const authResult = await authenticateWithPasskey(user.id);
       if (!authResult.success) {
         console.error("[Receive] Passkey auth failed:", authResult.error);
@@ -182,8 +167,6 @@ export default function ReceivePage() {
         );
         return;
       }
-      console.log("[Receive] Passkey authentication successful");
-
       // Step 2: Get encrypted seed
       const seedResponse = await fetch(getApiUrl("/api/passkey/seed-phrase"), {
         method: "POST",
@@ -200,33 +183,13 @@ export default function ReceivePage() {
         return;
       }
 
-      // Step 3: Decrypt seed phrase client-side
+      // Step 3: Decrypt seed phrase and generate addresses client-side
       const seedPhrase = await decryptSeedPhrase(seedData.encryptedSeed, seedData.publicKey);
-      
-      // Step 3.5: Generate addresses client-side (where we know it works)
-      console.log("[Receive] Generating addresses client-side...");
-      console.log("[Receive] Seed phrase words:", seedPhrase.split(" ").length);
-      
-      // Test if ethers is available before generating
-      try {
-        const ethersTest = await import("ethers");
-        console.log("[Receive] Ethers imported successfully:", typeof ethersTest.ethers !== "undefined");
-        if (typeof ethersTest.ethers === "undefined") {
-          throw new Error("ethers library failed to import");
-        }
-      } catch (ethersError: any) {
-        console.error("[Receive] Ethers import failed:", ethersError);
-        setRegenerateError(`Failed to load ethers library: ${ethersError.message}. Please refresh the page and try again.`);
-        return;
-      }
       
       let walletData: { addresses: Record<string, string> } | undefined;
       try {
         const { generateWalletFromSeed } = await import("@/lib/wallet");
-        console.log("[Receive] Calling generateWalletFromSeed...");
         walletData = generateWalletFromSeed(seedPhrase);
-        console.log("[Receive] Generated addresses:", Object.keys(walletData.addresses));
-        console.log("[Receive] Address details:", walletData.addresses);
         
         if (!walletData) {
           setRegenerateError("Failed to generate wallet data. Please try again.");
@@ -237,19 +200,12 @@ export default function ReceivePage() {
         const evmChains = ["ethereum", "base", "polygon", "monad"];
         const missingEVM = evmChains.filter(chain => !walletData!.addresses[chain]);
         if (missingEVM.length > 0) {
-          console.error("[Receive] ❌ MISSING EVM ADDRESSES:", missingEVM);
-          console.error("[Receive] Available addresses:", Object.keys(walletData.addresses));
-          setRegenerateError(`Failed to generate addresses for: ${missingEVM.join(", ")}. Check browser console (F12) for detailed error messages.`);
+          setRegenerateError(`Failed to generate addresses for: ${missingEVM.join(", ")}.`);
           return;
         }
-        
-        console.log("[Receive] ✅ All addresses generated successfully!");
       } catch (error: any) {
-        console.error("[Receive] ❌ Error generating wallet:", error);
-        console.error("[Receive] Error name:", error?.name);
-        console.error("[Receive] Error message:", error?.message);
-        console.error("[Receive] Error stack:", error?.stack);
-        setRegenerateError(`Failed to generate wallet addresses: ${error.message || "Unknown error"}. Check browser console (F12) for details.`);
+        console.error("[Receive] Error generating wallet:", error);
+        setRegenerateError(`Failed to generate wallet addresses: ${error.message || "Unknown error"}.`);
         return;
       }
       
@@ -275,8 +231,8 @@ export default function ReceivePage() {
       // Show success message with details
       const addedChains = fixData.added || [];
       const totalChains = fixData.totalChains || Object.keys(fixData.addresses || {}).length;
-      const successMsg = `Successfully fixed wallet addresses!\n\nAdded: ${addedChains.length > 0 ? addedChains.map((c: string) => SUPPORTED_CHAINS[c]?.name || c).join(", ") : "all missing chains"}\nTotal chains: ${totalChains}`;
-      alert(successMsg);
+      const successMsg = `Wallet addresses fixed! Added ${addedChains.length > 0 ? addedChains.map((c: string) => SUPPORTED_CHAINS[c]?.name || c).join(", ") : "all missing chains"} (${totalChains} chains total)`;
+      showToastMessage(successMsg);
       
       // Update addresses directly from response
       if (fixData.addresses) {
@@ -285,12 +241,10 @@ export default function ReceivePage() {
       }
       
       // Also refresh from API to ensure consistency
-      console.log("[Receive] Refreshing addresses from API after fix...");
       await fetchWalletAddresses();
       
       // Force re-render by updating selected chain if it was missing
       if (!walletAddresses[selectedChain] && fixData.addresses?.[selectedChain]) {
-        console.log("[Receive] Selected chain now has address, forcing update");
         const currentChain = selectedChain;
         setSelectedChain(""); // Clear
         setTimeout(() => setSelectedChain(currentChain), 100); // Restore
@@ -461,7 +415,12 @@ export default function ReceivePage() {
 
               {/* Address display */}
               {loadingAddresses ? (
-                <PageLoadingSpinner message="Loading wallet addresses..." bgClass="bg-background-dark" />
+                <div className="py-8 space-y-3 animate-pulse">
+                  <div className="h-4 w-24 bg-white/10 rounded mx-auto" />
+                  <div className="h-12 rounded-xl bg-surface/40 mx-auto w-full" />
+                  <div className="h-40 w-40 rounded-xl bg-surface/40 mx-auto" />
+                  <div className="h-10 rounded-xl bg-surface/40" />
+                </div>
               ) : !hasPasskey ? (
                 <div className="text-center py-12">
                   <span className="material-icons-outlined text-6xl text-accent/30 mb-4">fingerprint</span>
@@ -730,6 +689,13 @@ export default function ReceivePage() {
         </div>
       </div>
     </div>
+    <Toast
+      message={toastMsg}
+      type="success"
+      isVisible={showToast}
+      onClose={() => setShowToast(false)}
+      duration={3000}
+    />
     </DashboardLayout>
   );
 }

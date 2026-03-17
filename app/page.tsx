@@ -4,11 +4,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { isUserLoggedIn, getUserFromStorage, clearUserSession, setUserSession } from "@/lib/session";
-
-const USE_MOCK_AUTH = false;
-// Bypass auth for user dashboard only – UI/UX work (revert before push, added 2025-03-06)
-const BYPASS_AUTH_FOR_USER_DASHBOARD = false;
+import { isUserLoggedIn, getUserFromStorage, clearUserSession } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 
@@ -34,186 +30,83 @@ export default function Home() {
   useEffect(() => {
     const verifyUser = async () => {
       try {
-        // Check if user is logged in
         if (!isUserLoggedIn()) {
-          // Bypass auth for user dashboard only (local dev – UI/UX work; admin stays protected)
-          if (BYPASS_AUTH_FOR_USER_DASHBOARD) {
-            const mockUser = {
-              id: "mock-dashboard-user",
-              email: "test@flippay.local",
-              referralCode: "MOCK1234",
-              emailVerified: true,
-              createdAt: new Date().toISOString(),
-              totalTransactions: 0,
-              totalSpentNGN: 0,
-              totalReceivedSEND: "0",
-            };
-            setUserSession(mockUser as any, "mock-session-token");
-            setUser(mockUser as any);
-            setIsChecking(false);
-            return;
-          }
-          try {
-            router.push("/auth");
-          } catch (e) {
-            console.error("Error navigating to auth:", e);
-            // Fallback navigation
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth";
-            }
-          }
+          router.push("/auth");
           return;
         }
 
-        // Verify session is still valid
         let currentUser;
         try {
           currentUser = getUserFromStorage();
         } catch (e) {
           console.error("Error getting user from storage:", e);
-          setIsChecking(false);
-          try {
-            router.push("/auth");
-          } catch (navError) {
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth";
-            }
-          }
+          router.push("/auth");
           return;
         }
 
         if (!currentUser) {
-          try {
-            clearUserSession();
-          } catch (e) {
-            console.warn("Error clearing session:", e);
-          }
-          try {
-            router.push("/auth");
-          } catch (e) {
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth";
-            }
-          }
+          try { clearUserSession(); } catch {}
+          router.push("/auth");
           return;
         }
 
-        // Skip backend verification when using mock auth (local dev)
-        if (USE_MOCK_AUTH) {
-          setUser(currentUser);
-          setIsChecking(false);
-          return;
-        }
-
-        // Skip backend verification when bypassing auth for user dashboard (local dev)
-        if (BYPASS_AUTH_FOR_USER_DASHBOARD && currentUser.id === "mock-dashboard-user") {
-          setUser(currentUser);
-          setIsChecking(false);
-          return;
-        }
-
-        // CRITICAL: Verify user exists in database
+        // Run both checks in parallel — saves one full network round-trip on every load
         try {
-          const response = await fetch(getApiUrl("/api/auth/verify-user"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: currentUser.email }),
-          });
+          const [verifyRes, passkeyRes] = await Promise.all([
+            fetch(getApiUrl("/api/auth/verify-user"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: currentUser.email }),
+            }),
+            fetch(getApiUrl(`/api/user/check-passkey?userId=${currentUser.id}`)),
+          ]);
 
-          if (!response.ok) {
-            let errDetail = "";
-            try {
-              const errBody = await response.json();
-              errDetail = errBody.details ?? errBody.error ?? "";
-            } catch {
-              errDetail = await response.text().catch(() => "") || "";
-            }
-            const msg = errDetail
-              ? `HTTP error! status: ${response.status} — ${errDetail}`
-              : `HTTP error! status: ${response.status}`;
-            console.error("[Auth] verify-user failed:", msg);
-            throw new Error(msg);
-          }
-
-          const data = await response.json();
-
-          if (!data.success || !data.exists) {
-            // User doesn't exist in database - log them out immediately
-            console.log(`[Auth] User ${currentUser.email} not found in database. Logging out...`);
-            try {
-              clearUserSession();
-            } catch (e) {
-              console.warn("Error clearing session:", e);
-            }
-            try {
-              router.push("/auth");
-            } catch (e) {
-              if (typeof window !== "undefined") {
-                window.location.href = "/auth";
-              }
-            }
+          // Handle verify-user response
+          if (!verifyRes.ok) {
+            const errBody = await verifyRes.json().catch(() => ({}));
+            console.error("[Auth] verify-user failed:", verifyRes.status, errBody);
+            try { clearUserSession(); } catch {}
+            router.push("/auth");
             return;
           }
 
-          // Check if user has passkey - redirect to setup if not
-          try {
-            const passkeyResponse = await fetch(getApiUrl(`/api/user/check-passkey?userId=${currentUser.id}`));
-            
-            if (passkeyResponse.ok) {
-              const passkeyData = await passkeyResponse.json();
+          const verifyData = await verifyRes.json();
+          if (!verifyData.success || !verifyData.exists) {
+            try { clearUserSession(); } catch {}
+            router.push("/auth");
+            return;
+          }
 
+          // Handle passkey check response
+          try {
+            if (passkeyRes.ok) {
+              const passkeyData = await passkeyRes.json();
               if (passkeyData.success && passkeyData.needsPasskeySetup) {
-                // User doesn't have passkey - redirect to setup
-                try {
-                  router.push("/passkey-setup");
-                } catch (e) {
-                  if (typeof window !== "undefined") {
-                    window.location.href = "/passkey-setup";
-                  }
-                }
+                router.push("/passkey-setup");
                 return;
               }
             }
-          } catch (error) {
-            console.error("Error checking passkey:", error);
-            // Continue to dashboard if check fails - don't block user
+          } catch {
+            // Non-fatal: continue to dashboard if passkey check fails
           }
 
-          // User exists in database and has passkey - allow access
           setUser(currentUser);
           setIsChecking(false);
         } catch (error) {
-          console.error("Error verifying user in database:", error);
-          // On error, log out for security
-          try {
-            clearUserSession();
-          } catch (e) {
-            console.warn("Error clearing session:", e);
-          }
-          try {
-            router.push("/auth");
-          } catch (e) {
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth";
-            }
-          }
+          console.error("Error verifying user:", error);
+          try { clearUserSession(); } catch {}
+          router.push("/auth");
         }
       } catch (outerError) {
-        // Catch any unexpected errors (e.g., router.push failures, localStorage errors)
         console.error("Error in verifyUser:", outerError);
         setIsChecking(false);
-        // Don't throw - let ErrorBoundary handle it if needed
       }
     };
 
-    // Add a small delay to ensure window is available on mobile
     if (typeof window !== "undefined") {
       verifyUser();
     } else {
-      // Wait for window to be available
-      const timer = setTimeout(() => {
-        verifyUser();
-      }, 100);
+      const timer = setTimeout(() => { verifyUser(); }, 100);
       return () => clearTimeout(timer);
     }
   }, [router]);

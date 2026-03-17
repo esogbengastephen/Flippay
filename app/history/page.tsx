@@ -8,6 +8,7 @@ import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
+import Toast from "@/components/Toast";
 
 function HistoryPageContent() {
   const router = useRouter();
@@ -22,6 +23,17 @@ function HistoryPageContent() {
   const [transactionDetails, setTransactionDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // Verify external crypto receive
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyTxHash, setVerifyTxHash] = useState("");
+  const [verifyChainId, setVerifyChainId] = useState("base");
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const showCopyToast = () => { setToastMsg("Copied to clipboard!"); setShowToast(true); };
 
   useEffect(() => {
     if (!isUserLoggedIn()) {
@@ -89,12 +101,12 @@ function HistoryPageContent() {
     try {
       // Use originalType if available, otherwise use type
       const typeForApi = tx.originalType || tx.type;
-      // Handle invoice types
-      const finalType = typeForApi === "invoice" 
+      // Map list types to detail API types
+      const finalType = typeForApi === "invoice"
         ? (tx.originalType === "invoice_paid" ? "invoice_paid" : "invoice_created")
         : typeForApi === "naira_to_crypto" ? "crypto_purchase"
         : typeForApi === "crypto_to_naira" ? "offramp"
-        : typeForApi;
+        : typeForApi; // send_naira, send_crypto, receive_naira, receive_crypto pass through unchanged
 
       const response = await fetch(
         getApiUrl(`/api/user/transactions/${tx.id}?type=${finalType}&userId=${user.id}`)
@@ -151,12 +163,41 @@ function HistoryPageContent() {
     .filter(filterByAsset)
     .filter(filterByType);
 
+  const handleVerifyReceive = async () => {
+    if (!user || !verifyTxHash.trim()) return;
+    setVerifyLoading(true);
+    setVerifyError(null);
+    setVerifySuccess(null);
+    try {
+      const res = await fetch(getApiUrl("/api/crypto/verify-receive"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ txHash: verifyTxHash.trim(), chainId: verifyChainId, userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVerifySuccess(data.message || "Transaction imported successfully.");
+        setVerifyTxHash("");
+        // Refresh the transaction list
+        fetchTransactions(user.id);
+      } else {
+        setVerifyError(data.error || "Verification failed.");
+      }
+    } catch {
+      setVerifyError("Network error. Please try again.");
+    } finally {
+      setVerifyLoading(false);
+    }
+  };
+
   const transactionTypes = [
     { id: "all", label: "All", icon: "list" },
     { id: "naira_to_crypto", label: "Naira to Crypto", icon: "currency_bitcoin" },
     { id: "crypto_to_naira", label: "Crypto to Naira", icon: "currency_exchange" },
     { id: "receive_naira", label: "Receive Naira", icon: "account_balance_wallet" },
     { id: "receive_crypto", label: "Receive Crypto", icon: "wallet" },
+    { id: "send_naira", label: "Send Naira", icon: "arrow_upward" },
+    { id: "send_crypto", label: "Send Crypto", icon: "send" },
     { id: "utility", label: "Utility", icon: "receipt" },
     { id: "invoice", label: "Invoices", icon: "receipt_long" },
   ];
@@ -195,6 +236,15 @@ function HistoryPageContent() {
             <h1 className="text-3xl font-bold text-white mb-2">History</h1>
             <p className="text-accent/70">Manage and track your transactions across the platform.</p>
           </div>
+          {filter === "receive_crypto" && (
+            <button
+              onClick={() => { setShowVerifyModal(true); setVerifyError(null); setVerifySuccess(null); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/30 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors self-end"
+            >
+              <span className="material-icons-outlined text-base">verified</span>
+              Verify &amp; import
+            </button>
+          )}
         </header>
 
         {/* Filter Section - glass-panel */}
@@ -256,18 +306,36 @@ function HistoryPageContent() {
 
         {/* Content */}
         {loading ? (
-          <PageLoadingSpinner message="Loading transactions..." bgClass="bg-background-light dark:bg-background-dark" />
+          <div className="space-y-3 animate-pulse">
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-surface/40 border border-white/5">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 w-1/3 bg-white/10 rounded" />
+                  <div className="h-3 w-1/4 bg-white/5 rounded" />
+                </div>
+                <div className="h-4 w-16 bg-white/10 rounded" />
+              </div>
+            ))}
+          </div>
         ) : filteredTransactions.length === 0 ? (
           <div className="glass-panel rounded-2xl p-12 text-center border border-white/5">
             <span className="material-icons-outlined text-6xl text-accent/40 mb-4 block">receipt</span>
             <p className="text-lg font-semibold text-white mb-2">No transactions found</p>
-            <p className="text-sm text-accent/60">
-              {filter === "all" 
-                ? "You haven't made any transactions yet" 
-                : filter === "receive_naira" || filter === "receive_crypto"
-                ? `No ${transactionTypes.find(t => t.id === filter)?.label.toLowerCase()} transactions yet.`
-                : `No ${transactionTypes.find(t => t.id === filter)?.label.toLowerCase()} transactions`}
+            <p className="text-sm text-accent/60 mb-4">
+              {filter === "all"
+                ? "You haven't made any transactions yet"
+                : `No ${transactionTypes.find(t => t.id === filter)?.label.toLowerCase() ?? filter} transactions yet.`}
             </p>
+            {(filter === "receive_crypto" || filter === "all") && (
+              <button
+                onClick={() => { setShowVerifyModal(true); setVerifyError(null); setVerifySuccess(null); }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/10 border border-secondary/30 text-secondary text-sm font-semibold hover:bg-secondary/20 transition-colors"
+              >
+                <span className="material-icons-outlined text-base">verified</span>
+                Received crypto from an external wallet? Verify &amp; import it
+              </button>
+            )}
           </div>
         ) : (
           <section className="bg-surface rounded-2xl border border-white/5 overflow-hidden shadow-xl">
@@ -456,7 +524,7 @@ function HistoryPageContent() {
                             onClick={() => {
                               const ref = transactionDetails.transactionId || transactionDetails.clubkonnectReference || transactionDetails.invoiceNumber || transactionDetails.reference;
                               navigator.clipboard.writeText(ref);
-                              alert("Copied to clipboard!");
+                              showCopyToast();
                             }}
                             className="p-1 hover:bg-white/10 rounded flex-shrink-0" aria-label="Copy reference"
                           >
@@ -477,7 +545,7 @@ function HistoryPageContent() {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(transactionDetails.txHash || transactionDetails.swapTxHash);
-                              alert("Copied to clipboard!");
+                              showCopyToast();
                             }}
                             className="p-1 hover:bg-white/10 rounded" aria-label="Copy hash"
                           >
@@ -500,7 +568,7 @@ function HistoryPageContent() {
                               <button
                                 onClick={() => {
                                   navigator.clipboard.writeText(transactionDetails.walletAddress);
-                                  alert("Copied to clipboard!");
+                                  showCopyToast();
                                 }}
                                 className="p-1 hover:bg-white/10 rounded flex-shrink-0" aria-label="Copy address"
                               >
@@ -608,6 +676,146 @@ function HistoryPageContent() {
                         )}
                       </>
                     ) : null}
+
+                    {transactionDetails.type === "send_naira" && (
+                      <>
+                        {transactionDetails.destinationAccount && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Sent To</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.destinationAccount}
+                            </p>
+                          </div>
+                        )}
+                        {transactionDetails.narration && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5 md:col-span-2">
+                            <p className="text-xs text-accent/60 mb-1">Narration</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.narration}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {transactionDetails.type === "send_crypto" && (
+                      <>
+                        {transactionDetails.tokenSymbol && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Token</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.tokenAmount} {transactionDetails.tokenSymbol}
+                            </p>
+                          </div>
+                        )}
+                        {transactionDetails.toAddress && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5 md:col-span-2">
+                            <p className="text-xs text-accent/60 mb-1">Sent To</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono text-sm font-semibold text-white break-all flex-1">
+                                {transactionDetails.toAddress}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(transactionDetails.toAddress);
+                                  showCopyToast();
+                                }}
+                                className="p-1 hover:bg-white/10 rounded flex-shrink-0"
+                                aria-label="Copy address"
+                              >
+                                <span className="material-icons-outlined text-sm text-secondary">content_copy</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {transactionDetails.chainId && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Network</p>
+                            <p className="font-semibold text-white capitalize">
+                              {transactionDetails.chainId}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {transactionDetails.type === "receive_naira" && (
+                      <>
+                        {transactionDetails.senderName && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Sender</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.senderName}
+                            </p>
+                          </div>
+                        )}
+                        {transactionDetails.narration && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5 md:col-span-2">
+                            <p className="text-xs text-accent/60 mb-1">Narration</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.narration}
+                            </p>
+                          </div>
+                        )}
+                        {transactionDetails.destinationAccount && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Destination Account</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.destinationAccount}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {transactionDetails.type === "receive_crypto" && (
+                      <>
+                        {transactionDetails.tokenSymbol && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Token</p>
+                            <p className="font-semibold text-white">
+                              {transactionDetails.tokenAmount} {transactionDetails.tokenSymbol}
+                            </p>
+                          </div>
+                        )}
+                        {transactionDetails.fromAddress && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5 md:col-span-2">
+                            <p className="text-xs text-accent/60 mb-1">Received From</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-mono text-sm font-semibold text-white break-all flex-1">
+                                {transactionDetails.fromAddress}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(transactionDetails.fromAddress);
+                                  showCopyToast();
+                                }}
+                                className="p-1 hover:bg-white/10 rounded flex-shrink-0"
+                                aria-label="Copy address"
+                              >
+                                <span className="material-icons-outlined text-sm text-secondary">content_copy</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {transactionDetails.chainId && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">Network</p>
+                            <p className="font-semibold text-white capitalize">
+                              {transactionDetails.chainId}
+                            </p>
+                          </div>
+                        )}
+                        {transactionDetails.ngnEquivalent && (
+                          <div className="bg-surface-highlight/30 rounded-xl p-4 border border-white/5">
+                            <p className="text-xs text-accent/60 mb-1">NGN Equivalent</p>
+                            <p className="font-semibold text-white">
+                              ₦{parseFloat(transactionDetails.ngnEquivalent).toLocaleString()}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Error Message (if failed) */}
@@ -631,6 +839,100 @@ function HistoryPageContent() {
         </div>
       )}
 
+      {/* Verify & Import External Crypto Receive Modal */}
+      {showVerifyModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowVerifyModal(false)}
+        >
+          <div
+            className="glass-panel rounded-2xl shadow-xl max-w-md w-full border border-white/10 p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="material-icons-outlined text-secondary">verified</span>
+                Verify &amp; Import Receive
+              </h2>
+              <button
+                onClick={() => setShowVerifyModal(false)}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <span className="material-icons-outlined text-accent/70 text-lg">close</span>
+              </button>
+            </div>
+            <p className="text-sm text-accent/60 mb-5">
+              Received crypto from an external wallet? Enter the transaction hash below and we will verify it on-chain and add it to your history.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-accent/70 uppercase tracking-wider mb-1.5">Network</label>
+                <select
+                  value={verifyChainId}
+                  onChange={e => setVerifyChainId(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 focus:ring-2 focus:ring-secondary/40 focus:border-secondary outline-none text-white"
+                  title="Select network"
+                >
+                  <option value="base" className="bg-surface text-white">Base</option>
+                  <option value="ethereum" className="bg-surface text-white">Ethereum</option>
+                  <option value="polygon" className="bg-surface text-white">Polygon</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-accent/70 uppercase tracking-wider mb-1.5">Transaction Hash</label>
+                <input
+                  type="text"
+                  value={verifyTxHash}
+                  onChange={e => setVerifyTxHash(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 focus:ring-2 focus:ring-secondary/40 focus:border-secondary outline-none text-white font-mono text-sm placeholder:text-accent/30"
+                />
+              </div>
+
+              {verifyError && (
+                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                  <span className="material-icons-outlined text-red-400 text-base mt-0.5">error_outline</span>
+                  <p className="text-sm text-red-400">{verifyError}</p>
+                </div>
+              )}
+              {verifySuccess && (
+                <div className="flex items-start gap-2 bg-secondary/10 border border-secondary/20 rounded-xl p-3">
+                  <span className="material-icons-outlined text-secondary text-base mt-0.5">check_circle</span>
+                  <p className="text-sm text-secondary">{verifySuccess}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleVerifyReceive}
+                disabled={verifyLoading || !verifyTxHash.trim()}
+                className="w-full py-3 rounded-xl bg-secondary text-background-dark font-bold text-sm hover:bg-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {verifyLoading ? (
+                  <>
+                    <span className="material-icons-outlined text-base animate-spin">autorenew</span>
+                    Verifying on-chain…
+                  </>
+                ) : (
+                  <>
+                    <span className="material-icons-outlined text-base">verified</span>
+                    Verify &amp; Import
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast
+        message={toastMsg}
+        type="success"
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        duration={2000}
+      />
     </div>
   );
 }
@@ -639,7 +941,9 @@ export default function HistoryPage() {
   return (
     <DashboardLayout>
       <Suspense fallback={
-        <PageLoadingSpinner message="Loading..." bgClass="bg-background-light dark:bg-background-dark" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-8 h-8 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin" />
+        </div>
       }>
         <HistoryPageContent />
       </Suspense>

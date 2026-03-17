@@ -383,7 +383,28 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <PageLoadingSpinner message="Loading..." bgClass="bg-background-dark" />;
+    return (
+      <DashboardLayout>
+        <div className="max-w-lg mx-auto px-3 sm:px-4 pt-2 sm:pt-4 pb-24 animate-pulse">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-full bg-white/10" />
+            <div className="h-5 w-32 bg-white/10 rounded" />
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-center mb-4">
+              <div className="w-24 h-24 rounded-full bg-white/10" />
+            </div>
+            {[1,2,3,4].map(i => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3 w-20 bg-white/10 rounded" />
+                <div className="h-11 rounded-xl bg-surface/40" />
+              </div>
+            ))}
+            <div className="h-12 rounded-xl bg-secondary/20" />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
   }
 
   const inputClass =
