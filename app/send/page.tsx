@@ -467,7 +467,7 @@ function SendPageContent() {
             return p;
           };
 
-          let activeProvider: ethers.JsonRpcProvider | null = null;
+          let activeProvider: Awaited<ReturnType<typeof tryProvider>> | null = null;
           for (const url of rpcFallbacks) {
             try {
               activeProvider = await tryProvider(url);
