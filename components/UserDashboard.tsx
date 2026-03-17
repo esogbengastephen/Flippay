@@ -149,7 +149,7 @@ export default function UserDashboard() {
     if (svc.id === "generate-invoice") return !canUseGenerateInvoice;
     if (svc.id === "create-prediction" || svc.id === "flip-lend") return true;
     if (svc.id === "pay-betting") return !canUsePayBetting;
-    if (["buy-data", "gift-card-redeem"].includes(svc.id)) return true;
+    if (["gift-card-redeem"].includes(svc.id)) return true;
     return false;
   };
 

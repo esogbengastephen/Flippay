@@ -58,7 +58,9 @@ export default function Home() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email: currentUser.email }),
             }),
-            fetch(getApiUrl(`/api/user/check-passkey?userId=${currentUser.id}`)),
+            // Non-fatal: if check-passkey fails for any reason, null is returned
+            // and we simply skip the passkey check (same behaviour as original code)
+            fetch(getApiUrl(`/api/user/check-passkey?userId=${currentUser.id}`)).catch(() => null),
           ]);
 
           // Handle verify-user response
