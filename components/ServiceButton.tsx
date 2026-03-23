@@ -26,7 +26,6 @@ export const ServiceButton: React.FC<ServiceButtonProps> = ({
       type="button"
       onClick={comingSoon ? undefined : onClick}
       disabled={comingSoon}
-      aria-disabled={comingSoon ? "true" : "false"}
       className={`flex flex-col items-center justify-center gap-1 sm:gap-2 p-3 sm:p-5 rounded-2xl bg-primary border border-accent/10 text-white w-full h-[92px] sm:h-[110px] group transition-all ${
         comingSoon
           ? "cursor-not-allowed opacity-60"
@@ -39,11 +38,6 @@ export const ServiceButton: React.FC<ServiceButtonProps> = ({
       <span className="text-[10px] font-bold text-center leading-tight text-white/90 font-display whitespace-pre-wrap">
         {label}
       </span>
-      {comingSoon && (
-        <span className="text-[8px] font-semibold uppercase tracking-wide text-accent/60">
-          Coming soon
-        </span>
-      )}
     </button>
   );
 };

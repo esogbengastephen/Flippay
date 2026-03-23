@@ -67,37 +67,6 @@ const services: Service[] = [
   { id: "coupons", name: "Coupon", icon: "confirmation_number", route: "/coupons" },
 ];
 
-/** Token icon for price banner: round, compact; fallback when image fails */
-function TokenPriceIcon({ symbol }: { symbol: "SEND" | "USDC" | "USDT" }) {
-  const [imgError, setImgError] = useState(false);
-  const url = getTokenLogo(symbol);
-  const circleClass = "w-5 h-5 min-w-[20px] min-h-[20px] rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-secondary/10 border border-secondary/20 relative";
-  if (!url) {
-    return (
-      <div className={circleClass}>
-        <span className="text-[10px] font-bold text-secondary">$</span>
-      </div>
-    );
-  }
-  return (
-    <div className={circleClass}>
-      {imgError ? (
-        <span className="text-[10px] font-bold text-secondary" aria-hidden="true">$</span>
-      ) : (
-        <Image
-          src={url}
-          alt={symbol}
-          width={20}
-          height={20}
-          className="absolute inset-0 rounded-full object-cover w-full h-full"
-          unoptimized
-          onError={() => setImgError(true)}
-        />
-      )}
-    </div>
-  );
-}
-
 export default function UserDashboard() {
   const router = useRouter();
   const pathname = usePathname();
@@ -107,8 +76,6 @@ export default function UserDashboard() {
   const [showNGNBalance, setShowNGNBalance] = useState(true);
   const [showCryptoBalance, setShowCryptoBalance] = useState(true);
   const [activeTab, setActiveTab] = useState("home");
-  const [insight, setInsight] = useState<string>("Loading market insights...");
-  const [tokenPrices, setTokenPrices] = useState<{ SEND: string | null; USDC: string | null; USDT: string | null }>({ SEND: null, USDC: null, USDT: null });
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [walletBalances, setWalletBalances] = useState<Record<string, { balance: string; usdValue: number; symbol: string }>>({});
   const [totalCryptoUSD, setTotalCryptoUSD] = useState(0);
@@ -149,6 +116,7 @@ export default function UserDashboard() {
     if (svc.id === "generate-invoice") return !canUseGenerateInvoice;
     if (svc.id === "create-prediction" || svc.id === "flip-lend") return true;
     if (svc.id === "pay-betting") return !canUsePayBetting;
+    // "Buy Data" should be enabled; only keep other services as coming soon.
     if (["gift-card-redeem"].includes(svc.id)) return true;
     return false;
   };
@@ -270,17 +238,11 @@ export default function UserDashboard() {
         fetchDashboardData(currentUser.id),
         fetchWalletBalances(currentUser.id),
         fetchUserProfile(currentUser.id),
-        fetchTokenPrices(),
         fetchAllTransactions(currentUser.id),
       ]).catch((error) => {
         console.warn("Dashboard data load error:", error?.message ?? error);
       });
-      
-      // Refresh prices every 30 seconds; .catch() prevents unhandled rejection on "Failed to fetch"
-      const priceInterval = setInterval(() => {
-        fetchTokenPrices().catch(() => {});
-      }, 30000);
-      
+
       // Refresh wallet balances every 60 seconds; .catch() prevents unhandled rejection on "Failed to fetch"
       const balanceInterval = setInterval(() => {
         if (currentUser) {
@@ -289,7 +251,6 @@ export default function UserDashboard() {
       }, 60000);
       
       return () => {
-        clearInterval(priceInterval);
         clearInterval(balanceInterval);
       };
     } catch (error) {
@@ -321,35 +282,6 @@ export default function UserDashboard() {
     }, 5000);
     return () => clearInterval(interval);
   }, [dashboardBanners.length]);
-
-  const fetchTokenPrices = async () => {
-    try {
-      const response = await fetch(getApiUrl(`/api/token-prices?t=${Date.now()}`));
-      const data = await response.json();
-      
-      if (data.success && data.pricesNGN) {
-        const { SEND, USDC, USDT } = data.pricesNGN;
-        
-        // Format NGN prices for display (use "NGN" so the Naira symbol ₦ doesn't look like "on" in some fonts)
-        const formatPrice = (price: number | null) => {
-          if (price === null) return "N/A";
-          return `NGN ${price.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        };
-        
-        const sendPrice = formatPrice(SEND);
-        const usdcPrice = formatPrice(USDC);
-        const usdtPrice = formatPrice(USDT);
-        
-        setTokenPrices({ SEND: sendPrice, USDC: usdcPrice, USDT: usdtPrice });
-        setInsight(`1 SEND: ${sendPrice} | 1 USDC: ${usdcPrice} | 1 USDT: ${usdtPrice}`);
-      } else {
-        setInsight("Unable to load token prices. Please try again later.");
-      }
-    } catch (error) {
-      console.error("Error fetching token prices:", error);
-      setInsight("Unable to load token prices. Please try again later.");
-    }
-  };
 
   const fetchDashboardData = async (userId: string) => {
     try {
@@ -608,57 +540,6 @@ export default function UserDashboard() {
       </header>
 
       <div className="flex-1 px-4 sm:px-6 lg:px-8 pt-3 pb-6 sm:py-6 max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
-        {/* Token Price Banner */}
-        <div className="bg-surface/60 backdrop-blur-[24px] rounded-2xl overflow-hidden border border-secondary/10">
-          <p className="text-[9px] font-bold text-accent/70 uppercase tracking-tighter mb-0.5 px-3 pt-1.5">Token Price</p>
-          <div className="relative h-6 overflow-hidden">
-            <div className="animate-marquee whitespace-nowrap flex items-center">
-              {/* First set of prices */}
-              <div className="flex items-center gap-5 px-3 sm:px-4 inline-flex">
-                {tokenPrices.SEND && (
-                  <div className="flex items-center gap-1.5">
-                    <TokenPriceIcon symbol="SEND" />
-                    <span className="text-[10px] text-accent font-medium whitespace-nowrap">1 SEND: {tokenPrices.SEND}</span>
-                  </div>
-                )}
-                {tokenPrices.USDC && (
-                  <div className="flex items-center gap-1.5">
-                    <TokenPriceIcon symbol="USDC" />
-                    <span className="text-[10px] text-accent font-medium whitespace-nowrap">1 USDC: {tokenPrices.USDC}</span>
-                  </div>
-                )}
-                {tokenPrices.USDT && (
-                  <div className="flex items-center gap-1.5">
-                    <TokenPriceIcon symbol="USDT" />
-                    <span className="text-[10px] text-accent font-medium whitespace-nowrap">1 USDT: {tokenPrices.USDT}</span>
-                  </div>
-                )}
-              </div>
-              {/* Duplicate for seamless scrolling */}
-              <div className="flex items-center gap-5 px-3 sm:px-4 inline-flex">
-                {tokenPrices.SEND && (
-                  <div className="flex items-center gap-1.5">
-                    <TokenPriceIcon symbol="SEND" />
-                    <span className="text-[10px] text-accent font-medium whitespace-nowrap">1 SEND: {tokenPrices.SEND}</span>
-                  </div>
-                )}
-                {tokenPrices.USDC && (
-                  <div className="flex items-center gap-1.5">
-                    <TokenPriceIcon symbol="USDC" />
-                    <span className="text-[10px] text-accent font-medium whitespace-nowrap">1 USDC: {tokenPrices.USDC}</span>
-                  </div>
-                )}
-                {tokenPrices.USDT && (
-                  <div className="flex items-center gap-1.5">
-                    <TokenPriceIcon symbol="USDT" />
-                    <span className="text-[10px] text-accent font-medium whitespace-nowrap">1 USDT: {tokenPrices.USDT}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Portfolio + Quick Actions Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Portfolio Balance - Flippay branding */}
