@@ -8,6 +8,7 @@ import { getApiUrl } from "@/lib/apiBase";
 import { apiFetch } from "@/lib/api-client";
 import FSpinner from "@/components/FSpinner";
 import PoweredBySEND from "@/components/PoweredBySEND";
+import TransactionSuccess, { type TransactionSuccessProps, type TransactionDetailRow } from "@/components/TransactionSuccess";
 
 type Tab = "generate" | "mine" | "redeem";
 
@@ -32,6 +33,7 @@ export default function CouponsPage() {
   const [createdCodes, setCreatedCodes] = useState<string[]>([]);
   const [myCoupons, setMyCoupons] = useState<CouponRow[]>([]);
   const [loadingMine, setLoadingMine] = useState(false);
+  const [redeemSuccessData, setRedeemSuccessData] = useState<TransactionSuccessProps | null>(null);
 
   useEffect(() => {
     if (!isUserLoggedIn()) {
@@ -130,7 +132,28 @@ export default function CouponsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage({ type: "success", text: data.message || `₦${data.amount} added to your balance` });
+        const credited =
+          typeof data.amount === "number"
+            ? data.amount
+            : parseFloat(String(data.amount ?? "0")) || 0;
+        const rows: TransactionDetailRow[] = [
+          { label: "Type", value: "Coupon redemption" },
+          { label: "Code", value: code, mono: true },
+        ];
+        if (data.newBalance != null && !Number.isNaN(Number(data.newBalance))) {
+          rows.push({
+            label: "Coupon balance",
+            value: `₦${Number(data.newBalance).toLocaleString()}`,
+          });
+        }
+        setRedeemSuccessData({
+          sendType: "ngn",
+          amount: String(credited),
+          subtitle: data.message || "Credit added to your coupon balance",
+          customRows: rows,
+          againButtonLabel: "Redeem Another",
+          onSendAgain: () => setRedeemSuccessData(null),
+        });
         setRedeemCode("");
       } else {
         setMessage({ type: "error", text: data.error || "Invalid or expired code" });
@@ -346,6 +369,8 @@ export default function CouponsPage() {
           </div>
         </div>
       </div>
+
+      {redeemSuccessData && <TransactionSuccess {...redeemSuccessData} />}
     </DashboardLayout>
   );
 }

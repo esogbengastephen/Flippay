@@ -10,6 +10,7 @@ import { getBettingNetworkLogo, getTelecomNetworkLogo, getTVNetworkLogo, getGift
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import PoweredBySEND from "@/components/PoweredBySEND";
+import TransactionSuccess, { type TransactionSuccessProps, type TransactionDetailRow } from "@/components/TransactionSuccess";
 
 interface GiftCardProduct {
   id: number;
@@ -50,7 +51,7 @@ export default function UtilityForm({
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [utilitySuccess, setUtilitySuccess] = useState<TransactionSuccessProps | null>(null);
   const [serviceSettings, setServiceSettings] = useState<any>(null);
   const [calculatedTotal, setCalculatedTotal] = useState(0);
   const [loadingSettings, setLoadingSettings] = useState(true);
@@ -403,7 +404,7 @@ export default function UtilityForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setUtilitySuccess(null);
 
     if (!validateForm()) {
       return;
@@ -457,14 +458,103 @@ export default function UtilityForm({
       const data = JSON.parse(responseText);
 
       if (data.success) {
-        setSuccess(data.message || `${serviceName} purchase successful!`);
-        // Reset form
+        const snapPhone = phoneNumber.trim();
+        const snapNetwork = selectedNetwork;
+        const snapPackageId = selectedPackage;
+        const snapCoupon = couponCode.trim();
+        const tx = data.transaction as
+          | {
+              reference?: string;
+              total?: number;
+              amount?: number;
+              failedCount?: number;
+            }
+          | undefined;
+
+        const paidTotal =
+          tx && typeof tx.total === "number" && !Number.isNaN(tx.total)
+            ? tx.total
+            : calculatedTotal;
+
+        const recipientLabel =
+          serviceId === "electricity"
+            ? "Meter"
+            : serviceId === "tv"
+              ? "Smart card"
+              : serviceId === "betting"
+                ? "User ID"
+                : serviceId === "gift-card-redeem"
+                  ? "Gift card code"
+                  : allowMultipleNumbers
+                    ? "Numbers"
+                    : "Phone";
+
+        const rows: TransactionDetailRow[] = [{ label: "Service", value: serviceName }];
+
+        if (snapNetwork) {
+          const networkHeading =
+            serviceId === "electricity"
+              ? "Disco"
+              : serviceId === "tv"
+                ? "TV"
+                : serviceId === "betting"
+                  ? "Platform"
+                  : "Network";
+          rows.push({ label: networkHeading, value: snapNetwork });
+        }
+
+        if (snapPhone) {
+          rows.push({
+            label: recipientLabel,
+            value: snapPhone,
+            mono: serviceId === "gift-card-redeem" || serviceId === "electricity",
+          });
+        }
+
+        if (snapPackageId) {
+          const pkg = packages.find(
+            (p: { id?: string; name?: string }) => (p.id || p.name) === snapPackageId
+          );
+          const pkgLabel = pkg
+            ? String(
+                pkg.name ||
+                  `${(pkg as { data?: string }).data ?? ""} ${(pkg as { validity?: string }).validity ?? ""}`.trim() ||
+                  snapPackageId
+              )
+            : snapPackageId;
+          rows.push({ label: "Package", value: pkgLabel });
+        }
+
+        if (snapCoupon) {
+          rows.push({ label: "Coupon applied", value: snapCoupon.toUpperCase(), mono: true });
+        }
+
+        if (tx?.reference) {
+          rows.push({ label: "Reference", value: String(tx.reference), mono: true });
+        }
+
+        const partialFail = (tx?.failedCount ?? 0) > 0;
+
+        setUtilitySuccess({
+          sendType: "ngn",
+          amount: String(paidTotal),
+          subtitle: partialFail
+            ? (typeof data.message === "string" ? data.message : "Some items could not be completed.")
+            : "Your purchase has been processed",
+          customRows: rows,
+          againButtonLabel: "Buy Again",
+          onSendAgain: () => setUtilitySuccess(null),
+        });
+
         setPhoneNumber("");
         setAmount("");
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
+        setCouponCode("");
+        setCouponValid(null);
+        setCouponError(null);
+        setSelectedPackage("");
+        if (durations.length > 0) {
+          setSelectedDurationDays(durations[0].days);
+        }
       } else {
         setError(data.error || "Purchase failed. Please try again.");
       }
@@ -1172,13 +1262,6 @@ export default function UtilityForm({
               </div>
             )}
 
-            {/* Success Message */}
-            {success && (
-              <div className="p-4 rounded-2xl bg-secondary/10 border border-secondary/20">
-                <p className="text-sm text-secondary">{success}</p>
-              </div>
-            )}
-
             {/* Submit Button - match offramp */}
             <button
               type="submit"
@@ -1204,6 +1287,8 @@ export default function UtilityForm({
           <PoweredBySEND />
         </div>
       </div>
+
+      {utilitySuccess && <TransactionSuccess {...utilitySuccess} />}
     </div>
   );
 }

@@ -3,10 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+export type TransactionDetailRow = {
+  label: string;
+  value: string;
+  mono?: boolean;
+};
+
 export interface TransactionSuccessProps {
   sendType: "ngn" | "crypto";
   amount: string;
-  // NGN-specific
+  // NGN-specific (bank transfer)
   recipientName?: string;
   bankName?: string;
   accountNumber?: string;
@@ -16,7 +22,12 @@ export interface TransactionSuccessProps {
   recipientAddress?: string;
   txHash?: string;
   explorerUrl?: string;
-  // Actions
+  /** When non-empty, shown instead of send-type detail rows (utilities, coupons, etc.) */
+  customRows?: TransactionDetailRow[];
+  /** Replaces default “Your transfer has been processed” */
+  subtitle?: string;
+  /** Replaces default “Send Again” on the secondary button */
+  againButtonLabel?: string;
   onSendAgain: () => void;
 }
 
@@ -77,6 +88,9 @@ export default function TransactionSuccess({
   recipientAddress,
   txHash,
   explorerUrl,
+  customRows,
+  subtitle,
+  againButtonLabel,
   onSendAgain,
 }: TransactionSuccessProps) {
   const router = useRouter();
@@ -138,8 +152,8 @@ export default function TransactionSuccess({
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-1" style={{ color: "#E2E8F0" }}>
           Transaction Successful
         </h1>
-        <p className="text-sm mb-5 sm:mb-7" style={{ color: "rgba(226,232,240,0.5)" }}>
-          Your transfer has been processed
+        <p className="text-sm mb-5 sm:mb-7 text-center max-w-xs" style={{ color: "rgba(226,232,240,0.5)" }}>
+          {subtitle ?? "Your transfer has been processed"}
         </p>
 
         {/* ── Amount ── */}
@@ -242,7 +256,7 @@ export default function TransactionSuccess({
               border: "1px solid rgba(19,236,90,0.22)",
             }}
           >
-            Send Again
+            {againButtonLabel ?? "Send Again"}
           </button>
 
           <button

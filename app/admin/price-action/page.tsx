@@ -18,6 +18,8 @@ export default function PriceActionPage() {
     USDT: number | null;
     pricesNGN?: Record<string, number | null>;
     pricesNGNSell?: Record<string, number | null>;
+    pricesSell?: Record<string, number | null>;
+    usdToNgnRate?: number;
     source?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +85,8 @@ export default function PriceActionPage() {
             USDT: data.prices?.USDT ?? null,
             pricesNGN: data.pricesNGN,
             pricesNGNSell: data.pricesNGNSell,
+            pricesSell: data.pricesSell,
+            usdToNgnRate: typeof data.usdToNgnRate === "number" ? data.usdToNgnRate : undefined,
             source: data.source,
           });
         } else {
@@ -678,7 +682,16 @@ export default function PriceActionPage() {
       const pricesRes = await fetch(getApiUrl("/api/token-prices"));
       const pricesData = await pricesRes.json();
       if (pricesData.success) {
-        setLivePrices((prev) => (prev ? { ...prev, pricesNGNSell: pricesData.pricesNGNSell } : null));
+        setLivePrices({
+          SEND: pricesData.prices?.SEND ?? null,
+          USDC: pricesData.prices?.USDC ?? null,
+          USDT: pricesData.prices?.USDT ?? null,
+          pricesNGN: pricesData.pricesNGN,
+          pricesNGNSell: pricesData.pricesNGNSell,
+          pricesSell: pricesData.pricesSell,
+          usdToNgnRate: typeof pricesData.usdToNgnRate === "number" ? pricesData.usdToNgnRate : undefined,
+          source: pricesData.source,
+        });
       }
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: unknown) {
@@ -905,13 +918,25 @@ export default function PriceActionPage() {
               <div className="pt-0">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <p className="text-sm font-medium text-accent/80">Current Price (SEND)</p>
+                    <p className="text-sm font-medium text-accent/80">
+                      CoinGecko base — SEND (before profit)
+                    </p>
                     <p className="text-lg font-bold text-white">
                       ${coingeckoPrice.usd.toFixed(6)} USD
                     </p>
                     {coingeckoPrice.ngn != null && (
                       <p className="text-sm text-accent/70">
-                        ≈ ₦{coingeckoPrice.ngn.toFixed(2)} NGN
+                        ≈ ₦{coingeckoPrice.ngn.toFixed(2)} NGN (market, no margin)
+                      </p>
+                    )}
+                    {activeTab === "buy" && sendToNgnRate && parseFloat(sendToNgnRate) > 0 && (
+                      <p className="text-sm font-medium text-secondary mt-2">
+                        Published buy: 1 $SEND ≈ ₦{parseFloat(sendToNgnRate).toFixed(2)} NGN
+                      </p>
+                    )}
+                    {activeTab === "sell" && sendToNgnSellRate && parseFloat(sendToNgnSellRate) > 0 && (
+                      <p className="text-sm font-medium text-secondary mt-2">
+                        Published sell: 1 $SEND ≈ ₦{parseFloat(sendToNgnSellRate).toFixed(2)} NGN
                       </p>
                     )}
                   </div>
@@ -983,7 +1008,9 @@ export default function PriceActionPage() {
               {/* USDT – own line + Profit (NGN) */}
               <div className="pt-2 border-t border-accent/10">
                 <div>
-                  <p className="text-sm font-medium text-accent/80">Current Price (USDT)</p>
+                  <p className="text-sm font-medium text-accent/80">
+                    CoinGecko base — USDT (before profit)
+                  </p>
                   {coingeckoPrice.USDT ? (
                     <>
                       <p className="text-lg font-bold text-white">
@@ -991,12 +1018,22 @@ export default function PriceActionPage() {
                       </p>
                       {coingeckoPrice.USDT.ngn != null && (
                         <p className="text-sm text-accent/70">
-                          ≈ ₦{coingeckoPrice.USDT.ngn.toFixed(2)} NGN
+                          ≈ ₦{coingeckoPrice.USDT.ngn.toFixed(2)} NGN (market, no margin)
                         </p>
                       )}
                     </>
                   ) : (
                     <p className="text-sm text-accent/60">—</p>
+                  )}
+                  {activeTab === "buy" && usdtNgnRate && parseFloat(usdtNgnRate) > 0 && (
+                    <p className="text-sm font-medium text-secondary mt-2">
+                      Published buy: 1 USDT ≈ ₦{parseFloat(usdtNgnRate).toFixed(2)} NGN
+                    </p>
+                  )}
+                  {activeTab === "sell" && usdtSellNgnRate && parseFloat(usdtSellNgnRate) > 0 && (
+                    <p className="text-sm font-medium text-secondary mt-2">
+                      Published sell: 1 USDT ≈ ₦{parseFloat(usdtSellNgnRate).toFixed(2)} NGN
+                    </p>
                   )}
                 </div>
                 <div className="mt-3">
@@ -1093,36 +1130,44 @@ export default function PriceActionPage() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">SEND (USD)</p>
+                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">
+                    SEND (USD implied)
+                  </p>
                   <p className="text-xl font-bold text-white">
                     {livePrices.SEND != null ? `$${livePrices.SEND.toFixed(6)}` : "—"}
                   </p>
                   {livePrices.pricesNGN?.SEND != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.SEND.toFixed(2)} NGN</p>
+                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.SEND.toFixed(2)} NGN (buy)</p>
                   )}
                 </div>
                 <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDC (USD)</p>
+                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">
+                    USDC (USD implied)
+                  </p>
                   <p className="text-xl font-bold text-white">
                     {livePrices.USDC != null ? `$${livePrices.USDC.toFixed(4)}` : "—"}
                   </p>
                   {livePrices.pricesNGN?.USDC != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.USDC.toFixed(2)} NGN</p>
+                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.USDC.toFixed(2)} NGN (buy)</p>
                   )}
                 </div>
                 <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDT (USD)</p>
+                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">
+                    USDT (USD implied)
+                  </p>
                   <p className="text-xl font-bold text-white">
                     {livePrices.USDT != null ? `$${livePrices.USDT.toFixed(4)}` : "—"}
                   </p>
                   {livePrices.pricesNGN?.USDT != null && (
-                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.USDT.toFixed(2)} NGN</p>
+                    <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGN.USDT.toFixed(2)} NGN (buy)</p>
                   )}
                 </div>
               </div>
               {livePrices?.source && (
                 <p className="text-xs text-accent/60 mt-4">
-                  Source: {livePrices.source}. Used for buy (onramp: NGN → crypto).
+                  Source: {livePrices.source}. NGN is the published buy rate (includes profit). USD ≈ NGN ÷{" "}
+                  {livePrices.usdToNgnRate != null ? livePrices.usdToNgnRate.toFixed(2) : "1500"} (USDC/NGN from
+                  CoinGecko).
                 </p>
               )}
             </>
@@ -1148,27 +1193,45 @@ export default function PriceActionPage() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">SEND (USD)</p>
+                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">
+                    SEND (USD implied from sell NGN)
+                  </p>
                   <p className="text-xl font-bold text-white">
-                    {livePrices.SEND != null ? `$${livePrices.SEND.toFixed(6)}` : "—"}
+                    {livePrices.pricesSell?.SEND != null
+                      ? `$${livePrices.pricesSell.SEND.toFixed(6)}`
+                      : livePrices.SEND != null
+                        ? `$${livePrices.SEND.toFixed(6)}`
+                        : "—"}
                   </p>
                   {livePrices.pricesNGNSell?.SEND != null && (
                     <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGNSell.SEND.toFixed(2)} NGN (sell)</p>
                   )}
                 </div>
                 <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDC (USD)</p>
+                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">
+                    USDC (USD implied from sell NGN)
+                  </p>
                   <p className="text-xl font-bold text-white">
-                    {livePrices.USDC != null ? `$${livePrices.USDC.toFixed(4)}` : "—"}
+                    {livePrices.pricesSell?.USDC != null
+                      ? `$${livePrices.pricesSell.USDC.toFixed(4)}`
+                      : livePrices.USDC != null
+                        ? `$${livePrices.USDC.toFixed(4)}`
+                        : "—"}
                   </p>
                   {livePrices.pricesNGNSell?.USDC != null && (
                     <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGNSell.USDC.toFixed(2)} NGN (sell)</p>
                   )}
                 </div>
                 <div className="p-4 rounded-xl bg-primary/40 border border-accent/10">
-                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">USDT (USD)</p>
+                  <p className="text-[10px] font-bold text-accent/60 uppercase tracking-wider mb-1">
+                    USDT (USD implied from sell NGN)
+                  </p>
                   <p className="text-xl font-bold text-white">
-                    {livePrices.USDT != null ? `$${livePrices.USDT.toFixed(4)}` : "—"}
+                    {livePrices.pricesSell?.USDT != null
+                      ? `$${livePrices.pricesSell.USDT.toFixed(4)}`
+                      : livePrices.USDT != null
+                        ? `$${livePrices.USDT.toFixed(4)}`
+                        : "—"}
                   </p>
                   {livePrices.pricesNGNSell?.USDT != null && (
                     <p className="text-sm text-accent/70 mt-1">≈ ₦{livePrices.pricesNGNSell.USDT.toFixed(2)} NGN (sell)</p>
@@ -1177,7 +1240,9 @@ export default function PriceActionPage() {
               </div>
               {livePrices?.source && (
                 <p className="text-xs text-accent/60 mt-4">
-                  Source: {livePrices.source}. Used for sell (offramp: crypto → NGN).
+                  Source: {livePrices.source}. NGN is the published sell rate (includes margin). USD ≈ sell NGN ÷{" "}
+                  {livePrices.usdToNgnRate != null ? livePrices.usdToNgnRate.toFixed(2) : "1500"} so it matches the NGN
+                  line.
                 </p>
               )}
             </>
