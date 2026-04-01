@@ -68,11 +68,8 @@ export async function createPasskey(
 ): Promise<{ success: boolean; credential?: PasskeyCredential; error?: string }> {
   try {
     const getRpId = (): string => {
-      // To avoid breaking logins across `flippay.app` vs `www.flippay.app`,
-      // we normalize to the registrable domain part by stripping leading `www.`.
       const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-      const noWww = hostname.replace(/^www\./i, "");
-      return noWww || "flippay.app";
+      return hostname || "www.flippay.app";
     };
 
     // Get challenge from server
@@ -95,7 +92,6 @@ export async function createPasskey(
         challenge,
         rp: {
           name: "SendApp",
-          // Normalize to a stable RP ID across `www` and non-`www` hosts.
           id: getRpId(),
         },
         user: {
@@ -204,11 +200,10 @@ export async function authenticateWithPasskey(
     
     try {
       const hostname =
-        typeof window !== "undefined" ? window.location.hostname : "flippay.app";
-      const noWww = hostname.replace(/^www\./i, "");
-      // Try the normalized RP ID first (matches how we create passkeys),
-      // then fall back to the raw hostname and finally the production domain.
-      const candidates = Array.from(new Set([noWww, hostname, "flippay.app"]))
+        typeof window !== "undefined" ? window.location.hostname : "www.flippay.app";
+      // Try the current hostname first so `www.flippay.app` passkeys stay primary,
+      // then fall back to apex if needed for older credentials.
+      const candidates = Array.from(new Set([hostname, "www.flippay.app", "flippay.app"]))
         .filter(Boolean);
 
       assertion = await navigator.credentials.get({
@@ -253,10 +248,9 @@ export async function authenticateWithPasskey(
 
       if (shouldRetryRpId) {
         const hostname2 =
-          typeof window !== "undefined" ? window.location.hostname : "flippay.app";
-        const noWww2 = hostname2.replace(/^www\./i, "");
+          typeof window !== "undefined" ? window.location.hostname : "www.flippay.app";
         const candidates2 = Array.from(
-          new Set([noWww2, hostname2, "flippay.app"])
+          new Set([hostname2, "www.flippay.app", "flippay.app"])
         ).filter(Boolean);
 
         let lastErr: any = authError;
