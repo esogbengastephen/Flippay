@@ -17,8 +17,6 @@ if (!validAnonKey || validAnonKey.trim() === "" || validAnonKey.includes("placeh
   if (!isJWT && !isNewFormat) {
     console.warn("[Supabase] WARNING: Key format might be invalid. Expected JWT (starts with 'eyJ') or new format (starts with 'sb_')");
   }
-  
-  console.log(`[Supabase] ✅ Anon key loaded successfully (${isJWT ? 'JWT' : isNewFormat ? 'New format' : 'Unknown format'})`);
 }
 
 // Create Supabase client - use anon key (required)

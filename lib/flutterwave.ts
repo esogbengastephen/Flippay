@@ -17,11 +17,6 @@ const FLUTTERWAVE_API_BASE = FLUTTERWAVE_USE_TEST_MODE
   ? "https://developersandbox-api.flutterwave.com/v3"
   : "https://api.flutterwave.com/v3";
 
-console.log(`[Flutterwave] Using v3 API (Bearer) - ${FLUTTERWAVE_USE_TEST_MODE ? "TEST" : "PRODUCTION"}: ${FLUTTERWAVE_API_BASE}`);
-if (!FLUTTERWAVE_SECRET_KEY) {
-  console.warn("[Flutterwave] Set FLUTTERWAVE_SECRET_KEY for transfers and account verification.");
-}
-
 /**
  * Get authentication header for Flutterwave V3 API (Bearer secret key).
  */

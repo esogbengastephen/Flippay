@@ -8,14 +8,6 @@ const RELOADLY_CLIENT_SECRET = process.env.RELOADLY_CLIENT_SECRET;
 const RELOADLY_USE_SANDBOX = process.env.RELOADLY_USE_SANDBOX === "true" || 
                               process.env.NODE_ENV === "development";
 
-if (!RELOADLY_CLIENT_ID) {
-  console.warn("RELOADLY_CLIENT_ID is not set in environment variables");
-}
-
-if (!RELOADLY_CLIENT_SECRET) {
-  console.warn("RELOADLY_CLIENT_SECRET is not set in environment variables");
-}
-
 // Reloadly API endpoints
 const RELOADLY_AUTH_URL = "https://auth.reloadly.com/oauth/token";
 const RELOADLY_GIFTCARD_BASE = RELOADLY_USE_SANDBOX
@@ -25,8 +17,6 @@ const RELOADLY_GIFTCARD_BASE = RELOADLY_USE_SANDBOX
 const RELOADLY_AUDIENCE = RELOADLY_USE_SANDBOX
   ? "https://giftcards-sandbox.reloadly.com"
   : "https://giftcards.reloadly.com";
-
-console.log(`[Reloadly] Using ${RELOADLY_USE_SANDBOX ? 'SANDBOX' : 'PRODUCTION'} API: ${RELOADLY_GIFTCARD_BASE}`);
 
 // Token cache
 let cachedToken: { token: string; expiresAt: number } | null = null;

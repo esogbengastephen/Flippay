@@ -81,7 +81,7 @@ export default function Home() {
 
           // Handle passkey check response
           try {
-            if (passkeyRes.ok) {
+            if (passkeyRes?.ok) {
               const passkeyData = await passkeyRes.json();
               if (passkeyData.success && passkeyData.needsPasskeySetup) {
                 router.push("/passkey-setup");
