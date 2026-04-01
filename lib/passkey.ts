@@ -16,6 +16,22 @@ export interface PasskeyChallenge {
   userId: string;
 }
 
+function getPasskeyRuntimeContext() {
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "flippay.app";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://flippay.app";
+  const noWww = hostname.replace(/^www\./i, "");
+  const rpIdCandidates = Array.from(new Set([noWww, hostname, "flippay.app"])).filter(Boolean);
+
+  return {
+    hostname,
+    origin,
+    normalizedHostname: noWww,
+    rpIdCandidates,
+    apiChallengeUrl: getApiUrl("/api/passkey/challenge"),
+    apiVerifyUrl: getApiUrl("/api/passkey/verify"),
+  };
+}
+
 /**
  * Generate a random challenge for passkey operations
  */
@@ -70,9 +86,7 @@ export async function createPasskey(
     const getRpId = (): string => {
       // To avoid breaking logins across `flippay.app` vs `www.flippay.app`,
       // we normalize to the registrable domain part by stripping leading `www.`.
-      const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-      const noWww = hostname.replace(/^www\./i, "");
-      return noWww || "flippay.app";
+      return getPasskeyRuntimeContext().normalizedHostname || "flippay.app";
     };
 
     // Get challenge from server
@@ -145,6 +159,9 @@ export async function authenticateWithPasskey(
   userId: string
 ): Promise<{ success: boolean; credentialId?: string; error?: string; requiresRecreate?: boolean }> {
   try {
+    const runtime = getPasskeyRuntimeContext();
+    console.log("[Passkey] Runtime context:", runtime);
+
     // Get challenge from server
     console.log("[Passkey] Requesting challenge for userId:", userId);
     const challengeResponse = await fetch(getApiUrl("/api/passkey/challenge"), {
@@ -203,13 +220,8 @@ export async function authenticateWithPasskey(
     let assertion: PublicKeyCredential;
     
     try {
-      const hostname =
-        typeof window !== "undefined" ? window.location.hostname : "flippay.app";
-      const noWww = hostname.replace(/^www\./i, "");
-      // Try the normalized RP ID first (matches how we create passkeys),
-      // then fall back to the raw hostname and finally the production domain.
-      const candidates = Array.from(new Set([noWww, hostname, "flippay.app"]))
-        .filter(Boolean);
+      const candidates = runtime.rpIdCandidates;
+      console.log("[Passkey] RP ID candidates:", candidates);
 
       assertion = await navigator.credentials.get({
         publicKey: {
@@ -252,16 +264,18 @@ export async function authenticateWithPasskey(
         (msg.includes("origin") || msg.includes("rp id") || msg.includes("domain") || msg.includes("rp-id"));
 
       if (shouldRetryRpId) {
-        const hostname2 =
-          typeof window !== "undefined" ? window.location.hostname : "flippay.app";
-        const noWww2 = hostname2.replace(/^www\./i, "");
-        const candidates2 = Array.from(
-          new Set([noWww2, hostname2, "flippay.app"])
-        ).filter(Boolean);
+        const candidates2 = runtime.rpIdCandidates;
+        console.warn("[Passkey] Retrying with alternate RP IDs after likely mismatch:", {
+          errorName: authError?.name,
+          errorMessage: authError?.message,
+          candidates: candidates2,
+          origin: runtime.origin,
+        });
 
         let lastErr: any = authError;
         for (const rpId of candidates2) {
           try {
+            console.log("[Passkey] Retrying browser authentication with rpId:", rpId);
             assertion = await navigator.credentials.get({
               publicKey: {
                 challenge,
@@ -294,7 +308,11 @@ export async function authenticateWithPasskey(
         console.log("[Passkey] User cancelled or operation not allowed");
         throw authError; // Re-throw to be caught by outer catch with proper handling
       }
-      console.error("[Passkey] Browser authentication error:", authError);
+      console.error("[Passkey] Browser authentication error:", {
+        name: authError?.name,
+        message: authError?.message,
+        runtime,
+      });
       throw authError; // Re-throw to be caught by outer catch
     }
 
@@ -407,6 +425,7 @@ export async function authenticateWithPasskey(
     console.error("[Passkey] Unexpected authentication error:", error);
     console.error("[Passkey] Error name:", error.name);
     console.error("[Passkey] Error message:", error.message);
+    console.error("[Passkey] Error runtime context:", getPasskeyRuntimeContext());
     
     return {
       success: false,
