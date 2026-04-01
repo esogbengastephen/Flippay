@@ -20,12 +20,17 @@ function getPasskeyRuntimeContext() {
   const hostname = typeof window !== "undefined" ? window.location.hostname : "flippay.app";
   const origin = typeof window !== "undefined" ? window.location.origin : "https://flippay.app";
   const noWww = hostname.replace(/^www\./i, "");
-  const rpIdCandidates = Array.from(new Set([noWww, hostname, "flippay.app"])).filter(Boolean);
+  const preferredRpId =
+    hostname === "flippay.app" || hostname === "www.flippay.app"
+      ? "www.flippay.app"
+      : hostname;
+  const rpIdCandidates = Array.from(new Set([preferredRpId, hostname, noWww, "www.flippay.app", "flippay.app"])).filter(Boolean);
 
   return {
     hostname,
     origin,
     normalizedHostname: noWww,
+    preferredRpId,
     rpIdCandidates,
     apiChallengeUrl: getApiUrl("/api/passkey/challenge"),
     apiVerifyUrl: getApiUrl("/api/passkey/verify"),
@@ -84,9 +89,9 @@ export async function createPasskey(
 ): Promise<{ success: boolean; credential?: PasskeyCredential; error?: string }> {
   try {
     const getRpId = (): string => {
-      // To avoid breaking logins across `flippay.app` vs `www.flippay.app`,
-      // we normalize to the registrable domain part by stripping leading `www.`.
-      return getPasskeyRuntimeContext().normalizedHostname || "flippay.app";
+      // Keep passkeys tied to one canonical production host to avoid
+      // cross-subdomain mismatches during platform authenticator lookups.
+      return getPasskeyRuntimeContext().preferredRpId || "www.flippay.app";
     };
 
     // Get challenge from server
@@ -234,7 +239,7 @@ export async function authenticateWithPasskey(
           ],
           timeout: 60000,
           userVerification: "preferred", // Changed from "required" to "preferred" for better compatibility
-          // Explicitly set RP ID; we will try multiple candidates below.
+          // Start with the canonical host before trying any legacy fallback RP IDs.
           rpId: candidates[0],
         },
       }) as PublicKeyCredential;
