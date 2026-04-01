@@ -67,6 +67,14 @@ export async function createPasskey(
   userName: string
 ): Promise<{ success: boolean; credential?: PasskeyCredential; error?: string }> {
   try {
+    const getRpId = (): string => {
+      // To avoid breaking logins across `flippay.app` vs `www.flippay.app`,
+      // we normalize to the registrable domain part by stripping leading `www.`.
+      const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+      const noWww = hostname.replace(/^www\./i, "");
+      return noWww || "flippay.app";
+    };
+
     // Get challenge from server
     const challengeResponse = await fetch(getApiUrl("/api/passkey/challenge"), {
       method: "POST",
@@ -87,10 +95,8 @@ export async function createPasskey(
         challenge,
         rp: {
           name: "SendApp",
-          // Use current hostname (works for both localhost and production)
-          // For production, this will be 'flippay.app' or 'www.flippay.app'
-          // For localhost, this will be 'localhost'
-          id: typeof window !== "undefined" ? window.location.hostname : "flippay.app",
+          // Normalize to a stable RP ID across `www` and non-`www` hosts.
+          id: getRpId(),
         },
         user: {
           id: base64UrlToArrayBuffer(userId),
@@ -197,6 +203,14 @@ export async function authenticateWithPasskey(
     let assertion: PublicKeyCredential;
     
     try {
+      const hostname =
+        typeof window !== "undefined" ? window.location.hostname : "flippay.app";
+      const noWww = hostname.replace(/^www\./i, "");
+      // Try the normalized RP ID first (matches how we create passkeys),
+      // then fall back to the raw hostname and finally the production domain.
+      const candidates = Array.from(new Set([noWww, hostname, "flippay.app"]))
+        .filter(Boolean);
+
       assertion = await navigator.credentials.get({
         publicKey: {
           challenge,
@@ -208,12 +222,74 @@ export async function authenticateWithPasskey(
           ],
           timeout: 60000,
           userVerification: "preferred", // Changed from "required" to "preferred" for better compatibility
-          rpId: typeof window !== "undefined" ? window.location.hostname : "flippay.app", // Explicitly set RP ID
+          // Explicitly set RP ID; we will try multiple candidates below.
+          rpId: candidates[0],
         },
       }) as PublicKeyCredential;
+
+      // If we got here, we succeeded with the first candidate.
     } catch (authError: any) {
+      const msg = String(authError?.message || "").toLowerCase();
+
+      // If Google Password Manager is unreachable, don't retry; surface a helpful message.
+      if (msg.includes("google password manager") || msg.includes("password manager")) {
+        throw authError;
+      }
+
+      const isLikelyUserDismissal =
+        authError?.name === "NotAllowedError" &&
+        (msg.includes("dismiss") || msg.includes("cancel") || msg.includes("rejected"));
+
+      // Retry with an alternate RP ID when the failure looks like an RP/domain mismatch.
+      const isLikelyRpMismatch =
+        authError?.name === "NotAllowedError" ||
+        authError?.name === "SecurityError";
+
+      const shouldRetryRpId =
+        !isLikelyUserDismissal &&
+        isLikelyRpMismatch &&
+        msg &&
+        (msg.includes("origin") || msg.includes("rp id") || msg.includes("domain") || msg.includes("rp-id"));
+
+      if (shouldRetryRpId) {
+        const hostname2 =
+          typeof window !== "undefined" ? window.location.hostname : "flippay.app";
+        const noWww2 = hostname2.replace(/^www\./i, "");
+        const candidates2 = Array.from(
+          new Set([noWww2, hostname2, "flippay.app"])
+        ).filter(Boolean);
+
+        let lastErr: any = authError;
+        for (const rpId of candidates2) {
+          try {
+            assertion = await navigator.credentials.get({
+              publicKey: {
+                challenge,
+                allowCredentials: [
+                  {
+                    id: credentialId,
+                    type: "public-key",
+                  },
+                ],
+                timeout: 60000,
+                userVerification: "preferred",
+                rpId,
+              },
+            }) as PublicKeyCredential;
+            lastErr = null;
+            break;
+          } catch (e: any) {
+            lastErr = e;
+          }
+        }
+
+        if (lastErr) throw lastErr;
+        // If we successfully authenticated with an alternate RP ID, continue below
+        // so we still verify the assertion with the server.
+      }
+
       // Don't log expected user cancellation errors to console.error
-      // These are normal when users dismiss the prompt
+      // These are normal when users dismiss the prompt.
       if (authError.name === "NotAllowedError") {
         console.log("[Passkey] User cancelled or operation not allowed");
         throw authError; // Re-throw to be caught by outer catch with proper handling
@@ -282,13 +358,23 @@ export async function authenticateWithPasskey(
       console.log("[Passkey] Authentication cancelled or not allowed by user");
       return {
         success: false,
-        error: "Authentication was cancelled. Please try again and complete the passkey prompt when it appears.",
+        error: error.message?.includes("Google Password Manager")
+          ? "Can't reach Google Password Manager. Check your connection and try again (or use email login)."
+          : "Authentication was cancelled. Please try again and complete the passkey prompt when it appears.",
       };
     } else if (error.name === "InvalidStateError") {
       console.warn("[Passkey] InvalidStateError:", error.message);
       return {
         success: false,
         error: "Passkey is not available or has been removed. Please set up a new passkey.",
+      };
+    } else if (
+      typeof error?.message === "string" &&
+      error.message.toLowerCase().includes("google password manager")
+    ) {
+      return {
+        success: false,
+        error: "Can't reach Google Password Manager. Check your connection and try again (or use email login).",
       };
     } else if (error.name === "NotSupportedError") {
       console.warn("[Passkey] NotSupportedError:", error.message);
@@ -309,6 +395,11 @@ export async function authenticateWithPasskey(
         success: false,
         error: "Domain mismatch. Your passkey was created on a different domain. Please recreate your passkey on flippay.app.",
         requiresRecreate: true,
+      };
+    } else if (error.name === "AbortError") {
+      return {
+        success: false,
+        error: "Passkey prompt timed out or was aborted. Try again (or use email login).",
       };
     }
     

@@ -127,9 +127,8 @@ export default function UserDashboard() {
   // Generate Invoice: available to all users
   const canUseGenerateInvoice = true;
 
-  const userEmail = (user?.email ?? userProfile?.email ?? dashboardData?.user?.email ?? "").toString().toLowerCase();
   const canUseBuyAirtime = true; // Buy Airtime available to all users
-  const canUsePayBetting = userEmail === "esogbengastephen@gmail.com";
+  const canUsePayBetting = true; // Pay Betting available to all users
 
   // Helper function to extract first name from email
   const getFirstNameFromEmail = (email: string | undefined | null): string => {

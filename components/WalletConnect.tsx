@@ -5,6 +5,28 @@ import { getApiUrl } from "@/lib/apiBase";
 import { useState, useEffect, useRef } from "react";
 import { useAccount, useConnect, useDisconnect, useSignMessage, useConnections } from "wagmi";
 import FSpinner from "@/components/FSpinner";
+import type { Connector } from "wagmi";
+
+function formatWalletConnectError(err: unknown): string {
+  const raw =
+    err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  const m = raw.toLowerCase();
+  if (
+    m.includes("user rejected") ||
+    m.includes("user denied") ||
+    m.includes("rejected the request") ||
+    m.includes("4001")
+  ) {
+    return "You cancelled the connection in your wallet.";
+  }
+  if (m.includes("failed to connect to metamask") || (m.includes("metamask") && m.includes("connect"))) {
+    return "MetaMask did not connect. Unlock the extension, allow this site, then try again. If it still fails, restart the browser or update MetaMask.";
+  }
+  if (m.includes("wallet") && (m.includes("not found") || m.includes("not installed"))) {
+    return "No browser wallet was found. Install MetaMask (or another EVM wallet) on a desktop browser and try again.";
+  }
+  return raw.trim() || "Could not connect wallet. Try again or use another browser.";
+}
 
 interface WalletConnectProps {
   onAuthSuccess: (address: string) => void;
@@ -12,7 +34,7 @@ interface WalletConnectProps {
 
 export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
   const { address, isConnected, status } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const { connectAsync, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const connections = useConnections();
@@ -135,6 +157,16 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
     );
   }
 
+  const handleConnectorClick = async (connector: Connector) => {
+    setError(null);
+    try {
+      await connectAsync({ connector });
+    } catch (err) {
+      console.warn("[WalletConnect] connect failed:", err);
+      setError(formatWalletConnectError(err));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-white">
@@ -143,11 +175,17 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
       <p className="text-sm text-white/70">
         Please connect your wallet to verify admin access
       </p>
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded-lg">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
       <div className="space-y-3">
         {connectors.map((connector) => (
           <button
             key={connector.id}
-            onClick={() => connect({ connector })}
+            type="button"
+            onClick={() => void handleConnectorClick(connector)}
             disabled={isPending}
             className="w-full bg-secondary text-background-dark font-bold py-3 px-4 rounded-lg border border-secondary/50 hover:bg-secondary/90 hover:border-secondary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_0_12px_rgba(19,236,90,0.2)]"
           >

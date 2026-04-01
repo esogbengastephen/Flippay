@@ -337,7 +337,23 @@ export default function AuthPage() {
     }
 
     try {
-      const authResult = await authenticateWithPasskey(passkeyUserId);
+      // If the browser passkey prompt can't complete (e.g. Google Password Manager issue),
+      // we still want the UI to recover instead of staying stuck.
+      const PASSKEY_TIMEOUT_MS = 120_000;
+      const authResult: Awaited<ReturnType<typeof authenticateWithPasskey>> = await Promise.race([
+        authenticateWithPasskey(passkeyUserId),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "Passkey authentication timed out (Google Password Manager connectivity issue may be blocking it). Please try again or use email login."
+                )
+              ),
+            PASSKEY_TIMEOUT_MS
+          )
+        ),
+      ]);
 
       if (!authResult.success) {
         // Check if passkey needs to be recreated (domain mismatch)
