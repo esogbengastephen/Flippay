@@ -3,22 +3,15 @@ import { updateTransaction, getTransaction } from "./transactions";
 import { isValidAddress } from "../utils/validation";
 import { swapUsdcToSend, swapUsdcToSendBySellingUsdc, getUsdcAmountNeededForSend } from "./base-onramp-swap";
 
-/** When testing, all SEND is sent to this address instead of the user */
-const SEND_TEST_RECIPIENT_ADDRESS = "0xa66451D101E08cdA725EEaf2960D2515cFfc36F6";
-
 function getRecipientAddress(walletAddress: string): string {
-  // Production: always send to the user's wallet (never override with test address)
+  // Production: always the user's wallet (ignore SEND_TEST_RECIPIENT)
   if (process.env.NODE_ENV === "production") {
     return walletAddress;
   }
   const envOverride = process.env.SEND_TEST_RECIPIENT?.trim();
   if (envOverride && /^0x[a-fA-F0-9]{40}$/.test(envOverride)) {
-    console.log(`[Token Distribution] Test mode (SEND_TEST_RECIPIENT): sending to ${envOverride} instead of ${walletAddress}`);
+    console.log(`[Token Distribution] SEND_TEST_RECIPIENT: sending to ${envOverride} instead of ${walletAddress}`);
     return envOverride;
-  }
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[Token Distribution] Test mode (development): sending to ${SEND_TEST_RECIPIENT_ADDRESS} instead of ${walletAddress}`);
-    return SEND_TEST_RECIPIENT_ADDRESS;
   }
   return walletAddress;
 }
@@ -78,7 +71,6 @@ export async function distributeTokens(
     const sendNum = parseFloat(sendAmount);
     /** Total SEND we received from swaps in this run — use this to know if we have enough even when pool balance read is stale */
     let totalSendReceivedFromSwaps = 0;
-    const isTestRecipient = recipient.toLowerCase() === SEND_TEST_RECIPIENT_ADDRESS.toLowerCase() || (process.env.SEND_TEST_RECIPIENT && recipient.toLowerCase() === process.env.SEND_TEST_RECIPIENT?.trim().toLowerCase());
     const usdcAmountToSell = options?.usdcAmountToSell?.trim();
     // Only use fixed "test swap" (e.g. 0.14 USDC → ~5 SEND) when SEND_SWAP_TEST_AMOUNT is explicitly set.
     // Otherwise use production path (buy/sell exact sendAmount) even when sending to test address (e.g. simulate 600 NGN → 10.94 SEND).
