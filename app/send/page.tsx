@@ -15,6 +15,7 @@ import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import DashboardLayout from "@/components/DashboardLayout";
 import TransactionSuccess, { TransactionSuccessProps } from "@/components/TransactionSuccess";
 import { NIGERIAN_BANKS, isValidBankAccountNumber } from "@/lib/nigerian-banks";
+import { createJsonRpcProviderWith429Retry } from "@/lib/ethers-json-rpc-provider";
 // Heavy crypto libs loaded dynamically only when user actually sends crypto
 // to keep the initial bundle small for NGN (most common) send path
 
@@ -469,7 +470,7 @@ function SendPageContent() {
 
           // Helper: create a provider for one URL and test it's alive
           const tryProvider = async (url: string) => {
-            const p = new ethers.JsonRpcProvider(url, chainIdNum, { staticNetwork: true });
+            const p = createJsonRpcProviderWith429Retry(url, chainIdNum, { staticNetwork: true });
             await p.getBlockNumber(); // throws if the RPC is unreachable / rate-limited
             return p;
           };

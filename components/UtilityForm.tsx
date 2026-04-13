@@ -2,12 +2,14 @@
 
 import { getApiUrl } from "@/lib/apiBase";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { getUserFromStorage } from "@/lib/session";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { SEND_TOKEN_ADDRESS, BASE_RPC_URL } from "@/lib/constants";
+import { createJsonRpcProviderWith429Retry } from "@/lib/ethers-json-rpc-provider";
 import { getBettingNetworkLogo, getTelecomNetworkLogo, getTVNetworkLogo, getGiftCardNetworkLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
@@ -105,6 +107,13 @@ function readChainTokenBalance(
 }
 
 function formatPayBalanceAmount(n: number, maxFrac = 8): string {
+  if (!Number.isFinite(n)) return "0";
+  const s = n.toFixed(maxFrac).replace(/\.?0+$/, "");
+  return s || "0";
+}
+
+/** Rounded amounts for pay UI (need vs have use different precision). */
+function formatPayTokenUi(n: number, maxFrac: number): string {
   if (!Number.isFinite(n)) return "0";
   const s = n.toFixed(maxFrac).replace(/\.?0+$/, "");
   return s || "0";
@@ -210,6 +219,7 @@ export default function UtilityForm({
       solanaNote?: string;
       solanaInputTokenKey?: string;
       solanaInputMint?: string;
+      solanaUsdcNotionalHuman?: string;
       gasSponsored?: boolean;
       solanaGaslessEnabled?: boolean;
       solanaGaslessFeeNgn?: number;
@@ -222,6 +232,11 @@ export default function UtilityForm({
   const [solanaGaslessEnabled, setSolanaGaslessEnabled] = useState(false);
   const [payBalanceOk, setPayBalanceOk] = useState<boolean | null>(null);
   const [payBalanceMessage, setPayBalanceMessage] = useState<string | null>(null);
+  const [payBalanceGap, setPayBalanceGap] = useState<{
+    need: number;
+    available: number;
+    symbol: string;
+  } | null>(null);
   const [payBalanceLoading, setPayBalanceLoading] = useState(false);
   const [payBalanceAvailable, setPayBalanceAvailable] = useState<number | null>(null);
   const [payGasWarning, setPayGasWarning] = useState<string | null>(null);
@@ -234,6 +249,88 @@ export default function UtilityForm({
   const BASE_USDT = "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2";
   const BASE_WETH = "0x4200000000000000000000000000000000000006";
   const SOL_USDC = SOLANA_USDC_MINT;
+
+  const payQuoteDisplay = useMemo(() => {
+    const empty = {
+      humanDisplayShort: null as string | null,
+      symbol: "token" as string,
+      balanceLineSymbol: "token" as string,
+      settlementHumanShort: null as string | null,
+      settlementSymbol: null as string | null,
+    };
+    if (!quoteData || !quoteRail) return empty;
+
+    const tokenKeyForQuote =
+      quoteRail === "send"
+        ? SEND_TOKEN_ADDRESS.toLowerCase()
+        : quoteRail === "solana"
+          ? quoteData.crypto.solanaInputTokenKey || solanaPayToken || SOL_USDC
+          : basePayToken === "native"
+            ? "native"
+            : basePayToken
+              ? basePayToken.toLowerCase()
+              : null;
+
+    if (!tokenKeyForQuote) return empty;
+
+    const paymentSymbol =
+      quoteRail === "send"
+        ? "SEND"
+        : quoteRail === "solana"
+          ? payWalletBalances.solana?.[tokenKeyForQuote]?.symbol ||
+            (tokenKeyForQuote === "native" ? "SOL" : "token")
+          : basePayToken === "native"
+            ? "ETH"
+            : basePayToken.toLowerCase() === BASE_USDC.toLowerCase()
+              ? "USDC"
+              : basePayToken.toLowerCase() === BASE_USDT.toLowerCase()
+                ? "USDT"
+                : basePayToken.toLowerCase() === BASE_WETH.toLowerCase()
+                  ? "WETH"
+                  : basePayToken.toLowerCase() === SEND_TOKEN_ADDRESS.toLowerCase()
+                    ? "SEND"
+                    : "token";
+
+    if (
+      quoteRail === "solana" &&
+      quoteData.crypto.solanaUsdcNotionalHuman != null &&
+      quoteData.crypto.solanaUsdcNotionalHuman !== ""
+    ) {
+      const u = quoteData.crypto.solanaUsdcNotionalHuman;
+      const headlineHuman =
+        Number.isFinite(parseFloat(u)) ? formatPayTokenUi(parseFloat(u), 2) : null;
+      const settlementRaw = utilityQuoteAmountHuman(quoteData.crypto.amountsHuman, tokenKeyForQuote);
+      const settlementHumanShort =
+        settlementRaw != null && settlementRaw !== "" && Number.isFinite(parseFloat(settlementRaw))
+          ? formatPayTokenUi(parseFloat(settlementRaw), 2)
+          : null;
+      const keyLower = tokenKeyForQuote === "native" ? "native" : tokenKeyForQuote.toLowerCase();
+      const showSettlement =
+        settlementHumanShort != null &&
+        (keyLower === "native" || keyLower === SOLANA_USDT_MINT.toLowerCase());
+      return {
+        humanDisplayShort: headlineHuman,
+        symbol: "USDC",
+        balanceLineSymbol: paymentSymbol,
+        settlementHumanShort: showSettlement ? settlementHumanShort : null,
+        settlementSymbol: showSettlement ? paymentSymbol : null,
+      };
+    }
+
+    const humanRaw = utilityQuoteAmountHuman(quoteData.crypto.amountsHuman, tokenKeyForQuote);
+    const humanDisplayShort =
+      humanRaw != null && humanRaw !== "" && Number.isFinite(parseFloat(humanRaw))
+        ? formatPayTokenUi(parseFloat(humanRaw), 2)
+        : null;
+
+    return {
+      humanDisplayShort,
+      symbol: paymentSymbol,
+      balanceLineSymbol: paymentSymbol,
+      settlementHumanShort: null,
+      settlementSymbol: null,
+    };
+  }, [quoteData, quoteRail, basePayToken, solanaPayToken, payWalletBalances]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -733,6 +830,7 @@ export default function UtilityForm({
       setQuoteRail(null);
       setPayBalanceOk(null);
       setPayBalanceMessage(null);
+      setPayBalanceGap(null);
       setPayBalanceLoading(false);
       setPayBalanceAvailable(null);
       setPayGasWarning(null);
@@ -772,6 +870,7 @@ export default function UtilityForm({
     setQuoteRail(rail);
     setPayBalanceOk(null);
     setPayBalanceMessage(null);
+    setPayBalanceGap(null);
     setPayBalanceLoading(false);
     setPayBalanceAvailable(null);
     setPayGasWarning(null);
@@ -853,6 +952,7 @@ export default function UtilityForm({
     setPayBalanceLoading(true);
     setPayBalanceOk(null);
     setPayBalanceMessage(null);
+    setPayBalanceGap(null);
     setPayBalanceAvailable(null);
     setPayGasWarning(null);
 
@@ -865,6 +965,7 @@ export default function UtilityForm({
         if (!humanRequired) {
           if (!cancelled) {
             setPayBalanceOk(false);
+            setPayBalanceGap(null);
             setPayBalanceMessage("Could not read the required amount from this quote.");
           }
           return;
@@ -873,6 +974,7 @@ export default function UtilityForm({
         if (!Number.isFinite(required) || required < 0) {
           if (!cancelled) {
             setPayBalanceOk(false);
+            setPayBalanceGap(null);
             setPayBalanceMessage("Invalid amount in quote.");
           }
           return;
@@ -910,6 +1012,7 @@ export default function UtilityForm({
 
         if (cachedAvailable == null && available === 0) {
           setPayBalanceOk(null);
+          setPayBalanceGap(null);
           setPayBalanceMessage(
             "Could not load wallet balances. Try Refresh or pay with Naira."
           );
@@ -920,15 +1023,15 @@ export default function UtilityForm({
 
         if (required > 0 && available + 1e-12 < required) {
           setPayBalanceOk(false);
-          setPayBalanceMessage(
-            `Insufficient balance. You need ${humanRequired} ${symbol}; you have ~${formatPayBalanceAmount(available)} ${symbol}.`
-          );
+          setPayBalanceMessage(null);
+          setPayBalanceGap({ need: required, available, symbol });
           setPayGasWarning(null);
           return;
         }
 
         setPayBalanceOk(true);
         setPayBalanceMessage(null);
+        setPayBalanceGap(null);
 
         if (
           quoteRail !== "solana" &&
@@ -944,6 +1047,7 @@ export default function UtilityForm({
       } catch {
         if (!cancelled) {
           setPayBalanceOk(null);
+          setPayBalanceGap(null);
           setPayBalanceMessage(
             "Balance check failed. Tap Refresh balances to try again."
           );
@@ -1090,7 +1194,7 @@ export default function UtilityForm({
       return null;
     }
     const { ethers } = await import("ethers");
-    const provider = new ethers.JsonRpcProvider(BASE_RPC_URL, 8453, { staticNetwork: true });
+    const provider = createJsonRpcProviderWith429Retry(BASE_RPC_URL, 8453, { staticNetwork: true });
     const signer = new ethers.Wallet(basePk.startsWith("0x") ? basePk : `0x${basePk}`, provider);
     if (signer.address.toLowerCase() !== baseAddr.toLowerCase()) {
       setError("Wallet address mismatch");
@@ -1901,6 +2005,7 @@ export default function UtilityForm({
               setQuoteRail(null);
               setPayBalanceOk(null);
               setPayBalanceMessage(null);
+              setPayBalanceGap(null);
               setPayBalanceLoading(false);
               setPayBalanceAvailable(null);
               setPayGasWarning(null);
@@ -1981,6 +2086,7 @@ export default function UtilityForm({
                     setQuoteRail(null);
                     setPayBalanceOk(null);
                     setPayBalanceMessage(null);
+                    setPayBalanceGap(null);
                     setPayBalanceLoading(false);
                     setPayBalanceAvailable(null);
                     setPayGasWarning(null);
@@ -1988,9 +2094,25 @@ export default function UtilityForm({
                 >
                   ← Back
                 </button>
-                <p className="text-sm text-white">
-                  Pay <span className="text-secondary font-bold">₦{quoteData.ngnTotal.toLocaleString()}</span>
-                </p>
+                <div className="space-y-1">
+                  <p className="text-sm text-white">
+                    Pay <span className="text-secondary font-bold">₦{quoteData.ngnTotal.toLocaleString()}</span>
+                  </p>
+                  {payQuoteDisplay.humanDisplayShort != null && (
+                    <p className="text-sm font-semibold text-white/90">
+                      {payQuoteDisplay.symbol} {payQuoteDisplay.humanDisplayShort}
+                      {quoteRail === "send" ? (
+                        <span className="text-xs font-normal text-accent/50"> on Base</span>
+                      ) : null}
+                    </p>
+                  )}
+                  {payQuoteDisplay.settlementHumanShort != null && payQuoteDisplay.settlementSymbol && (
+                    <p className="text-xs text-accent/55 leading-relaxed">
+                      Settles from your wallet as ~{payQuoteDisplay.settlementHumanShort}{" "}
+                      {payQuoteDisplay.settlementSymbol}.
+                    </p>
+                  )}
+                </div>
                 {quoteRail === "solana" && (
                   <div className="rounded-2xl border border-accent/10 bg-primary/40 p-4 space-y-2">
                     <div className="flex justify-between text-xs text-accent/70">
@@ -2071,18 +2193,9 @@ export default function UtilityForm({
                     </select>
                   </div>
                 )}
-                {quoteRail === "send" && (
-                  <p className="text-xs text-accent/60">Paying with SEND on Base.</p>
-                )}
                 {quoteRail === "solana" && quoteData.crypto.solanaNote && (
                   <p className="text-xs text-accent/60">{quoteData.crypto.solanaNote}</p>
                 )}
-                <p className="text-xs text-accent/40 break-all">
-                  Treasury:{" "}
-                  {quoteRail === "solana"
-                    ? quoteData.treasury.solana || "—"
-                    : quoteData.treasury.base || "—"}
-                </p>
                 {payBalanceLoading && (
                   <div className="flex items-center gap-2 text-xs text-accent/60">
                     <FSpinner size="sm" />
@@ -2091,9 +2204,26 @@ export default function UtilityForm({
                 )}
                 {!payBalanceLoading && payBalanceOk === true && payBalanceAvailable != null && (
                   <p className="text-xs text-secondary/90">
-                    Balance looks sufficient (~{formatPayBalanceAmount(payBalanceAvailable)} in wallet for this
-                    token).
+                    Balance looks sufficient (~{formatPayTokenUi(payBalanceAvailable, 2)}{" "}
+                    {payQuoteDisplay.balanceLineSymbol} in your wallet).
                   </p>
+                )}
+                {!payBalanceLoading && payBalanceGap && (
+                  <div className="space-y-2 rounded-xl border border-amber-400/25 bg-amber-500/10 p-3">
+                    <p className="text-xs text-amber-100/95 leading-relaxed">
+                      Insufficient balance. You need {formatPayTokenUi(payBalanceGap.need, 3)}{" "}
+                      {payBalanceGap.symbol}; you have ~{formatPayTokenUi(payBalanceGap.available, 2)}{" "}
+                      {payBalanceGap.symbol}.
+                    </p>
+                    <Link
+                      href="/receive"
+                      className="inline-block text-xs font-bold text-secondary hover:text-secondary/90 underline underline-offset-2"
+                    >
+                      {payBalanceGap.symbol === "SEND"
+                        ? "Top up your SEND token"
+                        : `Top up your ${payBalanceGap.symbol}`}
+                    </Link>
+                  </div>
                 )}
                 {!payBalanceLoading && payBalanceMessage && (
                   <p className="text-xs text-amber-200/90">{payBalanceMessage}</p>
@@ -2130,6 +2260,7 @@ export default function UtilityForm({
                 setQuoteRail(null);
                 setPayBalanceOk(null);
                 setPayBalanceMessage(null);
+                setPayBalanceGap(null);
                 setPayBalanceLoading(false);
                 setPayBalanceAvailable(null);
                 setPayGasWarning(null);

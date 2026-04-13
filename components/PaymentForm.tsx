@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
+import { apiGet, apiPost } from "@/lib/api-client";
 
 import { useState, useEffect, useRef } from "react";
 import { nanoid } from "nanoid";
@@ -106,6 +107,9 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
   } | null>(null);
   const [isWaitingForTransfer, setIsWaitingForTransfer] = useState(false);
   const [copiedAccount, setCopiedAccount] = useState(false);
+  const [svaNgnBalance, setSvaNgnBalance] = useState<number | null>(null);
+  const [svaBalanceLoading, setSvaBalanceLoading] = useState(false);
+  const [payingFromSva, setPayingFromSva] = useState(false);
 
   // Note: Virtual account is now only fetched/created when "Generate Payment" is clicked
   // This ensures account details are only shown after user initiates payment
@@ -575,6 +579,109 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     }
   };
 
+  useEffect(() => {
+    if (!isWaitingForTransfer || !zainpayAccount) {
+      setSvaNgnBalance(null);
+      return;
+    }
+    const user = getUserFromStorage();
+    if (!user?.id) {
+      setSvaNgnBalance(null);
+      return;
+    }
+    let cancelled = false;
+    setSvaBalanceLoading(true);
+    apiGet(getApiUrl(`/api/user/dashboard?userId=${encodeURIComponent(user.id)}`))
+      .then((res) => res.json())
+      .then((data: { success?: boolean; data?: { balance?: { svaNgn?: number } } }) => {
+        if (cancelled) return;
+        if (data.success && data.data?.balance && typeof data.data.balance.svaNgn === "number") {
+          const n = Number(data.data.balance.svaNgn);
+          setSvaNgnBalance(Number.isNaN(n) ? null : n);
+        } else {
+          setSvaNgnBalance(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSvaNgnBalance(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSvaBalanceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isWaitingForTransfer, zainpayAccount?.transactionId]);
+
+  const payFromSvaWallet = async () => {
+    if (!zainpayAccount || payingFromSva) return;
+    const user = getUserFromStorage();
+    if (!user?.id) return;
+
+    const need = zainpayAccount.amount;
+    if (need < minimumPurchase) {
+      setModalData({
+        title: "Amount too low",
+        message: `Minimum purchase is ₦${minimumPurchase.toLocaleString()}.`,
+        type: "error",
+      });
+      setShowModal(true);
+      return;
+    }
+    if (svaNgnBalance != null && svaNgnBalance < need) {
+      setModalData({
+        title: "Insufficient balance",
+        message: `Your NGN wallet has ₦${svaNgnBalance.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. You need ₦${need.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+        type: "error",
+      });
+      setShowModal(true);
+      return;
+    }
+
+    setPayingFromSva(true);
+    try {
+      const res = await apiPost(getApiUrl("/api/zainpay/pay-onramp-from-sva"), {
+        transactionId: zainpayAccount.transactionId,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(typeof data.error === "string" ? data.error : "Payment from NGN wallet failed");
+      }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+      setIsPollingPayment(false);
+      setIsWaitingForTransfer(false);
+      setZainpayAccount(null);
+      safeLocalStorage.removeItem("transactionId");
+      safeLocalStorage.removeItem("walletAddress");
+      safeLocalStorage.removeItem("ngnAmount");
+      const txHash = data.txHash as string | undefined;
+      const explorerUrl =
+        network === "solana" && txHash
+          ? `https://solscan.io/tx/${txHash}`
+          : txHash
+            ? `https://basescan.org/tx/${txHash}`
+            : undefined;
+      setModalData({
+        title: "Tokens Received!",
+        message: "Your NGN wallet payment was confirmed and crypto has been sent to your wallet.",
+        type: "success",
+        txHash,
+        explorerUrl,
+      });
+      setShowModal(true);
+    } catch (e: unknown) {
+      setModalData({
+        title: "Payment Error",
+        message: e instanceof Error ? e.message : "Something went wrong.",
+        type: "error",
+      });
+      setShowModal(true);
+    } finally {
+      setPayingFromSva(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -828,6 +935,48 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
                   <span className="text-base font-bold text-secondary">₦{zainpayAccount.amount.toLocaleString()}</span>
                 </div>
               </div>
+
+              {(svaBalanceLoading || typeof svaNgnBalance === "number") && (
+                <div className="rounded-xl border border-secondary/25 bg-primary/30 p-4 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-secondary/90">
+                    Or pay from NGN wallet
+                  </p>
+                  <p className="text-sm text-accent/80">
+                    {svaBalanceLoading
+                      ? "Loading your in-app balance…"
+                      : `Available in NGN wallet: ₦${(svaNgnBalance as number).toLocaleString("en-NG", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={
+                      payingFromSva ||
+                      svaBalanceLoading ||
+                      typeof svaNgnBalance !== "number" ||
+                      svaNgnBalance < zainpayAccount.amount ||
+                      zainpayAccount.amount < minimumPurchase
+                    }
+                    onClick={() => void payFromSvaWallet()}
+                    className="w-full bg-primary border-2 border-secondary text-secondary font-bold py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed text-sm hover:bg-primary/80 flex items-center justify-center gap-2"
+                  >
+                    {payingFromSva ? (
+                      <>
+                        <FSpinner size="sm" />
+                        Paying from wallet…
+                      </>
+                    ) : (
+                      `Pay ₦${zainpayAccount.amount.toLocaleString()} from NGN wallet`
+                    )}
+                  </button>
+                  {typeof svaNgnBalance === "number" && svaNgnBalance < zainpayAccount.amount && (
+                    <p className="text-xs text-amber-500/90">
+                      Top up your in-app ZainBank wallet to use this option, or pay via bank transfer above.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <button
                 type="button"
