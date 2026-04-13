@@ -3,11 +3,52 @@
 import { createConfig, http } from "wagmi";
 import { base } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
-import { createPublicClient } from "viem";
+import { createPublicClient, type EIP1193Provider } from "viem";
+
+function readWindowEthereum(win: unknown): unknown {
+  if (!win || typeof win !== "object" || !("ethereum" in win)) return undefined;
+  return (win as { ethereum?: unknown }).ethereum;
+}
+
+/** Prefer MetaMask’s own provider when multiple wallets stack `window.ethereum`. */
+function metaMaskEip1193Provider(win?: unknown): EIP1193Provider | undefined {
+  const ethereum = readWindowEthereum(win);
+  if (!ethereum || typeof ethereum !== "object") return undefined;
+  const multi = ethereum as { isMetaMask?: boolean; providers?: unknown[] };
+  if (Array.isArray(multi.providers) && multi.providers.length > 0) {
+    const mm = multi.providers.find(
+      (p) => p && typeof p === "object" && (p as { isMetaMask?: boolean }).isMetaMask === true,
+    );
+    return mm as EIP1193Provider | undefined;
+  }
+  return multi.isMetaMask === true ? (ethereum as EIP1193Provider) : undefined;
+}
+
+function browserStackEthereumProvider(win?: unknown): EIP1193Provider | undefined {
+  const ethereum = readWindowEthereum(win);
+  return ethereum && typeof ethereum === "object" ? (ethereum as EIP1193Provider) : undefined;
+}
 
 export const wagmiConfig = createConfig({
   chains: [base],
-  connectors: [injected()],
+  connectors: [
+    injected({
+      target: {
+        id: "metaMask",
+        name: "MetaMask",
+        provider: metaMaskEip1193Provider,
+      },
+      shimDisconnect: true,
+    }),
+    injected({
+      target: {
+        id: "browserWallet",
+        name: "Browser wallet",
+        provider: browserStackEthereumProvider,
+      },
+      shimDisconnect: true,
+    }),
+  ],
   transports: {
     [base.id]: http(),
   },

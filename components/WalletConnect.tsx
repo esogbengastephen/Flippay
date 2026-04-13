@@ -25,6 +25,9 @@ function formatWalletConnectError(err: unknown): string {
   if (m.includes("wallet") && (m.includes("not found") || m.includes("not installed"))) {
     return "No browser wallet was found. Install MetaMask (or another EVM wallet) on a desktop browser and try again.";
   }
+  if (m.includes("provider not found")) {
+    return "MetaMask was not detected as an installed extension. Use “Browser wallet” for another wallet, or install/unlock MetaMask and refresh.";
+  }
   return raw.trim() || "Could not connect wallet. Try again or use another browser.";
 }
 

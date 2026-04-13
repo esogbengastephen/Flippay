@@ -216,7 +216,7 @@ function OffRampPageContent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Watch for SEND at deposit address: poll balance every 4s when pending SEND off-ramp
+  // Watch for SEND at deposit address: poll every 10s when pending (fewer API calls than 4s)
   useEffect(() => {
     if (!walletAddress || !transactionId || !user?.email || network !== "base" || !isSendFlow) return;
     if (payoutSuccess || processingPayout) return;
@@ -253,7 +253,7 @@ function OffRampPageContent() {
       }
     };
 
-    const interval = setInterval(checkBalance, 4000);
+    const interval = setInterval(checkBalance, 10000);
     checkBalance(); // Run once immediately
     return () => clearInterval(interval);
   }, [walletAddress, transactionId, user?.email, network, isSendFlow, payoutSuccess, processingPayout]);

@@ -278,9 +278,9 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         .catch(() => {});
     };
 
-    // Fetch immediately on mount, then every 10 s
+    // Fetch immediately on mount, then every 30s (server cron also refreshes DB rates)
     syncFromAdmin();
-    const interval = setInterval(syncFromAdmin, 10000);
+    const interval = setInterval(syncFromAdmin, 30000);
 
     // Re-sync on tab focus / visibility
     const onFocus = () => syncFromAdmin();
@@ -461,7 +461,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  /** Poll every 8 s — calls ZainPay verify API directly so tokens distribute even if webhook fails */
+  /** Poll every 12s — ZainPay verify + DB fallback; server cron also reconciles pendings */
   const startPollingForZainpayPayment = (txId: string) => {
     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     setIsPollingPayment(true);
@@ -505,7 +505,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       } catch {
         // silent — keep polling
       }
-    }, 8000);
+    }, 12000);
   };
 
   /** Triggered when user clicks "I have made payment" — immediate single check */

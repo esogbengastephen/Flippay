@@ -404,9 +404,9 @@ function SendPageContent() {
             Transaction,
             SystemProgram,
             LAMPORTS_PER_SOL,
-            sendAndConfirmTransaction,
             Keypair: SolanaKeypair,
           } = await import("@solana/web3.js");
+          const { sendAndConfirmTransactionWithExpiryRecovery } = await import("@/lib/solana-send");
 
           const privateKeyBytes = Buffer.from(privateKey, "hex");
           const keypair = SolanaKeypair.fromSecretKey(privateKeyBytes);
@@ -425,7 +425,7 @@ function SendPageContent() {
                 lamports: BigInt(Math.round(parseFloat(amount) * LAMPORTS_PER_SOL)),
               })
             );
-            txHash = await sendAndConfirmTransaction(connection, transaction, [keypair]);
+            txHash = await sendAndConfirmTransactionWithExpiryRecovery(connection, transaction, [keypair]);
           } else {
             // SPL token transfer
             const { getOrCreateAssociatedTokenAccount, createTransferInstruction, getMint } = await import("@solana/spl-token");
@@ -443,7 +443,7 @@ function SendPageContent() {
             const transaction = new Transaction().add(
               createTransferInstruction(fromATA.address, toATA.address, keypair.publicKey, parsedAmount)
             );
-            txHash = await sendAndConfirmTransaction(connection, transaction, [keypair]);
+            txHash = await sendAndConfirmTransactionWithExpiryRecovery(connection, transaction, [keypair]);
           }
         } else {
           // EVM send path — dynamically import ethers to keep NGN send bundle lean
