@@ -111,6 +111,54 @@ function deriveEVMAddress(seedPhrase: string): { address: string; privateKey: st
   }
 }
 
+const EVM_CHAIN_IDS_FOR_ALIGN = ["ethereum", "base", "polygon", "monad"] as const;
+const STANDARD_EVM_DERIVATION_PATH = "m/44'/60'/0'/0/0";
+
+/**
+ * Some earlier builds called `HDNodeWallet.fromPhrase(mnemonic, path)` with only two
+ * arguments, which treats `path` as the BIP-39 passphrase and yields a different EVM
+ * key than the standard `fromPhrase(mnemonic, undefined, path)` form.
+ *
+ * If the user's stored on-chain address (from the DB / profile) matches that legacy
+ * derivation, rewrite all EVM chain entries so signing and safety checks use the
+ * same key material as the stored address.
+ */
+export function alignWalletDataEvmWithStoredAddress(
+  walletData: WalletData,
+  seedPhrase: string,
+  storedEvmAddress: string | undefined
+): WalletData {
+  const stored = storedEvmAddress?.trim();
+  if (!stored) return walletData;
+
+  const current =
+    walletData.addresses.base ||
+    walletData.addresses.ethereum ||
+    walletData.addresses.polygon ||
+    walletData.addresses.monad;
+  if (current && current.toLowerCase() === stored.toLowerCase()) {
+    return walletData;
+  }
+
+  const legacyEvm = ethers.HDNodeWallet.fromPhrase(seedPhrase, STANDARD_EVM_DERIVATION_PATH);
+  if (legacyEvm.address.toLowerCase() !== stored.toLowerCase()) {
+    return walletData;
+  }
+
+  const addresses = { ...walletData.addresses };
+  const privateKeys = { ...walletData.privateKeys };
+  for (const chainId of EVM_CHAIN_IDS_FOR_ALIGN) {
+    addresses[chainId] = legacyEvm.address;
+    privateKeys[chainId] = legacyEvm.privateKey;
+  }
+
+  return {
+    ...walletData,
+    addresses,
+    privateKeys,
+  };
+}
+
 /**
  * Derive Solana wallet address from seed phrase
  */

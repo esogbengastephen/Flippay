@@ -978,7 +978,8 @@ export default function UtilityForm({
       setError("Could not retrieve wallet");
       return null;
     }
-    const { decryptSeedPhrase, generateWalletFromSeed } = await import("@/lib/wallet");
+    const { decryptSeedPhrase, generateWalletFromSeed, alignWalletDataEvmWithStoredAddress } =
+      await import("@/lib/wallet");
     let seedPhrase: string;
     try {
       seedPhrase = await decryptSeedPhrase(seedData.encryptedSeed, seedData.publicKey);
@@ -986,7 +987,14 @@ export default function UtilityForm({
       setError("Failed to decrypt wallet");
       return null;
     }
-    const walletData = generateWalletFromSeed(seedPhrase);
+    let walletData = generateWalletFromSeed(seedPhrase);
+    const sessionUser = getUserFromStorage();
+    const storedEvmForAlign =
+      sessionUser?.walletAddresses?.base ||
+      sessionUser?.walletAddresses?.ethereum ||
+      sessionUser?.walletAddresses?.polygon ||
+      sessionUser?.walletAddresses?.monad;
+    walletData = alignWalletDataEvmWithStoredAddress(walletData, seedPhrase, storedEvmForAlign);
 
     if (quoteRail === "solana") {
       const treasury = quoteData.treasury.solana;

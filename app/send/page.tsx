@@ -350,7 +350,8 @@ function SendPageContent() {
         }
 
         // Decrypt seed phrase client-side (dynamically import heavy wallet libs)
-        const { decryptSeedPhrase, generateWalletFromSeed } = await import("@/lib/wallet");
+        const { decryptSeedPhrase, generateWalletFromSeed, alignWalletDataEvmWithStoredAddress } =
+          await import("@/lib/wallet");
         let seedPhrase: string;
         try {
           seedPhrase = await decryptSeedPhrase(seedData.encryptedSeed, seedData.publicKey);
@@ -361,7 +362,13 @@ function SendPageContent() {
         }
 
         // Derive private key from seed
-        const walletData = generateWalletFromSeed(seedPhrase);
+        let walletData = generateWalletFromSeed(seedPhrase);
+        const storedEvmForAlign =
+          walletAddresses.base ||
+          walletAddresses.ethereum ||
+          walletAddresses.polygon ||
+          walletAddresses.monad;
+        walletData = alignWalletDataEvmWithStoredAddress(walletData, seedPhrase, storedEvmForAlign);
         const privateKey = walletData.privateKeys[selectedChain] ?? walletData.privateKeys["base"];
         if (!privateKey) {
           setError("No private key found for this chain.");

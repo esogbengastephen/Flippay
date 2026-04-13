@@ -8,7 +8,7 @@ import Image from "next/image";
 import { getUserFromStorage, isUserLoggedIn } from "@/lib/session";
 import { SUPPORTED_CHAINS, VISIBLE_CHAINS } from "@/lib/chains";
 import { authenticateWithPasskey } from "@/lib/passkey";
-import { decryptSeedPhrase } from "@/lib/wallet";
+import { decryptSeedPhrase, type WalletData } from "@/lib/wallet";
 import { getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
@@ -186,15 +186,16 @@ export default function ReceivePage() {
       // Step 3: Decrypt seed phrase and generate addresses client-side
       const seedPhrase = await decryptSeedPhrase(seedData.encryptedSeed, seedData.publicKey);
       
-      let walletData: { addresses: Record<string, string> } | undefined;
+      let walletData: WalletData | undefined;
       try {
-        const { generateWalletFromSeed } = await import("@/lib/wallet");
-        walletData = generateWalletFromSeed(seedPhrase);
-        
-        if (!walletData) {
-          setRegenerateError("Failed to generate wallet data. Please try again.");
-          return;
-        }
+        const { generateWalletFromSeed, alignWalletDataEvmWithStoredAddress } = await import("@/lib/wallet");
+        const generated = generateWalletFromSeed(seedPhrase);
+        const storedEvmForAlign =
+          walletAddresses.base ||
+          walletAddresses.ethereum ||
+          walletAddresses.polygon ||
+          walletAddresses.monad;
+        walletData = alignWalletDataEvmWithStoredAddress(generated, seedPhrase, storedEvmForAlign);
         
         // Check if EVM addresses were generated
         const evmChains = ["ethereum", "base", "polygon", "monad"];
