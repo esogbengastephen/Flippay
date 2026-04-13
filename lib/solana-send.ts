@@ -31,7 +31,11 @@ export async function sendAndConfirmTransactionWithExpiryRecovery(
       commitment: "confirmed",
       maxSupportedTransactionVersion: 0,
     });
-    if (landed?.meta?.err == null && landed.transaction) {
+    if (
+      landed != null &&
+      landed.meta?.err == null &&
+      landed.transaction
+    ) {
       return signature;
     }
 
