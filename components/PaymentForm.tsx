@@ -1,7 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-import { apiGet, apiPost } from "@/lib/api-client";
+import { apiGet, apiPost, getSessionToken } from "@/lib/api-client";
 
 import { useState, useEffect, useRef } from "react";
 import { nanoid } from "nanoid";
@@ -640,13 +640,33 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
 
     setPayingFromSva(true);
     try {
+      const sessionToken = getSessionToken();
       const res = await apiPost(getApiUrl("/api/zainpay/pay-onramp-from-sva"), {
         transactionId: zainpayAccount.transactionId,
+        ...(sessionToken ? { sessionToken } : {}),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         throw new Error(typeof data.error === "string" ? data.error : "Payment from NGN wallet failed");
       }
+
+      const txHash = data.txHash as string | undefined;
+      const awaiting = Boolean(data.awaitingPaymentConfirmation);
+
+      if (awaiting && !txHash) {
+        setModalData({
+          title: "Payment sent",
+          message:
+            "We moved the funds from your NGN wallet to this checkout account. Hang tight — we are confirming with ZainPay and will send your crypto shortly (same as after a bank transfer). You can also tap “I have made payment” to check now.",
+          type: "info",
+        });
+        setShowModal(true);
+        if (!pollingIntervalRef.current && zainpayAccount?.transactionId) {
+          startPollingForZainpayPayment(zainpayAccount.transactionId);
+        }
+        return;
+      }
+
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
       setIsPollingPayment(false);
@@ -655,7 +675,6 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       safeLocalStorage.removeItem("transactionId");
       safeLocalStorage.removeItem("walletAddress");
       safeLocalStorage.removeItem("ngnAmount");
-      const txHash = data.txHash as string | undefined;
       const explorerUrl =
         network === "solana" && txHash
           ? `https://solscan.io/tx/${txHash}`

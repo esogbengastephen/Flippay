@@ -460,6 +460,7 @@ export default function AuthPage() {
       // Store user and redirect to passkey setup with recovery flag
       setMessage("Recovery verified! Redirecting to create new passkey...");
       localStorage.setItem("user", JSON.stringify(data.user));
+      if (data.sessionToken) localStorage.setItem("session_token", data.sessionToken);
       localStorage.setItem("last_email", email);
       
       setTimeout(() => router.push("/passkey-setup?recovery=true"), 1500);

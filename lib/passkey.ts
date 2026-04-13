@@ -367,6 +367,14 @@ export async function authenticateWithPasskey(
     
     console.log("[Passkey] Verification successful");
 
+    if (typeof verifyData.sessionToken === "string" && verifyData.sessionToken.trim()) {
+      try {
+        localStorage.setItem("session_token", verifyData.sessionToken.trim());
+      } catch (e) {
+        console.warn("[Passkey] Could not store session_token:", e);
+      }
+    }
+
     return {
       success: true,
       credentialId: arrayBufferToBase64Url(credentialId),

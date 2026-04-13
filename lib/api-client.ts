@@ -23,7 +23,7 @@ const SESSION_STORAGE_KEY = "session_token";
 /**
  * Get the current session token from localStorage (client-side only).
  */
-function getSessionToken(): string | null {
+export function getSessionToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
     return localStorage.getItem(SESSION_STORAGE_KEY);

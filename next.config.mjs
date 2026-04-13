@@ -16,6 +16,21 @@ const nextConfig = {
       },
     ];
   },
+  /**
+   * Local `next dev` only: same-origin `/api/*` → backend :3001 so `X-Session-Token` is not
+   * dropped by cross-origin CORS. Disabled on Vercel / production build.
+   */
+  async rewrites() {
+    if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+      return [];
+    }
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:3001/api/:path*",
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {
