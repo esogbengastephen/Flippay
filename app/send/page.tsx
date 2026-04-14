@@ -370,7 +370,10 @@ function SendPageContent() {
           walletAddresses.polygon ||
           walletAddresses.monad;
         walletData = alignWalletDataEvmWithStoredAddress(walletData, seedPhrase, storedEvmForAlign);
-        const privateKey = walletData.privateKeys[selectedChain] ?? walletData.privateKeys["base"];
+        const privateKey =
+          walletData.privateKeys[selectedChain] ??
+          (selectedChain === "solana" ? walletData.privateKeys.solana : undefined) ??
+          walletData.privateKeys["base"];
         if (!privateKey) {
           setError("No private key found for this chain.");
           setLoading(false);
@@ -407,7 +410,6 @@ function SendPageContent() {
         if (chainConfig?.type === ChainType.SOLANA) {
           // Solana send path — dynamically import to keep NGN send bundle lean
           const {
-            Connection: SolanaConnection,
             PublicKey,
             Transaction,
             SystemProgram,
@@ -415,14 +417,12 @@ function SendPageContent() {
             Keypair: SolanaKeypair,
           } = await import("@solana/web3.js");
           const { sendAndConfirmTransactionWithExpiryRecovery } = await import("@/lib/solana-send");
+          const { createSolanaConnectionWithFallbacks } = await import("@/lib/solana-rpc");
 
           const privateKeyBytes = Buffer.from(privateKey, "hex");
           const keypair = SolanaKeypair.fromSecretKey(privateKeyBytes);
           fromAddress = keypair.publicKey.toBase58();
-          const connection = new SolanaConnection(
-            chainConfig.rpcUrl || "https://api.mainnet-beta.solana.com",
-            "confirmed"
-          );
+          const connection = await createSolanaConnectionWithFallbacks(chainConfig.rpcUrl);
           const recipientPubkey = new PublicKey(recipient);
 
           if (tokenIsNative) {
@@ -655,7 +655,24 @@ function SendPageContent() {
       }
     } catch (err: any) {
       console.error("Error sending:", err);
-      setError(err.message || "Failed to send. Please try again.");
+      const msg = err?.message || String(err || "");
+      const lower = msg.toLowerCase();
+      const solanaRpcHint =
+        selectedChain === "solana" &&
+        (lower.includes("403") ||
+          lower.includes("401") ||
+          lower.includes("429") ||
+          lower.includes("forbidden") ||
+          lower.includes("failed to fetch") ||
+          lower.includes("timeout") ||
+          lower.includes("could not reach any solana"));
+      if (solanaRpcHint) {
+        setError(
+          "Could not complete the Solana request. In production, set NEXT_PUBLIC_SOLANA_RPC_URL on your host (e.g. Vercel) to a dedicated mainnet RPC (Alchemy, Helius, QuickNode). If it is already set, allow your production domain in the RPC provider dashboard and redeploy."
+        );
+      } else {
+        setError(msg || "Failed to send. Please try again.");
+      }
     } finally {
       setLoading(false);
       setAuthenticating(false);

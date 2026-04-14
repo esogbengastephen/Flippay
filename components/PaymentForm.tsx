@@ -645,9 +645,16 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         transactionId: zainpayAccount.transactionId,
         ...(sessionToken ? { sessionToken } : {}),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok || !data.success) {
-        throw new Error(typeof data.error === "string" ? data.error : "Payment from NGN wallet failed");
+        const raw = data.error ?? data.message;
+        const msg =
+          typeof raw === "string" && raw.trim()
+            ? raw.trim()
+            : typeof raw === "object" && raw !== null && "message" in raw && typeof (raw as { message?: unknown }).message === "string"
+              ? String((raw as { message: string }).message).trim()
+              : "";
+        throw new Error(msg || "Payment from NGN wallet failed");
       }
 
       const txHash = data.txHash as string | undefined;

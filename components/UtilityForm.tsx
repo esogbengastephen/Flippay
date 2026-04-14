@@ -10,6 +10,7 @@ import { getUserFromStorage } from "@/lib/session";
 import { authenticateWithPasskey } from "@/lib/passkey";
 import { SEND_TOKEN_ADDRESS, BASE_RPC_URL } from "@/lib/constants";
 import { createJsonRpcProviderWith429Retry } from "@/lib/ethers-json-rpc-provider";
+import { parseEther, parseUnits } from "ethers";
 import { getBettingNetworkLogo, getTelecomNetworkLogo, getTVNetworkLogo, getGiftCardNetworkLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
@@ -87,23 +88,36 @@ function readChainTokenBalance(
   chainBal: Record<string, { balance: string }> | undefined,
   tokenKey: string
 ): number {
-  if (!chainBal) return 0;
+  const raw = readChainTokenBalanceRaw(chainBal, tokenKey);
+  if (raw == null) return 0;
+  return parseFloat(raw) || 0;
+}
+
+/** Exact balance string from `/api/wallet/balances` (avoid parseFloat-only checks for ERC-20). */
+function readChainTokenBalanceRaw(
+  chainBal: Record<string, { balance: string }> | undefined,
+  tokenKey: string
+): string | null {
+  if (!chainBal) return null;
   if (tokenKey === "native") {
-    return parseFloat(chainBal["native"]?.balance || "0") || 0;
+    const b = chainBal["native"]?.balance;
+    return b != null && b !== "" ? b : null;
   }
   const lower = tokenKey.toLowerCase();
   for (const [addr, t] of Object.entries(chainBal)) {
     if (addr === "native") continue;
     if (addr.toLowerCase() === lower) {
-      return parseFloat(t.balance || "0") || 0;
+      const b = t.balance;
+      return b != null && b !== "" ? b : null;
     }
   }
   for (const [addr, t] of Object.entries(chainBal)) {
     if (addr === tokenKey) {
-      return parseFloat(t.balance || "0") || 0;
+      const b = t.balance;
+      return b != null && b !== "" ? b : null;
     }
   }
-  return 0;
+  return null;
 }
 
 function formatPayBalanceAmount(n: number, maxFrac = 8): string {
@@ -981,7 +995,13 @@ export default function UtilityForm({
         }
 
         const chain = quoteRail === "solana" ? "solana" : "base";
-        const getAvailableFromApi = async (fresh: boolean): Promise<number | null> => {
+        type BalSnap = { num: number; raw: string | null };
+        const pickRicherSnap = (a: BalSnap, b: BalSnap): BalSnap => {
+          if (b.num > a.num + 1e-15) return { num: b.num, raw: b.raw ?? a.raw };
+          if (a.num > b.num + 1e-15) return { num: a.num, raw: a.raw ?? b.raw };
+          return { num: a.num, raw: b.raw ?? a.raw };
+        };
+        const getAvailableFromApi = async (fresh: boolean): Promise<BalSnap | null> => {
           const res = await fetch(
             getApiUrl(
               `/api/wallet/balances?userId=${encodeURIComponent(user.id)}${fresh ? "&fresh=true" : ""}`
@@ -993,24 +1013,27 @@ export default function UtilityForm({
           const chainBal = data.balances[chain] as
             | Record<string, { balance: string }>
             | undefined;
-          return readChainTokenBalance(chainBal, tokenKeyForQuote);
+          const raw = readChainTokenBalanceRaw(chainBal, tokenKeyForQuote);
+          const num = readChainTokenBalance(chainBal, tokenKeyForQuote);
+          return { num, raw };
         };
 
         // Use cache-first to avoid false "0 balance" from transient full-sync issues.
         // If cache is insufficient, run fresh sync and use the higher of both values.
-        const cachedAvailable = await getAvailableFromApi(false);
+        const firstSnap = await getAvailableFromApi(false);
         if (cancelled) return;
 
-        let available = cachedAvailable ?? 0;
-        if (required > 0 && available + 1e-12 < required) {
-          const freshAvailable = await getAvailableFromApi(true);
+        let snap = firstSnap;
+        const snapNum = (s: BalSnap | null) => s?.num ?? 0;
+        if (required > 0 && snapNum(snap) + 1e-12 < required) {
+          const freshSnap = await getAvailableFromApi(true);
           if (cancelled) return;
-          if (freshAvailable != null) {
-            available = Math.max(available, freshAvailable);
+          if (freshSnap) {
+            snap = snap ? pickRicherSnap(snap, freshSnap) : freshSnap;
           }
         }
 
-        if (cachedAvailable == null && available === 0) {
+        if (firstSnap == null && snap == null) {
           setPayBalanceOk(null);
           setPayBalanceGap(null);
           setPayBalanceMessage(
@@ -1019,9 +1042,36 @@ export default function UtilityForm({
           return;
         }
 
+        const available = snapNum(snap);
         if (!cancelled) setPayBalanceAvailable(available);
 
-        if (required > 0 && available + 1e-12 < required) {
+        let coversQuote = false;
+        if (quoteRail === "solana") {
+          coversQuote = !(required > 0 && available + 1e-12 < required);
+        } else {
+          try {
+            if (tokenKeyForQuote === "native") {
+              const needW = parseEther(humanRequired.trim() || "0");
+              const rawStr = (snap?.raw ?? "").trim() || "0";
+              const haveW = parseEther(rawStr);
+              coversQuote = haveW >= needW;
+            } else {
+              const dec = baseTokenDecimals(tokenKeyForQuote);
+              const needW = parseUnits(humanRequired.trim() || "0", dec);
+              const rawStr = snap?.raw?.trim();
+              if (rawStr) {
+                const haveW = parseUnits(rawStr || "0", dec);
+                coversQuote = haveW >= needW;
+              } else {
+                coversQuote = !(required > 0 && available + 1e-12 < required);
+              }
+            }
+          } catch {
+            coversQuote = !(required > 0 && available + 1e-12 < required);
+          }
+        }
+
+        if (required > 0 && !coversQuote) {
           setPayBalanceOk(false);
           setPayBalanceMessage(null);
           setPayBalanceGap({ need: required, available, symbol });
@@ -1216,10 +1266,18 @@ export default function UtilityForm({
       const ERC20_ABI = [
         "function transfer(address to, uint256 value) returns (bool)",
         "function decimals() view returns (uint8)",
+        "function balanceOf(address account) view returns (uint256)",
       ];
       const c = new ethers.Contract(tokenKey, ERC20_ABI, signer);
       const dec = await c.decimals();
       const parsed = ethers.parseUnits(human, dec);
+      const onChainBal = (await c.balanceOf(signer.address)) as bigint;
+      if (onChainBal < parsed) {
+        setError(
+          `Not enough tokens on Base to complete this payment. Required ${human} (wallet has less on-chain). Refresh balances or add SEND, then try again.`
+        );
+        return null;
+      }
       const tx = await c.transfer(treasury, parsed);
       const receipt = await tx.wait();
       if (!receipt || receipt.status !== 1) {
@@ -1263,7 +1321,19 @@ export default function UtilityForm({
         cryptoTokenAddress: tokenAddr,
       });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Payment failed");
+      const raw = e instanceof Error ? e.message : String(e);
+      const lower = raw.toLowerCase();
+      if (
+        lower.includes("e450d38c") ||
+        lower.includes("erc20insufficientbalance") ||
+        (lower.includes("call_exception") && lower.includes("estimateGas") && lower.includes("0xa9059cbb"))
+      ) {
+        setError(
+          "This payment needs more SEND on your Base wallet than you currently have. Tap Refresh balances, top up SEND on Base, then try again."
+        );
+      } else {
+        setError(raw || "Payment failed");
+      }
     } finally {
       setLoading(false);
     }
