@@ -120,6 +120,17 @@ function readChainTokenBalanceRaw(
   return null;
 }
 
+/** Base-chain token decimals for utility pay balance checks (must stay in sync with quote snapshot). */
+function utilityPayTokenDecimals(tokenKey: string): number {
+  const k = tokenKey.toLowerCase();
+  if (k === "native") return 18;
+  if (k === "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913") return 6; // USDC
+  if (k === "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2") return 6; // USDT
+  if (k === "0x4200000000000000000000000000000000000006") return 18; // WETH
+  if (k === SEND_TOKEN_ADDRESS.toLowerCase()) return 18;
+  return 18;
+}
+
 function formatPayBalanceAmount(n: number, maxFrac = 8): string {
   if (!Number.isFinite(n)) return "0";
   const s = n.toFixed(maxFrac).replace(/\.?0+$/, "");
@@ -1056,7 +1067,7 @@ export default function UtilityForm({
               const haveW = parseEther(rawStr);
               coversQuote = haveW >= needW;
             } else {
-              const dec = baseTokenDecimals(tokenKeyForQuote);
+              const dec = utilityPayTokenDecimals(tokenKeyForQuote);
               const needW = parseUnits(humanRequired.trim() || "0", dec);
               const rawStr = snap?.raw?.trim();
               if (rawStr) {

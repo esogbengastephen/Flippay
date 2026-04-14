@@ -1,7 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-import { apiGet, apiPost, getSessionToken } from "@/lib/api-client";
+import { apiGet, apiPost, getSessionToken, responseJsonSafe } from "@/lib/api-client";
 
 import { useState, useEffect, useRef } from "react";
 import { nanoid } from "nanoid";
@@ -133,15 +133,23 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       try {
         // Check if this transaction is completed (webhook should have processed it)
         const response = await fetch(getApiUrl(`/api/transactions/create-id?transactionId=${storedTxId}`));
-        const data = await response.json();
-        if (data.success && data.exists && data.status === "completed" && data.txHash) {
+        const parsed = await responseJsonSafe(response);
+        if (!parsed.parseOk) return;
+        const data = parsed.data;
+        if (
+          data.success &&
+          data.exists &&
+          data.status === "completed" &&
+          typeof data.txHash === "string" &&
+          data.txHash
+        ) {
           // Transaction was completed by webhook!
           setModalData({
             title: "Tokens Received! 🎉",
             message: "Your payment was processed and tokens have been sent to your wallet.",
             type: "success",
             txHash: data.txHash,
-            explorerUrl: data.txHash ? `https://basescan.org/tx/${data.txHash}` : undefined,
+            explorerUrl: `https://basescan.org/tx/${data.txHash}`,
           });
           setShowModal(true);
           
@@ -175,8 +183,10 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       if (storedId) {
         // Check if transaction ID exists in database
         fetch(getApiUrl(`/api/transactions/create-id?transactionId=${storedId}`))
-          .then((res) => res.json())
-          .then((data) => {
+          .then((res) => responseJsonSafe(res))
+          .then((parsed) => {
+            if (!parsed.parseOk) throw new Error(parsed.parseError);
+            const data = parsed.data;
             if (data.success && data.exists) {
               setTransactionId(storedId);
               console.log("[PaymentForm] Restored transaction ID from localStorage:", storedId);
@@ -206,8 +216,10 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         body: JSON.stringify({}),
       });
 
-      const data = await response.json();
-      if (data.success && data.transactionId) {
+      const parsed = await responseJsonSafe(response);
+      if (!parsed.parseOk) throw new Error(parsed.parseError);
+      const data = parsed.data;
+      if (data.success && typeof data.transactionId === "string" && data.transactionId) {
         const id = data.transactionId;
         setTransactionId(id);
         if (typeof window !== "undefined") {
@@ -379,7 +391,9 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      const parsed = await responseJsonSafe(response);
+      if (!parsed.parseOk) return;
+      const data = parsed.data;
       if (data.success) {
         console.log("[PaymentForm] Updated transaction ID with amount:", transactionId);
       }
@@ -387,60 +401,6 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       console.error("Failed to update transaction ID:", error);
     }
   };
-
-  // Auto-claim pending transactions on mount
-  useEffect(() => {
-    const checkForPendingTransactions = async () => {
-      // Get stored transaction ID from localStorage
-      const storedTxId = safeLocalStorage.getItem("transactionId");
-      if (!storedTxId) return;
-      
-      // Get stored wallet address and amount if available
-      const storedWallet = safeLocalStorage.getItem("walletAddress");
-      const storedAmount = safeLocalStorage.getItem("ngnAmount");
-      
-      if (!storedWallet || !storedAmount) return;
-      
-      // Only check if form is not being used
-      if (ngnAmount || walletAddress) return;
-      
-      try {
-        // Check if this transaction is completed (webhook should have processed it)
-        const response = await fetch(getApiUrl(`/api/transactions/create-id?transactionId=${storedTxId}`));
-        const data = await response.json();
-        if (data.success && data.exists && data.status === "completed" && data.txHash) {
-          // Transaction was completed by webhook!
-          setModalData({
-            title: "Tokens Received! 🎉",
-            message: "Your payment was processed and tokens have been sent to your wallet.",
-            type: "success",
-            txHash: data.txHash,
-            explorerUrl: data.txHash ? `https://basescan.org/tx/${data.txHash}` : undefined,
-          });
-          setShowModal(true);
-          
-          // Clear stored transaction ID
-          safeLocalStorage.removeItem("transactionId");
-          safeLocalStorage.removeItem("walletAddress");
-          safeLocalStorage.removeItem("ngnAmount");
-          
-          // Refresh page after 3 seconds
-          setTimeout(() => {
-            window.location.reload();
-          }, 3000);
-        }
-      } catch (error) {
-        console.error("Error checking for pending transactions:", error);
-        // Silent fail - don't show error to user
-      }
-    };
-    
-    // Only check if we have a stored transaction ID and form is not being used
-    const storedId = safeLocalStorage.getItem("transactionId");
-    if (storedId && !ngnAmount && !walletAddress) {
-      checkForPendingTransactions();
-    }
-  }, []); // Run once on mount
 
   // Validate form fields (wallet validation depends on network)
   const validateForm = (): boolean => {
@@ -493,17 +453,31 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       try {
         // Primary: ask ZainPay directly if payment was received (triggers distribution)
         const verifyRes = await fetch(getApiUrl(`/api/zainpay/verify-payment?transactionId=${txId}`));
-        const verifyData = await verifyRes.json();
+        const verifyParsed = await responseJsonSafe(verifyRes);
+        if (!verifyParsed.parseOk) return;
+        const verifyData = verifyParsed.data;
 
-        if (verifyData.paid && verifyData.status === "completed" && verifyData.txHash) {
+        if (
+          verifyData.paid &&
+          verifyData.status === "completed" &&
+          typeof verifyData.txHash === "string" &&
+          verifyData.txHash
+        ) {
           handleSuccess(verifyData.txHash);
           return;
         }
 
         // Fallback: check DB in case webhook already processed it
         const dbRes = await fetch(getApiUrl(`/api/transactions/create-id?transactionId=${txId}`));
-        const dbData = await dbRes.json();
-        if (dbData.success && dbData.status === "completed" && dbData.txHash) {
+        const dbParsed = await responseJsonSafe(dbRes);
+        if (!dbParsed.parseOk) return;
+        const dbData = dbParsed.data;
+        if (
+          dbData.success &&
+          dbData.status === "completed" &&
+          typeof dbData.txHash === "string" &&
+          dbData.txHash
+        ) {
           handleSuccess(dbData.txHash);
         }
       } catch {
@@ -518,8 +492,16 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     setIsCheckingNow(true);
     try {
       const verifyRes = await fetch(getApiUrl(`/api/zainpay/verify-payment?transactionId=${zainpayAccount.transactionId}`));
-      const verifyData = await verifyRes.json();
-      if (verifyData.paid && verifyData.status === "completed" && verifyData.txHash) {
+      const verifyParsed = await responseJsonSafe(verifyRes);
+      if (!verifyParsed.parseOk) throw new Error(verifyParsed.parseError);
+      const verifyData = verifyParsed.data;
+      if (
+        verifyData.paid &&
+        verifyData.status === "completed" &&
+        typeof verifyData.txHash === "string" &&
+        verifyData.txHash
+      ) {
+        const okHash = verifyData.txHash;
         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
         setIsPollingPayment(false);
@@ -532,16 +514,24 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
           title: "Tokens Received!",
           message: "Your transfer was confirmed and tokens have been sent to your wallet.",
           type: "success",
-          txHash: verifyData.txHash,
-          explorerUrl: `https://basescan.org/tx/${verifyData.txHash}`,
+          txHash: okHash,
+          explorerUrl: `https://basescan.org/tx/${okHash}`,
         });
         setShowModal(true);
         return;
       }
       // Fallback: check DB
       const dbRes = await fetch(getApiUrl(`/api/transactions/create-id?transactionId=${zainpayAccount.transactionId}`));
-      const dbData = await dbRes.json();
-      if (dbData.success && dbData.status === "completed" && dbData.txHash) {
+      const dbParsed2 = await responseJsonSafe(dbRes);
+      if (!dbParsed2.parseOk) throw new Error(dbParsed2.parseError);
+      const dbData = dbParsed2.data;
+      if (
+        dbData.success &&
+        dbData.status === "completed" &&
+        typeof dbData.txHash === "string" &&
+        dbData.txHash
+      ) {
+        const okHash = dbData.txHash;
         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
         setIsPollingPayment(false);
@@ -554,8 +544,8 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
           title: "Tokens Received!",
           message: "Your transfer was confirmed and tokens have been sent to your wallet.",
           type: "success",
-          txHash: dbData.txHash,
-          explorerUrl: `https://basescan.org/tx/${dbData.txHash}`,
+          txHash: okHash,
+          explorerUrl: `https://basescan.org/tx/${okHash}`,
         });
         setShowModal(true);
         return;
@@ -592,8 +582,10 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
     let cancelled = false;
     setSvaBalanceLoading(true);
     apiGet(getApiUrl(`/api/user/dashboard?userId=${encodeURIComponent(user.id)}`))
-      .then((res) => res.json())
-      .then((data: { success?: boolean; data?: { balance?: { svaNgn?: number } } }) => {
+      .then((res) => responseJsonSafe(res))
+      .then((parsed) => {
+        if (!parsed.parseOk) throw new Error(parsed.parseError);
+        const data = parsed.data as { success?: boolean; data?: { balance?: { svaNgn?: number } } };
         if (cancelled) return;
         if (data.success && data.data?.balance && typeof data.data.balance.svaNgn === "number") {
           const n = Number(data.data.balance.svaNgn);
@@ -645,8 +637,12 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         transactionId: zainpayAccount.transactionId,
         ...(sessionToken ? { sessionToken } : {}),
       });
-      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-      if (!res.ok || !data.success) {
+      const parsed = await responseJsonSafe(res);
+      if (!parsed.parseOk) {
+        throw new Error(parsed.parseError);
+      }
+      const data = parsed.data as Record<string, unknown>;
+      if (!parsed.httpOk || !data.success) {
         const raw = data.error ?? data.message;
         const msg =
           typeof raw === "string" && raw.trim()
@@ -745,11 +741,18 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
         });
-        const txIdData = await txIdResponse.json();
-        if (txIdData.success && txIdData.transactionId) {
-          setTransactionId(txIdData.transactionId);
-          localStorage.setItem("transactionId", txIdData.transactionId);
-          console.log(`[PaymentForm] Generated transaction ID: ${txIdData.transactionId}`);
+        const txIdParsed = await responseJsonSafe(txIdResponse);
+        if (!txIdParsed.parseOk) throw new Error(txIdParsed.parseError);
+        const txIdData = txIdParsed.data as { success?: boolean; transactionId?: string };
+        if (
+          txIdData.success &&
+          typeof txIdData.transactionId === "string" &&
+          txIdData.transactionId
+        ) {
+          const genId = txIdData.transactionId;
+          setTransactionId(genId);
+          localStorage.setItem("transactionId", genId);
+          console.log(`[PaymentForm] Generated transaction ID: ${genId}`);
         } else {
           // Fallback: generate locally
           const fallbackId = nanoid();
@@ -822,9 +825,23 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         }),
       });
 
-      const data = await res.json();
+      const parsed = await responseJsonSafe(res);
+      if (!parsed.parseOk) {
+        throw new Error(parsed.parseError);
+      }
+      const data = parsed.data as {
+        success?: boolean;
+        error?: string;
+        details?: { code?: string };
+        code?: string;
+        transactionId?: string;
+        accountNumber?: string;
+        bankName?: string;
+        accountName?: string;
+        amount?: number;
+      };
 
-      if (!res.ok || !data.success) {
+      if (!parsed.httpOk || !data.success) {
         const errMsg = data.error || "Failed to generate payment account. Please try again.";
         const code = data.details?.code ?? data.code;
         const isZainpayConfig = String(code) === "20" || /Invalid Source Account|ZainboxCode/i.test(String(errMsg));
@@ -835,21 +852,37 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
       }
 
       // Always store the fresh transaction ID returned by the API
-      setTransactionId(data.transactionId);
-      safeLocalStorage.setItem("transactionId", data.transactionId);
+      const freshTxId = typeof data.transactionId === "string" ? data.transactionId : "";
+      if (!freshTxId) {
+        throw new Error("Payment started but no transaction id was returned. Please try again.");
+      }
+      setTransactionId(freshTxId);
+      safeLocalStorage.setItem("transactionId", freshTxId);
+
+      const accountNumber =
+        typeof data.accountNumber === "string" ? data.accountNumber.trim() : "";
+      const bankName = typeof data.bankName === "string" ? data.bankName : "";
+      const accountName = typeof data.accountName === "string" ? data.accountName : "";
+      const amountNum =
+        typeof data.amount === "number" && Number.isFinite(data.amount)
+          ? data.amount
+          : parseFloat(ngnAmount) || 0;
+      if (!accountNumber) {
+        throw new Error("Payment account details were incomplete. Please try again.");
+      }
 
       // Show the virtual account UI
       setZainpayAccount({
-        accountNumber: data.accountNumber,
-        bankName: data.bankName,
-        accountName: data.accountName,
-        amount: data.amount,
-        transactionId: data.transactionId,
+        accountNumber,
+        bankName,
+        accountName,
+        amount: amountNum,
+        transactionId: freshTxId,
       });
       setIsWaitingForTransfer(true);
 
       // Start polling for payment confirmation
-      startPollingForZainpayPayment(data.transactionId);
+      startPollingForZainpayPayment(freshTxId);
 
     } catch (error: any) {
       console.warn("[ZainPay] Payment error:", error?.message || error);
