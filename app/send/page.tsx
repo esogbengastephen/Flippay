@@ -1,7 +1,7 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, responseJsonSafe } from "@/lib/api-client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -625,7 +625,13 @@ function SendPageContent() {
           }),
         });
 
-        const sendData = await sendResponse.json();
+        const sendParsed = await responseJsonSafe(sendResponse);
+        if (!sendParsed.parseOk) {
+          setError(sendParsed.parseError);
+          setLoading(false);
+          return;
+        }
+        const sendData = sendParsed.data as { success?: boolean; error?: string };
 
         if (!sendData.success) {
           setError(sendData.error || "Transfer failed. Please try again.");
