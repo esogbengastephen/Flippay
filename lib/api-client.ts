@@ -52,6 +52,53 @@ export async function apiFetch(
   });
 }
 
+export type ResponseJsonResult<T> =
+  | { parseOk: true; data: T; httpOk: boolean; status: number }
+  | { parseOk: false; data: null; httpOk: boolean; status: number; parseError: string };
+
+/**
+ * Parse a fetch Response as JSON without throwing. Use when calling backend APIs through a proxy:
+ * connection errors and HTML error pages ("Internal Server Error") are common and break `res.json()`.
+ */
+export async function responseJsonSafe<T = Record<string, unknown>>(res: Response): Promise<ResponseJsonResult<T>> {
+  const status = res.status;
+  const httpOk = res.ok;
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    return {
+      parseOk: false,
+      data: null,
+      httpOk,
+      status,
+      parseError: `Could not read response body (HTTP ${status}).`,
+    };
+  }
+  const snippet = text.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!snippet) {
+    return {
+      parseOk: false,
+      data: null,
+      httpOk,
+      status,
+      parseError: `Empty response (HTTP ${status}). Is the backend API running?`,
+    };
+  }
+  try {
+    const data = JSON.parse(text) as T;
+    return { parseOk: true, data, httpOk, status };
+  } catch {
+    return {
+      parseOk: false,
+      data: null,
+      httpOk,
+      status,
+      parseError: `Server returned non-JSON (HTTP ${status}). Check that the backend is up (e.g. port 3001 in dev). ${snippet}`,
+    };
+  }
+}
+
 /**
  * Convenience: authenticated GET
  */
