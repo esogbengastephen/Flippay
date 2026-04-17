@@ -90,3 +90,34 @@ export function isUserLoggedIn(): boolean {
   return getUserFromStorage() !== null;
 }
 
+/** Dispatched on same window after `mergeUserIntoStorage` updates localStorage (Sidebar, dashboard refresh). */
+export const USER_STORAGE_UPDATED_EVENT = "sendxino:user-storage-updated";
+
+/**
+ * Merge fields into the stored `user` object and notify listeners.
+ * Pass `null` for a field to remove it (e.g. clear `photoUrl` after removing a photo).
+ */
+export function mergeUserIntoStorage(
+  updates: Partial<Record<keyof AuthUser | "display_name", string | boolean | number | null | undefined>>
+) {
+  if (typeof window === "undefined") return;
+  const current = getUserFromStorage();
+  if (!current) return;
+
+  const next = { ...current } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === null || value === undefined) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  }
+
+  try {
+    localStorage.setItem("user", JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent(USER_STORAGE_UPDATED_EVENT));
+  } catch (e) {
+    console.warn("Error merging user into storage:", e);
+  }
+}
+

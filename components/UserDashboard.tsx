@@ -6,7 +6,8 @@ import { apiFetch } from "@/lib/api-client";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { getUserFromStorage, clearUserSession } from "@/lib/session";
+import { getUserFromStorage, clearUserSession, USER_STORAGE_UPDATED_EVENT } from "@/lib/session";
+import UserAvatar from "@/components/UserAvatar";
 import { getTokenLogo, getChainLogo } from "@/lib/logos";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
@@ -374,6 +375,15 @@ export default function UserDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const refreshProfile = () => {
+      fetchUserProfile(user.id);
+    };
+    window.addEventListener(USER_STORAGE_UPDATED_EVENT, refreshProfile);
+    return () => window.removeEventListener(USER_STORAGE_UPDATED_EVENT, refreshProfile);
+  }, [user?.id]);
+
   const handleServiceClick = (service: Service) => {
     // Map services to existing routes
     if (service.id === "crypto-to-naira") {
@@ -509,15 +519,15 @@ export default function UserDashboard() {
           <div className="hidden sm:block h-8 w-px bg-white/10 mx-1"></div>
           <Dropdown>
             <DropdownTrigger className="rounded-full hover:bg-white/10 transition-colors p-1">
-              {userProfile?.photoUrl ? (
-                <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-secondary/30">
-                  <Image src={userProfile.photoUrl} alt="" width={32} height={32} className="w-full h-full object-cover" unoptimized />
-                </div>
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-primary/40 flex items-center justify-center border border-accent/10">
-                  <span className="material-icons-round text-secondary text-sm">person</span>
-                </div>
-              )}
+              <UserAvatar
+                photoUrl={userProfile?.photoUrl}
+                displayName={
+                  userProfile?.displayName?.trim() ||
+                  getFirstNameFromEmail(userProfile?.email || user?.email)
+                }
+                size={32}
+                className="h-8 w-8"
+              />
             </DropdownTrigger>
             <DropdownContent align="end" className="w-56">
               <DropdownItem onClick={() => router.push("/profile")} className="gap-2">
@@ -1073,15 +1083,15 @@ export default function UserDashboard() {
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
-                      src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979509/108554348_rdxd9x.png"
-                      alt="BASE"
+                      src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
+                      alt="SOLANA"
                       width={20}
                       height={20}
                       className="w-5 h-5 object-contain opacity-70"
                       unoptimized
                     />
                   </div>
-                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">BASE</span>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">SOLANA</span>
                 </div>
                 <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
               </div>
@@ -1093,15 +1103,15 @@ export default function UserDashboard() {
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
-                      src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
-                      alt="SOLANA"
+                      src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979509/108554348_rdxd9x.png"
+                      alt="BASE"
                       width={20}
                       height={20}
                       className="w-5 h-5 object-contain opacity-70"
                       unoptimized
                     />
                   </div>
-                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">SOLANA</span>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">BASE</span>
                 </div>
                 <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
               </div>
@@ -1166,33 +1176,6 @@ export default function UserDashboard() {
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
                     <Image
-                      src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979509/108554348_rdxd9x.png"
-                      alt="BASE"
-                      width={20}
-                      height={20}
-                      className="w-5 h-5 object-contain opacity-70"
-                      unoptimized
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                        const parent = (e.target as HTMLImageElement).parentElement;
-                        if (parent) {
-                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-lg">account_balance</span>';
-                        }
-                      }}
-                    />
-                  </div>
-                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">BASE</span>
-                </div>
-                <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
-              </div>
-
-              <div
-                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
-                aria-disabled="true"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
-                    <Image
                       src="https://assets.coingecko.com/coins/images/4128/small/solana.png"
                       alt="SOLANA"
                       width={20}
@@ -1209,6 +1192,33 @@ export default function UserDashboard() {
                     />
                   </div>
                   <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">SOLANA</span>
+                </div>
+                <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
+              </div>
+
+              <div
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/40 border border-accent/10 opacity-60 cursor-not-allowed"
+                aria-disabled="true"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/60 flex items-center justify-center overflow-hidden flex-shrink-0 border border-accent/10">
+                    <Image
+                      src="https://res.cloudinary.com/dshqnkjqb/image/upload/v1766979509/108554348_rdxd9x.png"
+                      alt="BASE"
+                      width={20}
+                      height={20}
+                      className="w-5 h-5 object-contain opacity-70"
+                      unoptimized
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                        const parent = (e.target as HTMLImageElement).parentElement;
+                        if (parent) {
+                          parent.innerHTML = '<span class="material-icons-outlined text-secondary text-lg">account_balance</span>';
+                        }
+                      }}
+                    />
+                  </div>
+                  <span className="font-semibold text-sm text-accent/80 uppercase tracking-wide">BASE</span>
                 </div>
                 <span className="text-[10px] font-semibold text-accent/60 uppercase tracking-wider">Coming soon</span>
               </div>

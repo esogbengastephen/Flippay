@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { getUserFromStorage, clearUserSession } from "@/lib/session";
+import { getUserFromStorage, clearUserSession, USER_STORAGE_UPDATED_EVENT } from "@/lib/session";
+import UserAvatar from "@/components/UserAvatar";
 import {
   Dropdown,
   DropdownContent,
@@ -56,15 +57,30 @@ export default function Sidebar() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const user = getUserFromStorage();
-      const u = user as { displayName?: string; display_name?: string; email?: string; photoUrl?: string };
-      setDisplayName(u?.displayName || u?.display_name || u?.email?.split("@")[0] || "User");
-      setPhotoUrl((u as { photoUrl?: string })?.photoUrl ?? null);
-    } catch {
-      setDisplayName("User");
+    function syncFromStorage() {
+      try {
+        const user = getUserFromStorage();
+        const u = user as {
+          displayName?: string;
+          display_name?: string;
+          email?: string;
+          photoUrl?: string;
+        };
+        setDisplayName(u?.displayName || u?.display_name || u?.email?.split("@")[0] || "User");
+        setPhotoUrl(u?.photoUrl ?? null);
+      } catch {
+        setDisplayName("User");
+        setPhotoUrl(null);
+      }
     }
-  }, []);
+    syncFromStorage();
+    window.addEventListener(USER_STORAGE_UPDATED_EVENT, syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
+    return () => {
+      window.removeEventListener(USER_STORAGE_UPDATED_EVENT, syncFromStorage);
+      window.removeEventListener("storage", syncFromStorage);
+    };
+  }, [pathname]);
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to sign out?")) {
@@ -79,9 +95,9 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden lg:flex w-52 bg-primary flex-shrink-0 flex-col p-4 border-r border-white/5">
+    <aside className="hidden h-full min-h-0 w-52 flex-shrink-0 flex-col border-r border-white/5 bg-primary p-4 lg:flex">
       {/* Logo */}
-      <Link href="/" className="flex items-center justify-start w-full mb-6 shrink-0">
+      <Link href="/" className="mb-6 flex w-full shrink-0 items-center justify-start">
         <div className="relative w-20 h-20">
           <Image
             src="/flippay-logo-white.png"
@@ -93,8 +109,8 @@ export default function Sidebar() {
         </div>
       </Link>
 
-      {/* Main Nav */}
-      <nav className="flex-1 space-y-1">
+      {/* Main Nav — scrolls only if items overflow; keeps user block pinned to bottom of viewport */}
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.href}
@@ -107,17 +123,15 @@ export default function Sidebar() {
       </nav>
 
       {/* User Account - dropdown with Profile, Settings, Sign out */}
+      <div className="mt-3 shrink-0">
       <Dropdown>
         <DropdownTrigger className="w-full bg-surface-highlight/50 p-3 rounded-xl flex items-center gap-2 border border-white/5 hover:bg-surface-highlight/70 hover:border-accent/20 transition-colors">
-          {photoUrl ? (
-            <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-accent/20 flex-shrink-0">
-              <Image src={photoUrl} alt="" width={28} height={28} className="w-full h-full object-cover" unoptimized />
-            </div>
-          ) : (
-            <div className="w-7 h-7 bg-secondary rounded-full border-2 border-accent/20 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <UserAvatar
+            photoUrl={photoUrl}
+            displayName={displayName}
+            size={28}
+            className="h-7 w-7"
+          />
           <div className="text-xs font-semibold truncate text-accent min-w-0">{displayName}</div>
         </DropdownTrigger>
         <DropdownContent align="start" side="left" placement="top" className="w-56">
@@ -136,6 +150,7 @@ export default function Sidebar() {
           </DropdownItem>
         </DropdownContent>
       </Dropdown>
+      </div>
     </aside>
   );
 }

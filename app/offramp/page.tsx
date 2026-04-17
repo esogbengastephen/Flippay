@@ -484,7 +484,7 @@ function OffRampPageContent() {
               </div>
               <p className="text-xs text-accent/70 mb-3">Choose the network you want to withdraw from</p>
               <div className="space-y-2">
-                {(["send", "base", "solana"] as const).map((net) => {
+                {(["send", "solana", "base"] as const).map((net) => {
                   const isComingSoon = net === "base" || net === "solana";
                   const content = (
                     <div className="flex items-center gap-3">

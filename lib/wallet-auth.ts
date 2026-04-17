@@ -5,48 +5,28 @@ import { base } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 import { createPublicClient, type EIP1193Provider } from "viem";
 
-function readWindowEthereum(win: unknown): unknown {
+function multiplexedEthereumProvider(win?: unknown): EIP1193Provider | undefined {
   if (!win || typeof win !== "object" || !("ethereum" in win)) return undefined;
-  return (win as { ethereum?: unknown }).ethereum;
-}
-
-/** Prefer MetaMask’s own provider when multiple wallets stack `window.ethereum`. */
-function metaMaskEip1193Provider(win?: unknown): EIP1193Provider | undefined {
-  const ethereum = readWindowEthereum(win);
-  if (!ethereum || typeof ethereum !== "object") return undefined;
-  const multi = ethereum as { isMetaMask?: boolean; providers?: unknown[] };
-  if (Array.isArray(multi.providers) && multi.providers.length > 0) {
-    const mm = multi.providers.find(
-      (p) => p && typeof p === "object" && (p as { isMetaMask?: boolean }).isMetaMask === true,
-    );
-    return mm as EIP1193Provider | undefined;
-  }
-  return multi.isMetaMask === true ? (ethereum as EIP1193Provider) : undefined;
-}
-
-function browserStackEthereumProvider(win?: unknown): EIP1193Provider | undefined {
-  const ethereum = readWindowEthereum(win);
-  return ethereum && typeof ethereum === "object" ? (ethereum as EIP1193Provider) : undefined;
+  const eth = (win as { ethereum?: unknown }).ethereum;
+  return eth && typeof eth === "object" ? (eth as EIP1193Provider) : undefined;
 }
 
 export const wagmiConfig = createConfig({
+  // Avoid duplicate MetaMask entries (explicit `injected` + EIP-6963 `io.metamask`). Two connectors
+  // sharing one extension can race and trigger "Failed to connect" / already-processing errors.
+  multiInjectedProviderDiscovery: false,
   chains: [base],
   connectors: [
+    // Single connector: multiplexed `window.ethereum` (MetaMask, Coinbase, Brave, etc.). Targeting
+    // MetaMask alone via findProvider() can bind a sub-provider that triggers flaky inpage `connect`
+    // errors; the top-level injected proxy is what most wallets expect for eth_requestAccounts.
     injected({
       target: {
-        id: "metaMask",
-        name: "MetaMask",
-        provider: metaMaskEip1193Provider,
-      },
-      shimDisconnect: true,
-    }),
-    injected({
-      target: {
-        id: "browserWallet",
+        id: "evmBrowser",
         name: "Browser wallet",
-        provider: browserStackEthereumProvider,
+        provider: multiplexedEthereumProvider,
       },
-      shimDisconnect: true,
+      shimDisconnect: false,
     }),
   ],
   transports: {

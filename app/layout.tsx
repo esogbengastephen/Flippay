@@ -61,6 +61,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${montserrat.variable} ${inter.variable} dark`}>
       <head>
+        {/* Run before Next.js dev overlay scripts: MetaMask inpage failures are not app bugs; stop them from opening the Runtime overlay. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+if(typeof window==='undefined')return;
+function mmNoise(m,st){var s=(m?String(m):'')+(st?String(st):'');s=s.toLowerCase();return s.indexOf('failed to connect to metamask')!==-1||(s.indexOf('metamask')!==-1&&s.indexOf('connect')!==-1);}
+function extUrl(u){return typeof u==='string'&&(u.indexOf('chrome-extension://')===0||u.indexOf('moz-extension://')===0||u.indexOf('safari-web-extension://')===0);}
+window.addEventListener('error',function(e){var fn=String(e.filename||'');if(extUrl(fn)&&mmNoise(e.message,e.error&&e.error.stack)){e.stopImmediatePropagation();e.preventDefault();}},true);
+window.addEventListener('unhandledrejection',function(e){var r=e.reason;var m=typeof r==='string'?r:(r&&r.message)||'';var st=r&&r.stack?String(r.stack):'';if(mmNoise(m,st)){e.preventDefault();e.stopImmediatePropagation();}},true);
+})();`,
+          }}
+        />
         {/* Resource hints for faster external resource loading */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -221,6 +233,14 @@ export default function RootLayout({
               if (typeof window !== 'undefined') {
                 // Handle synchronous errors
                 window.addEventListener('error', function(event) {
+                  var fn = String(event.filename || '');
+                  var combined = ((event.message || '') + ' ' + (event.error && event.error.message ? String(event.error.message) : '')).toLowerCase();
+                  var isExtScript = fn.indexOf('chrome-extension://') !== -1 || fn.indexOf('moz-extension://') !== -1;
+                  if (isExtScript && (combined.indexOf('metamask') !== -1 || combined.indexOf('failed to connect') !== -1)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                  }
                   var hasMessage = event.message && String(event.message).trim();
                   var hasError = event.error && (event.error.message || String(event.error).trim());
                   if (!hasMessage && !hasError) {

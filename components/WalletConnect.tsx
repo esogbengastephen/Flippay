@@ -19,6 +19,13 @@ function formatWalletConnectError(err: unknown): string {
   ) {
     return "You cancelled the connection in your wallet.";
   }
+  if (
+    m.includes("already processing eth_requestaccounts") ||
+    m.includes("-32002") ||
+    (m.includes("resource") && m.includes("unavailable"))
+  ) {
+    return "A connection is already in progress. Close any MetaMask popups, wait a few seconds, then try once.";
+  }
   if (m.includes("failed to connect to metamask") || (m.includes("metamask") && m.includes("connect"))) {
     return "MetaMask did not connect. Unlock the extension, allow this site, then try again. If it still fails, restart the browser or update MetaMask.";
   }
@@ -26,7 +33,7 @@ function formatWalletConnectError(err: unknown): string {
     return "No browser wallet was found. Install MetaMask (or another EVM wallet) on a desktop browser and try again.";
   }
   if (m.includes("provider not found")) {
-    return "MetaMask was not detected as an installed extension. Use “Browser wallet” for another wallet, or install/unlock MetaMask and refresh.";
+    return "No EVM wallet was detected. Install MetaMask or another browser wallet, unlock it, allow this site, then refresh.";
   }
   return raw.trim() || "Could not connect wallet. Try again or use another browser.";
 }
@@ -44,6 +51,7 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const verifiedRef = useRef(false);
+  const connectInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!isConnected || !address) {
@@ -161,12 +169,16 @@ export default function WalletConnect({ onAuthSuccess }: WalletConnectProps) {
   }
 
   const handleConnectorClick = async (connector: Connector) => {
+    if (connectInFlightRef.current || isPending) return;
+    connectInFlightRef.current = true;
     setError(null);
     try {
       await connectAsync({ connector });
     } catch (err) {
       console.warn("[WalletConnect] connect failed:", err);
       setError(formatWalletConnectError(err));
+    } finally {
+      connectInFlightRef.current = false;
     }
   };
 

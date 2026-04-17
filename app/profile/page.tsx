@@ -1,14 +1,14 @@
 "use client";
 
 import { getApiUrl } from "@/lib/apiBase";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, responseJsonSafe } from "@/lib/api-client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Cropper from "react-easy-crop";
-import { getUserFromStorage } from "@/lib/session";
+import { getUserFromStorage, mergeUserIntoStorage } from "@/lib/session";
 import DashboardLayout from "@/components/DashboardLayout";
+import UserAvatar from "@/components/UserAvatar";
 import FSpinner from "@/components/FSpinner";
 import PageLoadingSpinner from "@/components/PageLoadingSpinner";
 import imageCompression from "browser-image-compression";
@@ -68,7 +68,11 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const response = await apiFetch(getApiUrl(`/api/user/profile?userId=${user.id}`));
-      const data = await response.json();
+      const result = await responseJsonSafe<{ success?: boolean; profile?: any }>(response);
+      if (!result.parseOk) {
+        throw new Error(result.parseError);
+      }
+      const data = result.data;
       
       if (data.success && data.profile) {
         setDisplayName(data.profile.displayName || "");
@@ -100,7 +104,10 @@ export default function ProfilePage() {
     new Promise((resolve, reject) => {
       const image = new window.Image();
       image.addEventListener("load", () => resolve(image));
-      image.addEventListener("error", (error) => reject(error));
+      // DOM "error" passes an Event (serializes as {}); reject with Error for clear handling
+      image.addEventListener("error", () =>
+        reject(new Error("Failed to load image (invalid URL or network error)"))
+      );
       image.src = url;
     });
 
@@ -158,24 +165,22 @@ export default function ProfilePage() {
   );
 
   const handleCropAndUpload = async () => {
-    if (!croppedAreaPixels || !imageSrc) return;
+    if (!croppedAreaPixels || !imageSrc || !user?.id) return;
 
     setUploading(true);
     setError("");
 
+    let croppedImageUrl: string | null = null;
     try {
-      // Get cropped image
-      const croppedImageUrl = await getCroppedImg(imageSrc, croppedAreaPixels);
+      croppedImageUrl = await getCroppedImg(imageSrc, croppedAreaPixels);
 
-      // Convert blob URL to File
       const response = await fetch(croppedImageUrl);
       const blob = await response.blob();
       const file = new File([blob], "profile.jpg", { type: "image/jpeg" });
 
-      // Compress for fast upload (smaller = faster processing and upload)
       const options = {
-        maxSizeMB: 0.2, // 200KB max for quick upload
-        maxWidthOrHeight: 400, // Profile avatar size
+        maxSizeMB: 0.2,
+        maxWidthOrHeight: 400,
         useWebWorker: true,
         fileType: "image/jpeg" as const,
         initialQuality: 0.8,
@@ -183,40 +188,33 @@ export default function ProfilePage() {
 
       const compressedFile = await imageCompression(file, options);
 
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
+      const formData = new FormData();
+      formData.append("image", compressedFile, "profile.jpg");
+      formData.append("type", "profile");
+      formData.append("userId", user.id);
 
-        // Upload to API
-        const uploadResponse = await apiFetch(getApiUrl("/api/user/upload-photo"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            image: base64String,
-            filename: "profile.jpg",
-          }),
-        });
+      const uploadResponse = await apiFetch(getApiUrl("/api/user/upload-photo"), {
+        method: "POST",
+        body: formData,
+      });
 
-        const uploadData = await uploadResponse.json();
+      const uploadData = await uploadResponse.json();
 
-        if (uploadData.success && uploadData.photoUrl) {
-          setPhotoUrl(uploadData.photoUrl);
-          setSuccess("Profile picture updated successfully!");
-          setTimeout(() => setSuccess(""), 3000);
-          setShowCropModal(false);
-          setImageSrc("");
-          URL.revokeObjectURL(croppedImageUrl);
-        } else {
-          setError(uploadData.error || "Failed to upload image");
-        }
-      };
-      reader.readAsDataURL(compressedFile);
-    } catch (error: any) {
+      if (uploadData.success && uploadData.photoUrl) {
+        setPhotoUrl(uploadData.photoUrl);
+        mergeUserIntoStorage({ photoUrl: uploadData.photoUrl });
+        setSuccess("Profile picture updated successfully!");
+        setTimeout(() => setSuccess(""), 3000);
+        setShowCropModal(false);
+        setImageSrc("");
+      } else {
+        setError(uploadData.error || "Failed to upload image");
+      }
+    } catch (error: unknown) {
       console.error("Error processing image:", error);
-      setError(error.message || "Failed to process image");
+      setError(error instanceof Error ? error.message : "Failed to process image");
     } finally {
+      if (croppedImageUrl) URL.revokeObjectURL(croppedImageUrl);
       setUploading(false);
     }
   };
@@ -285,16 +283,14 @@ export default function ProfilePage() {
     setError("");
     setSuccess("");
 
+    let croppedImageUrl: string | null = null;
     try {
-      // Get cropped image
-      const croppedImageUrl = await getCroppedImg(businessImageSrc, croppedAreaPixels);
+      croppedImageUrl = await getCroppedImg(businessImageSrc, croppedAreaPixels);
 
-      // Convert blob URL to File
       const response = await fetch(croppedImageUrl);
       const blob = await response.blob();
       const file = new File([blob], "business-logo.jpg", { type: "image/jpeg" });
 
-      // Compress for fast upload
       const options = {
         maxSizeMB: 0.3,
         maxWidthOrHeight: 512,
@@ -305,36 +301,31 @@ export default function ProfilePage() {
 
       const compressedFile = await imageCompression(file, options);
 
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
+      const formData = new FormData();
+      formData.append("image", compressedFile, "business-logo.jpg");
+      formData.append("type", "business");
+      formData.append("userId", user.id);
 
-        const uploadResponse = await apiFetch(getApiUrl("/api/user/upload-photo"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.id,
-            image: base64String,
-            type: "business",
-          }),
-        });
+      const uploadResponse = await apiFetch(getApiUrl("/api/user/upload-photo"), {
+        method: "POST",
+        body: formData,
+      });
 
-        const uploadData = await uploadResponse.json();
+      const uploadData = await uploadResponse.json();
 
-        if (uploadData.success && uploadData.photoUrl) {
-          setBusinessLogoUrl(uploadData.photoUrl);
-          setShowBusinessLogoCrop(false);
-          setBusinessImageSrc("");
-          setSuccess("Business logo uploaded successfully!");
-        } else {
-          setError(uploadData.error || "Failed to upload business logo");
-        }
-        setUploadingBusinessLogo(false);
-      };
-      reader.readAsDataURL(compressedFile);
-    } catch (error: any) {
+      if (uploadData.success && uploadData.photoUrl) {
+        setBusinessLogoUrl(uploadData.photoUrl);
+        setShowBusinessLogoCrop(false);
+        setBusinessImageSrc("");
+        setSuccess("Business logo uploaded successfully!");
+      } else {
+        setError(uploadData.error || "Failed to upload business logo");
+      }
+    } catch (error: unknown) {
       console.error("Error uploading business logo:", error);
-      setError(error.message || "Failed to upload business logo");
+      setError(error instanceof Error ? error.message : "Failed to upload business logo");
+    } finally {
+      if (croppedImageUrl) URL.revokeObjectURL(croppedImageUrl);
       setUploadingBusinessLogo(false);
     }
   };
@@ -365,9 +356,19 @@ export default function ProfilePage() {
         }),
       });
 
-      const data = await response.json();
+      const result = await responseJsonSafe<{ success?: boolean; error?: string }>(response);
+      if (!result.parseOk) {
+        throw new Error(result.parseError);
+      }
+      const data = result.data;
 
       if (data.success) {
+        const dn = displayName.trim();
+        mergeUserIntoStorage({
+          displayName: dn || null,
+          display_name: dn || null,
+          photoUrl: photoUrl ?? null,
+        });
         setSuccess("Profile updated successfully!");
         setTimeout(() => {
           router.push("/");
@@ -446,20 +447,12 @@ export default function ProfilePage() {
             </label>
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="relative shrink-0">
-                {photoUrl ? (
-                  <Image
-                    src={photoUrl}
-                    alt={displayName || "Profile"}
-                    width={64}
-                    height={64}
-                    className="rounded-full border-2 border-accent/20 object-cover w-14 h-14 sm:w-24 sm:h-24"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="w-14 h-14 sm:w-24 sm:h-24 rounded-full bg-primary/40 border-2 border-accent/10 flex items-center justify-center">
-                    <span className="material-icons-outlined text-accent/40 text-2xl sm:text-4xl">face</span>
-                  </div>
-                )}
+                <UserAvatar
+                  photoUrl={photoUrl}
+                  displayName={displayName}
+                  size={96}
+                  className="h-14 w-14 sm:h-24 sm:w-24"
+                />
                 {uploading && (
                   <div className="absolute inset-0 bg-secondary/50 rounded-full flex items-center justify-center">
                     <FSpinner size="sm" />
