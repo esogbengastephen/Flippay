@@ -269,6 +269,11 @@ export default function UtilityForm({
   const [payWalletBalances, setPayWalletBalances] = useState<
     Record<string, Record<string, { balance: string; symbol: string; usdValue?: number }>>
   >({});
+  /** Same source as `GET /api/wallet/balances` `addresses` — must drive EVM alignment for signing, not only localStorage. */
+  const [payServerWalletAddresses, setPayServerWalletAddresses] = useState<Record<
+    string,
+    string
+  > | null>(null);
 
   const BASE_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
   const BASE_USDT = "0xfde4c96c8593536e31f229ea8f37b2ada2699bb2";
@@ -859,6 +864,7 @@ export default function UtilityForm({
       setPayBalanceLoading(false);
       setPayBalanceAvailable(null);
       setPayGasWarning(null);
+      setPayServerWalletAddresses(null);
     }
   };
 
@@ -899,6 +905,7 @@ export default function UtilityForm({
     setPayBalanceLoading(false);
     setPayBalanceAvailable(null);
     setPayGasWarning(null);
+    setPayServerWalletAddresses(null);
     try {
       const res = await fetch(getApiUrl("/api/utility/quote"), {
         method: "POST",
@@ -980,6 +987,7 @@ export default function UtilityForm({
     setPayBalanceGap(null);
     setPayBalanceAvailable(null);
     setPayGasWarning(null);
+    setPayServerWalletAddresses(null);
 
     void (async () => {
       try {
@@ -1021,6 +1029,9 @@ export default function UtilityForm({
           const data = await res.json();
           if (!data.success || data.balances == null) return null;
           setPayWalletBalances(data.balances || {});
+          if (data.addresses && typeof data.addresses === "object") {
+            setPayServerWalletAddresses(data.addresses as Record<string, string>);
+          }
           const chainBal = data.balances[chain] as
             | Record<string, { balance: string }>
             | undefined;
@@ -1154,7 +1165,13 @@ export default function UtilityForm({
     }
     let walletData = generateWalletFromSeed(seedPhrase);
     const sessionUser = getUserFromStorage();
+    // Prefer addresses from the same `/api/wallet/balances` response used for the green check (DB),
+    // so legacy EVM alignment matches the wallet we actually showed balances for.
     const storedEvmForAlign =
+      payServerWalletAddresses?.base ||
+      payServerWalletAddresses?.ethereum ||
+      payServerWalletAddresses?.polygon ||
+      payServerWalletAddresses?.monad ||
       sessionUser?.walletAddresses?.base ||
       sessionUser?.walletAddresses?.ethereum ||
       sessionUser?.walletAddresses?.polygon ||
@@ -2090,6 +2107,7 @@ export default function UtilityForm({
               setPayBalanceLoading(false);
               setPayBalanceAvailable(null);
               setPayGasWarning(null);
+              setPayServerWalletAddresses(null);
             }
           }}
         >
@@ -2171,6 +2189,7 @@ export default function UtilityForm({
                     setPayBalanceLoading(false);
                     setPayBalanceAvailable(null);
                     setPayGasWarning(null);
+                    setPayServerWalletAddresses(null);
                   }}
                 >
                   ← Back
@@ -2345,6 +2364,7 @@ export default function UtilityForm({
                 setPayBalanceLoading(false);
                 setPayBalanceAvailable(null);
                 setPayGasWarning(null);
+                setPayServerWalletAddresses(null);
               }}
             >
               Cancel

@@ -1,24 +1,27 @@
 /**
- * Base URL for the backend API (FlipPayBackend).
- * - Production: uses NEXT_PUBLIC_API_URL when set.
- * - Local dev (browser on localhost:3000 + API on localhost:3001): returns "" so requests use
- *   same-origin `/api/...` and Next.js rewrites forward to the backend — avoids CORS stripping
- *   `X-Session-Token` on cross-origin calls.
+ * Base URL for backend API calls from the browser.
+ *
+ * Always prefer same-origin `/api/...` when `NEXT_PUBLIC_API_URL` is set: `next.config.mjs`
+ * rewrites those requests to the real backend (dev + production). That avoids cross-origin
+ * `fetch` failures (CORS, mixed content) and keeps `X-Session-Token` on same-origin requests.
+ *
+ * When `NEXT_PUBLIC_API_URL` is unset, fall back to calling the backend directly on
+ * `http://localhost:3001` only for local tooling edge cases; the main app should set the env.
  */
 export function getApiBase(): string {
   const env = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
-  const isBrowserLocalFront =
-    typeof window !== "undefined" &&
-    window.location.hostname === "localhost" &&
-    window.location.port === "3000";
-
-  if (isBrowserLocalFront && (!env || /^https?:\/\/localhost:3001\b/.test(env))) {
+  if (env) {
     return "";
   }
-  if (env) return env;
-  if (typeof window !== "undefined" && window.location.hostname === "localhost" && window.location.port === "3000") {
-    return "http://localhost:3001";
+
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname === "localhost" &&
+    window.location.port === "3000"
+  ) {
+    return "";
   }
+
   return "";
 }
 

@@ -17,17 +17,32 @@ const nextConfig = {
     ];
   },
   /**
-   * Local `next dev` only: same-origin `/api/*` → backend :3001 so `X-Session-Token` is not
-   * dropped by cross-origin CORS. Disabled on Vercel / production build.
+   * Proxy `/api/*` on this app to the FlipPay backend so the browser stays same-origin.
+   * That keeps `X-Session-Token` and avoids CORS failures in production.
+   *
+   * Set `NEXT_PUBLIC_API_URL` to your backend base (no trailing slash), e.g. `https://api.example.com`.
+   * - Dev: defaults to `http://localhost:3001` when unset.
+   * - Production: rewrites are only applied when `NEXT_PUBLIC_API_URL` is set (required for deploy).
    */
   async rewrites() {
-    if (process.env.VERCEL || process.env.NODE_ENV === "production") {
-      return [];
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
+    const isProd = Boolean(process.env.VERCEL) || process.env.NODE_ENV === "production";
+
+    if (isProd) {
+      if (!apiUrl) return [];
+      return [
+        {
+          source: "/api/:path*",
+          destination: `${apiUrl}/api/:path*`,
+        },
+      ];
     }
+
+    const destinationBase = apiUrl || "http://localhost:3001";
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3001/api/:path*",
+        destination: `${destinationBase}/api/:path*`,
       },
     ];
   },

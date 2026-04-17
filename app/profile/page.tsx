@@ -62,18 +62,28 @@ export default function ProfilePage() {
     setUser(currentUser);
   }, [router]);
 
+  const networkErrorMessage = (err: unknown) => {
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      return "Could not reach the server. Ensure the frontend is deployed with NEXT_PUBLIC_API_URL set to your backend URL.";
+    }
+    return err instanceof Error ? err.message : "Something went wrong";
+  };
+
   const fetchProfile = async () => {
     if (!user?.id) return;
-    
+
     setLoading(true);
+    setError("");
     try {
       const response = await apiFetch(getApiUrl(`/api/user/profile?userId=${user.id}`));
-      const result = await responseJsonSafe<{ success?: boolean; profile?: any }>(response);
+      const result = await responseJsonSafe<{ success?: boolean; profile?: any; error?: string }>(
+        response
+      );
       if (!result.parseOk) {
         throw new Error(result.parseError);
       }
       const data = result.data;
-      
+
       if (data.success && data.profile) {
         setDisplayName(data.profile.displayName || "");
         setPhotoUrl(data.profile.photoUrl || null);
@@ -85,9 +95,12 @@ export default function ProfilePage() {
         setBusinessState(data.profile.businessState || "");
         setBusinessZip(data.profile.businessZip || "");
         setBusinessPhone(data.profile.businessPhone || "");
+      } else {
+        setError(data.error || "Could not load profile");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      setError(networkErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -198,7 +211,15 @@ export default function ProfilePage() {
         body: formData,
       });
 
-      const uploadData = await uploadResponse.json();
+      const uploadResult = await responseJsonSafe<{
+        success?: boolean;
+        photoUrl?: string;
+        error?: string;
+      }>(uploadResponse);
+      if (!uploadResult.parseOk) {
+        throw new Error(uploadResult.parseError);
+      }
+      const uploadData = uploadResult.data;
 
       if (uploadData.success && uploadData.photoUrl) {
         setPhotoUrl(uploadData.photoUrl);
@@ -212,7 +233,7 @@ export default function ProfilePage() {
       }
     } catch (error: unknown) {
       console.error("Error processing image:", error);
-      setError(error instanceof Error ? error.message : "Failed to process image");
+      setError(networkErrorMessage(error));
     } finally {
       if (croppedImageUrl) URL.revokeObjectURL(croppedImageUrl);
       setUploading(false);
@@ -311,7 +332,15 @@ export default function ProfilePage() {
         body: formData,
       });
 
-      const uploadData = await uploadResponse.json();
+      const uploadResult = await responseJsonSafe<{
+        success?: boolean;
+        photoUrl?: string;
+        error?: string;
+      }>(uploadResponse);
+      if (!uploadResult.parseOk) {
+        throw new Error(uploadResult.parseError);
+      }
+      const uploadData = uploadResult.data;
 
       if (uploadData.success && uploadData.photoUrl) {
         setBusinessLogoUrl(uploadData.photoUrl);
@@ -323,7 +352,7 @@ export default function ProfilePage() {
       }
     } catch (error: unknown) {
       console.error("Error uploading business logo:", error);
-      setError(error instanceof Error ? error.message : "Failed to upload business logo");
+      setError(networkErrorMessage(error));
     } finally {
       if (croppedImageUrl) URL.revokeObjectURL(croppedImageUrl);
       setUploadingBusinessLogo(false);
@@ -376,8 +405,8 @@ export default function ProfilePage() {
       } else {
         setError(data.error || "Failed to update profile");
       }
-    } catch (error: any) {
-      setError(error.message || "Failed to update profile");
+    } catch (error: unknown) {
+      setError(networkErrorMessage(error));
     } finally {
       setSaving(false);
     }

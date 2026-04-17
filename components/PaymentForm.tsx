@@ -275,9 +275,7 @@ export default function PaymentForm({ network = "send" }: PaymentFormProps) {
         .catch(() => { if (!cancelled) setRateFromApi(false); });
 
       // Token prices for buy rate display (optional; proxy already gives rate fallback)
-      const base = (process.env.NEXT_PUBLIC_API_URL ?? "").trim() || (typeof window !== "undefined" && window.location.port === "3000" ? "http://localhost:3001" : "");
-      const pricesUrl = base ? `${base}/api/token-prices?t=${t}` : `/api/token-prices?t=${t}`;
-      fetch(pricesUrl, { cache: "no-store" })
+      fetch(getApiUrl(`/api/token-prices?t=${t}`), { cache: "no-store" })
         .then((r) => r.json())
         .then((data) => {
           if (cancelled || !data?.success || !data.pricesNGN) return;
