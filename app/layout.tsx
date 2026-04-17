@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat, Inter } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
@@ -22,14 +22,21 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-export const metadata: Metadata = {
-  title: "FlipPay",
-  description: "Deposit Naira and receive $SEND tokens on Base",
-  manifest: "/manifest.json",
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#05110B" },
     { media: "(prefers-color-scheme: dark)", color: "#05110B" },
   ],
+};
+
+export const metadata: Metadata = {
+  title: "FlipPay",
+  description: "Deposit Naira and receive $SEND tokens on Base",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -129,7 +136,6 @@ export default function RootLayout({
           src="https://checkout.flutterwave.com/v3.js"
           strategy="afterInteractive"
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -251,36 +257,62 @@ export default function RootLayout({
                   // Don't prevent default for critical errors - let ErrorBoundary handle them
                 }, true); // Use capture phase
                 
-                // Handle unhandled promise rejections
+                // Handle unhandled promise rejections (log readable reason — Events/plain objects often stringify as {})
+                function stringifyRejectionReason(reason) {
+                  if (reason == null) return String(reason);
+                  if (reason instanceof Error) {
+                    return reason.name + ': ' + reason.message + (reason.stack ? ' | ' + reason.stack : '');
+                  }
+                  if (typeof reason === 'object') {
+                    try {
+                      var j = JSON.stringify(reason);
+                      if (j && j !== '{}') return j;
+                    } catch (e1) {}
+                    if (reason && reason.message) return String(reason.message);
+                    return '[object Object] (likely a DOM Event or non-enumerable rejection)';
+                  }
+                  return String(reason);
+                }
                 window.addEventListener('unhandledrejection', function(event) {
-                  console.error('Unhandled promise rejection:', {
-                    reason: event.reason,
-                    promise: event.promise
-                  });
-                  
-                  // Handle WebSocket promise rejections
+                  const reasonText = stringifyRejectionReason(event.reason);
+                  const lowerReasonText = reasonText.toLowerCase();
+
+                  // MetaMask extension failures (locked wallet, blocked site, etc.) often surface as
+                  // unhandled rejections from inpage.js even when the UI catch() runs too — do not
+                  // console.error here or Next.js dev overlay reports a false "Console Error".
+                  if (
+                    lowerReasonText.includes('failed to connect to metamask') ||
+                    (lowerReasonText.includes('metamask') && lowerReasonText.includes('connect'))
+                  ) {
+                    event.preventDefault();
+                    return;
+                  }
+
                   if (event.reason && typeof event.reason === 'object') {
                     const reasonMsg = (event.reason.message || String(event.reason)).toLowerCase();
-                    
-                    // WebSocket errors - non-critical, prevent from crashing
-                    if (reasonMsg.includes('websocket') && 
-                        (reasonMsg.includes('insecure') || 
-                         reasonMsg.includes('not available') ||
-                         reasonMsg.includes('operation is insecure'))) {
+
+                    if (
+                      reasonMsg.includes('websocket') &&
+                      (reasonMsg.includes('insecure') ||
+                        reasonMsg.includes('not available') ||
+                        reasonMsg.includes('operation is insecure'))
+                    ) {
                       console.warn('WebSocket promise rejection, app will use polling fallback');
                       event.preventDefault();
                       return;
                     }
-                    
-                    // Network errors that are handled by the app
-                    if (reasonMsg.includes('network') || 
-                        reasonMsg.includes('fetch') ||
-                        reasonMsg.includes('timeout')) {
-                      // These are handled by the app, don't show default error
+
+                    if (
+                      reasonMsg.includes('network') ||
+                      reasonMsg.includes('fetch') ||
+                      reasonMsg.includes('timeout')
+                    ) {
                       event.preventDefault();
                       return;
                     }
                   }
+
+                  console.error('Unhandled promise rejection:', reasonText);
                 });
                 
                 // Handle React errors that escape ErrorBoundary
